@@ -1,4 +1,4 @@
-# Project Plan
+# Project Overview
 
 ### Name & Tagline
 **RAGTrader** — *Retrieve. Reason. Trade.*
@@ -39,13 +39,18 @@ RAGTrader is a crypto analytics and prototyping platform that fuses price data f
    - Natural-language → **Strategy DSL** via LLM with guardrails.
    - Vectorized backtests; metrics (CAGR, Sharpe, max DD, hit rate, turnover).
 3. **RAG Explorer**
-   - Ask questions; retrieve snippets; concise LLM summary with citations.
+ 
+
+**Portfolio polish (UI)**
+- **Causality Map**: animated network where edges **pulse** in real time as relationships strengthen/weakening.
+- **Explainability chips**: hover any metric to see a one‑sentence LLM explanation with a source link.
+  - Ask questions; retrieve snippets; concise LLM summary with citations.
 
 ### Architecture Overview
 - **Frontend:** Next.js (TS), Tailwind + shadcn/ui, Plotly/Recharts, TanStack Query.
 - **Backend:** FastAPI (Python). Services: ingestion (prices, articles), NLP pipeline (sentiment), analytics (lead/lag, Granger), backtester, RAG.
-- **Storage:** DuckDB + Parquet (fast MVP) or Postgres/Timescale. Vector store: Qdrant/Chroma.
-- **Infra:** Docker; Cloud Run services; Cloud Scheduler for jobs; Secret Manager.
+- **Storage:** **Postgres (Timescale optional) as a docker service** for time‑series & metadata (no files inside the repo). **Vector store:** **Qdrant Cloud (Free Tier)** by default; Chroma supported behind an abstraction if required.
+- **Infra:** Docker with **immutable containers**; **12‑Factor** alignment; Cloud Run services; Cloud Scheduler for jobs; Secret Manager (prod) and `.env` files (dev).
 
 ### Demo Narrative (Portfolio)
 1. Select BTC & ETH → dashboard highlights a 60–90m sentiment lead over last 24h.
@@ -62,3 +67,84 @@ RAGTrader is a crypto analytics and prototyping platform that fuses price data f
 - Prominent **“Educational use only — not financial advice.”**
 - Respect site ToS/robots; provide per-source enable/disable.
 - Clearly display data freshness timestamps.
+
+
+### Engineering Workflow
+- **Monorepo** layout (`/web`, `/api`, `/pipelines`).
+- **GitFlow** branching: `main`, `develop`, feature branches (`feature/*`), and `hotfix/*` when needed.
+- CI runs lint, type checks, tests, coverage gates, Docker build, and **external reachability smoke tests** (Coinbase/RSS/Qdrant).
+- Dev/Prod parity: compose files mirror production; secrets in dev via `.env`.
+
+### Runbook: Dev vs Prod
+
+**Prereqs**  
+- Docker & Docker Compose, Node 20+, Python 3.11.  
+- (Prod) `gcloud` CLI authenticated to your project.  
+- Qdrant Cloud API key (free tier) or self-hosted Qdrant service in compose.
+
+**Environment files**  
+Create `.env` files (no secrets committed):
+```bash
+# .env (shared defaults for compose)
+ENV=dev
+POSTGRES_HOST=postgres
+POSTGRES_DB=ragtrader
+POSTGRES_USER=ragtrader
+POSTGRES_PASSWORD=ragtrader
+API_PORT=8000
+WEB_PORT=5173
+QDRANT_URL=https://<your-qdrant-endpoint>
+QDRANT_API_KEY=<your-key>
+COINBASE_API_BASE=https://api.exchange.coinbase.com
+```
+
+**Local Dev** (parity with prod where possible)
+```bash
+# start everything
+docker compose up -d --build
+# view logs
+docker compose logs -f api
+# health checks
+curl -f http://localhost:${API_PORT:-8000}/healthz
+open http://localhost:${WEB_PORT:-5173}
+# run tests (incl. external reachability smoke tests)
+docker compose exec api pytest -q
+```
+
+To use **self-hosted Qdrant** in dev, add the `qdrant` service to `docker-compose.yml` and set `QDRANT_URL=http://qdrant:6333`.
+
+**Production (Cloud Run example)**  
+Build images with immutable tags (git SHA), push, and deploy:
+```bash
+export PROJECT_ID=<gcp-project>
+export REGION=europe-west1
+export TAG=$(git rev-parse --short HEAD)
+
+# build & push
+docker build -t gcr.io/$PROJECT_ID/ragtrader-api:$TAG -f api/Dockerfile .
+docker build -t gcr.io/$PROJECT_ID/ragtrader-web:$TAG -f web/Dockerfile .
+docker push gcr.io/$PROJECT_ID/ragtrader-api:$TAG
+docker push gcr.io/$PROJECT_ID/ragtrader-web:$TAG
+
+# secrets (one-time)
+# gcloud secrets create QDRANT_API_KEY --data-file=-  (or use Console)
+# gcloud secrets create DATABASE_URL --data-file=-
+
+# deploy
+gcloud run deploy ragtrader-api   --image gcr.io/$PROJECT_ID/ragtrader-api:$TAG   --region $REGION   --set-env-vars=ENV=prod,QDRANT_URL=<cloud-endpoint>,COINBASE_API_BASE=https://api.exchange.coinbase.com   --set-secrets=QDRANT_API_KEY=QDRANT_API_KEY:latest,DATABASE_URL=DATABASE_URL:latest
+
+gcloud run deploy ragtrader-web   --image gcr.io/$PROJECT_ID/ragtrader-web:$TAG   --region $REGION   --set-env-vars=ENV=prod,API_BASE_URL=<api-url>
+
+# (optional) scheduler for polling
+gcloud scheduler jobs create http ohlcv-pull   --schedule="*/5 * * * *"   --uri="<api-url>/jobs/poll_ohlcv"   --http-method=POST   --oauth-service-account-email=<svc>@$PROJECT_ID.iam.gserviceaccount.com
+```
+
+**Rollback**
+```bash
+gcloud run revisions list --service=ragtrader-api --region $REGION
+gcloud run services update-traffic ragtrader-api --region $REGION --to-revisions <prev>=100
+```
+
+**Observability**  
+- Local: `docker compose logs -f` for `api`, `web`, `postgres`.  
+- Prod: Cloud Run logs & metrics; add uptime checks for `/healthz`.

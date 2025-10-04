@@ -15,11 +15,15 @@
 **Goal:** Solid repo/infra with automated quality gates; Coinbase OHLCV ingest to storage.
 
 **Tasks**
-- Monorepo or dual-repo scaffold (`/web`, `/api`, `/pipelines`).
+- **Monorepo** scaffold (`/web`, `/api`, `/pipelines`) with **GitFlow** branching (main, develop, feature/*, hotfix/*).
 - GitHub Actions: lint, type-check, tests, coverage gates, Docker build.
-- Python: FastAPI skeleton; DuckDB/Parquet storage; Coinbase OHLCV poller.
+- Python: FastAPI skeleton; **Postgres (Timescale optional) as a docker service** for time‑series/metadata (no files in repo); Coinbase OHLCV poller.
 - Frontend: Next.js skeleton, UI kit setup (shadcn/ui), auth gate (basic).
 - Pre-commit: ruff, black, isort, mypy; ESLint, Prettier, TypeScript strict.
+- Vector store wired to **Qdrant Cloud (Free Tier)** (or self‑hosted Qdrant as a docker service for offline dev). Add thin repository interface to allow swapping providers.
+- **Dev/Prod parity**: compose files align with Cloud Run deploys; development secrets via `.env`.
+- CI smoke **reachability tests** for Coinbase, RSS endpoints, and Qdrant (with graceful skip on rate limits).
+
 
 **Deliverables**
 - Passing CI on PRs; Docker images build.
@@ -29,6 +33,7 @@
 **Acceptance Criteria**
 - `make test` passes with ≥80% backend coverage.
 - Scheduled job (local + Cloud Scheduler) writes fresh OHLCV.
+- CI logs show successful external **reachability** checks (Coinbase/RSS/Qdrant) in the pipeline.
 
 ---
 
@@ -76,6 +81,8 @@
 - Lead/lag heatmap (matrix across coin pairs) & per-pair correlogram.
 - Influence graph (force-directed) with tooltips & edge strength legend.
 - Event Cards linking to source URLs.
+- **Causality Map**: animated network where edges **pulse** in real time as relationships strengthen/weakening.
+- **Explainability chips**: hover any metric/label to see a one‑sentence LLM explanation with a source link.
 
 **Deliverables**
 - `/dashboard` route with the above widgets.
@@ -83,6 +90,8 @@
 
 **Acceptance Criteria**
 - User can select BTC/ETH and see lead/lag + best-lag label update under 1s after API response.
+- **Explainability chips** appear on hover with a one‑sentence rationale and a live source link.
+- **Causality Map** edges visibly pulse in response to changing edge strengths.
 
 ---
 
@@ -94,6 +103,7 @@
 - Vectorized backtester with basic slippage & fee assumptions.
 - LLM prompt → DSL converter with JSON schema validation (no eval).
 - RAG: ingest titles + summaries to vector store; question → retrieve top-k → concise answer with citations.
+- Finalize **vector store** per **ADR-001** (Qdrant vs Chroma); default to Qdrant Cloud.
 - Cloud Run deploys (web/api), Cloud Scheduler for jobs, basic auth + secrets.
 
 **Deliverables**

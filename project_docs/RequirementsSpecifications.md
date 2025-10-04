@@ -27,7 +27,7 @@
 - **FR-12:** System shall output backtest metrics (CAGR, Sharpe, max DD, win rate, turnover) and plots (equity, drawdown, exposure).
 
 #### 1.5 RAG Explorer
-- **FR-13:** System shall index item titles + summaries (and optional cleaned body text) into a vector store.
+- **FR-13:** System shall index item titles + summaries (and optional cleaned body text) into a vector store (**remote or dedicated container**).
 - **FR-14:** System shall answer free-text questions by retrieving top-k items and producing a concise answer with **clickable citations**.
 
 #### 1.6 Web UI
@@ -35,6 +35,8 @@
 - **FR-16:** Strategy Studio shall accept NL description → show parsed DSL → run backtest → display metrics/plots.
 - **FR-17:** RAG view shall render query, retrieved snippets (title, source, time), and summary.
 - **FR-18:** UI shall show data freshness timestamps and environment badges (DEV/PROD).
+- **FR-23:** Dashboard shall include a **Causality Map**: an animated network where edges pulse in real time proportional to strengthening/weakening relationships (lead/lag or Granger evidence).
+- **FR-24:** Dashboard metrics and labels shall support **Explainability chips**: on hover, show a one‑sentence LLM explanation with a source link to the underlying item(s).
 
 #### 1.7 API & Auth
 - **FR-19:** Provide REST endpoints for data/analytics and OpenAPI docs.
@@ -43,8 +45,12 @@
 #### 1.8 DevEx & CI/CD
 - **FR-21:** GitHub Actions shall run lint, type-check, tests, coverage gates, and build Docker images on PRs; main merges trigger deploy to Cloud Run.
 - **FR-22:** Pre-commit hooks shall enforce formatters/linters.
+- **FR-25:** CI must run **external service reachability smoke tests** (Coinbase API, RSS endpoints, vector DB) with graceful skips on rate limits.
 
 ### 2. Non-Functional Requirements
+- **NFR-13:** **12‑Factor** alignment: immutable containers where possible; configuration strictly via environment variables; logs as streams; disposability for fast startup/shutdown.
+- **NFR-14:** **Dev/Prod parity**: containerized development closely mirrors production. Development secrets are provided via `.env` files; production secrets via Secret Manager; no secrets committed to the repo.
+- **NFR-15:** **External data persistence**: no database files or vector indexes inside the repo. Use docker volumes or an external managed service for relational/time‑series data, and a remote or dedicated container for vector storage.
 
 #### 2.1 Performance
 - **NFR-1:** Typical API responses for analytics ≤ 500 ms with cached data; backtests on 30 days of 1h bars ≤ 3 s.
@@ -89,6 +95,24 @@
 - AC-2: At least one sample strategy backtest completes with metrics and plots.
 - AC-3: RAG query returns a summarized answer with ≥3 citations.
 - AC-4: CI pipelines enforce lint, tests, and coverage; Cloud Run deploy succeeds from main.
+
+
+### 6. Architecture Decisions (ADRs)
+
+**ADR-001 — Vector Store: Qdrant vs Chroma**  
+**Context:** We require a remotely persisted vector database compatible with RAG, offering cloud or self‑hosted options and solid embeddings/search features.
+
+**Options**  
+- **Qdrant (Cloud Free Tier or self‑hosted):** Production‑grade server written in Rust, HNSW/IVF, payload filters, snapshots/backup, managed cloud with auth and TLS. Remote by default, easy multi‑env separation.  
+- **Chroma (OSS):** Simple developer‑friendly API, but commonly runs embedded/file‑backed; cloud options less mature; persistence often local unless additionally containerized with a mounted volume.
+
+**Decision (MVP):** **Adopt Qdrant Cloud (Free Tier)** for vectors in DEV/PROD to satisfy remote persistence and parity. Allow swapping to self‑hosted Qdrant via docker‑compose if cloud access is constrained.
+
+**Consequences:**  
+- CI/CD can run lightweight “reachability” checks against Qdrant (with API key).  
+- RAG indexes (embeddings) never reside in the repo; they live in Qdrant collections.  
+- A thin repository interface abstracts Qdrant, enabling future Chroma support behind a feature flag.
+
 
 ### 5. Glossary
 - **Lead/Lag:** Temporal relationship where one signal precedes another.
