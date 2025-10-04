@@ -7,6 +7,8 @@
 
 # Python test coverage data
 .coverage
+htmlcov/
+.pytest_cache/
 
 # Temporary scratch files
 scratches/
@@ -14,6 +16,11 @@ scratches/
 # Project scaffolder scripts
 scaffold.sh
 tree.txt
+
+# Node artifacts
+web/node_modules/
+web/.next/
+web/coverage/
 
 # Others...
 __pycache__/
