@@ -12,13 +12,16 @@ The settings model reads environment variables using the
 
 | Variable | Description |
 | --- | --- |
-| `RAGTRADER_API_POSTGRES_DSN` | PostgreSQL DSN used by the service when database access is required. |
-| `RAGTRADER_API_QDRANT_URL` | Base URL for the Qdrant vector store. |
+| `RAGTRADER_API_POSTGRES_DSN` | PostgreSQL DSN used by the service when database access is required. Uses the `postgresql+psycopg://` driver string. |
 | `RAGTRADER_API_REQUIRE_DATABASE` | Set to `false` to skip enforcing a database DSN in local tests. |
+| `RAGTRADER_API_QDRANT_URL` | Base URL for the Qdrant vector store. |
 | `RAGTRADER_API_REQUIRE_VECTOR_STORE` | Set to `false` to bypass vector store readiness checks. |
 
 The default environment is `dev`, with additional allowed values of
 `staging` and `prod`.
+
+`env.example` contains a ready-to-use DSN targeting the docker-compose
+Postgres service; copy it into your `.env` to get started quickly.
 
 ## Health Endpoints
 
@@ -35,4 +38,14 @@ The lightweight application harness exposes two operational endpoints:
 # create and activate a virtual environment of your choice, then
 pip install -e .[dev]
 pytest
+```
+
+### Database workflows
+
+```bash
+# Apply migrations using the configured DSN
+python -m ragtrader_api.db
+
+# Run integration tests that exercise Postgres + Alembic
+pytest tests/test_database.py
 ```

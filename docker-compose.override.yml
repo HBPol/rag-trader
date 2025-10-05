@@ -18,7 +18,7 @@ services:
 
   api:
     environment:
-      - QDRANT_URL=http://qdrant:6333
+      - RAGTRADER_API_QDRANT_URL=http://qdrant:6333
 
 volumes:
   qdrantdata:

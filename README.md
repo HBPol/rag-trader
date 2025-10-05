@@ -40,6 +40,9 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e .[dev]
 pytest
 
+# Apply database migrations (requires Docker or a reachable Postgres DSN)
+python -m ragtrader_api.db
+
 # Pipelines package
 cd ../pipelines
 python -m venv .venv && source .venv/bin/activate
