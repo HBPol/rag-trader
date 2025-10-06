@@ -27,7 +27,7 @@ dev = [
   "isort>=5.13",
   "mypy>=1.8",
   "httpx>=0.26",
-  "testcontainers[postgresql]>=3.7",
+  "testcontainers[postgresql]>=4.1",
   "psycopg2-binary>=2.9",
 ]
 
