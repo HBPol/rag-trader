@@ -57,8 +57,10 @@ pnpm test
 
 ### Root Tooling
 - **Pre-commit** enforces Ruff, Black, isort, mypy, ESLint, and Prettier.
-- Docker Compose services and CI workflows will be introduced in later issues per the
-  [project plan](project_docs/ProjectPlan.md).
+- **Docker Compose & CI** ensure parity across services via automated smoke tests running in
+  GitHub Actions.
+- **Compose smoke test** ensures `.env.example` and the Docker Compose files stay aligned. Run
+  `pytest tests/test_compose.py` before relying on the stack locally or in CI.
 - **PyCharm + Docker**: add a Docker Compose interpreter pointed at the `api` service so
   editor actions reuse the container runtime. In *Settings → Project → Python Interpreter*,
   click **Add Interpreter… → Docker Compose**, select `docker-compose.yml` (and optionally
@@ -72,6 +74,9 @@ pnpm test
 ```bash
 # Set up env
 cp .env.example .env
+
+# Validate Compose parity and health checks
+pytest tests/test_compose.py
 
 # Run with remote Qdrant (Cloud)
 docker compose up -d --build

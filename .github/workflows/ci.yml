@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .[dev]
+        working-directory: api
+      - run: pytest
+        working-directory: api
+
+  pipelines-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .[dev]
+        working-directory: pipelines
+      - run: pytest
+        working-directory: pipelines
+
+  web-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - run: corepack enable
+      - run: pnpm install
+        working-directory: web
+      - run: pnpm test
+        working-directory: web
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    needs: [api-tests, pipelines-tests, web-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements-dev.txt
+      - name: Run Compose smoke tests
+        env:
+          API_PORT: "18080"
+          WEB_PORT: "15173"
+          POSTGRES_PORT: "15432"
+          RAGTRADER_API_USE_QDRANT_CLOUD: "false"
+        run: pytest tests/test_compose.py
