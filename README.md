@@ -59,8 +59,9 @@ pnpm test
 
 ### Root Tooling
 - **Pre-commit** enforces Ruff, Black, isort, mypy, ESLint, and Prettier.
-- **Docker Compose & CI** ensure parity across services via automated smoke tests running in
-  GitHub Actions.
+- **Docker Compose & CI** expose the API, web, Postgres, and Redis services (with an optional
+  local Qdrant override) described in the [Quickstart](#quickstart), and GitHub Actions already
+  runs smoke tests with the stack while we stage deeper pipeline coverage for upcoming CI work.
 - **Compose smoke test** ensures `.env.example` and the Docker Compose files stay aligned. Run
   `pytest tests/test_compose.py` before relying on the stack locally or in CI. See [Compose Smoke
   Tests](#compose-smoke-tests) for details on the scenarios covered.
@@ -82,11 +83,17 @@ pnpm test
 # Set up env
 cp .env.example .env
 
+# Fill in vector store credentials from Qdrant Cloud so the API can reach your cluster
+$EDITOR .env  # set QDRANT_URL and QDRANT_API_KEY to match .env.example hints
+
 # Validate Compose parity and health checks
 pytest tests/test_compose.py
 
 # Run with remote Qdrant (Cloud)
 docker compose up -d --build
+
+# OR run fully offline (disables the vector store requirement until you bring one online)
+RAGTRADER_API_REQUIRE_VECTOR_STORE=false docker compose up -d --build
 
 # OR run with local Qdrant (override adds qdrant service + points API to it)
 docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build
@@ -95,6 +102,10 @@ docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --buil
 curl -f http://localhost:8000/healthz
 open http://localhost:5173
 ```
+
+> **Notes**
+> - You can create or reuse a managed cluster in [Qdrant Cloud](https://qdrant.tech/cloud/) to obtain the `QDRANT_URL` and `QDRANT_API_KEY` values referenced in `.env.example`.
+> - The override stack is opt-in: include `-f docker-compose.override.yml` when you want the co-located Qdrant container, or omit it to keep pointing at Qdrant Cloud.
 
 Once the services report healthy, exercise the FastAPI service at
 `http://localhost:8000/docs` or `http://localhost:8000/healthz` and browse the web frontend on

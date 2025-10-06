@@ -1,9 +1,9 @@
 # RAGTrader API
 
-This package houses the FastAPI application and related services for the
-RAGTrader platform. The implementation will evolve in later issues; for
-now we focus on configuration plumbing and health/readiness scaffolding
-to enable TDD for subsequent tasks.
+This package houses the FastAPI application and supporting services for the
+RAGTrader platform. It currently bundles the database helpers, Alembic
+migration CLI, and the health/readiness endpoints that keep ingestion
+pipelines operational while the broader implementation evolves.
 
 ## Configuration Summary
 
@@ -78,3 +78,7 @@ python -m ragtrader_api.db
 # Run integration tests that exercise Postgres + Alembic
 pytest tests/test_database.py
 ```
+
+* Migration helpers live in `src/ragtrader_api/db/migrations/__init__.py`.
+* The CLI entry point (`python -m ragtrader_api.db`) resolves to
+  `src/ragtrader_api/db/__main__.py`.
