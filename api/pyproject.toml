@@ -28,6 +28,7 @@ dev = [
   "mypy>=1.8",
   "httpx>=0.26",
   "testcontainers[postgresql]>=3.7",
+  "psycopg2-binary>=2.9",
 ]
 
 [tool.pytest.ini_options]
