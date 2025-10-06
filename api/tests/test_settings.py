@@ -16,12 +16,13 @@ def _clear_settings_cache() -> None:
 
 def test_settings_require_postgres_dsn_when_database_required() -> None:
     with pytest.raises(SettingsValidationError):
-        ApiSettings(qdrant_url="https://qdrant.cloud")
+        ApiSettings(qdrant_url="http://localhost:6333", require_vector_store=False)
 
 
 def test_settings_can_disable_database_requirement(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("RAGTRADER_API_REQUIRE_DATABASE", "false")
     monkeypatch.setenv("RAGTRADER_API_QDRANT_URL", "https://qdrant.cloud")
+    monkeypatch.setenv("RAGTRADER_API_QDRANT_API_KEY", "key")
     settings = ApiSettings()
 
     assert settings.require_database is False
@@ -35,6 +36,7 @@ def test_settings_load_from_environment(monkeypatch: pytest.MonkeyPatch) -> None
         "postgresql+psycopg://user:pass@localhost:5432/app",
     )
     monkeypatch.setenv("RAGTRADER_API_QDRANT_URL", "https://example-qdrant")
+    monkeypatch.setenv("RAGTRADER_API_QDRANT_API_KEY", "key")
 
     settings = ApiSettings()
 
@@ -49,9 +51,21 @@ def test_get_settings_returns_cached_instance(monkeypatch: pytest.MonkeyPatch) -
         "postgresql+psycopg://user:pass@localhost:5432/app",
     )
     monkeypatch.setenv("RAGTRADER_API_QDRANT_URL", "https://example-qdrant")
+    monkeypatch.setenv("RAGTRADER_API_QDRANT_API_KEY", "key")
 
     first = get_settings()
     second = get_settings()
 
     assert first is second
     assert first.readiness_checks()["vector_store"] is True
+
+
+def test_settings_require_api_key_for_cloud() -> None:
+    with pytest.raises(SettingsValidationError):
+        ApiSettings(
+            postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
+            qdrant_url="https://qdrant.cloud",
+            require_database=False,
+            use_qdrant_cloud=True,
+            require_vector_store=True,
+        )

@@ -14,6 +14,7 @@ def test_healthz_reports_service_metadata(monkeypatch: pytest.MonkeyPatch) -> No
         "postgresql+psycopg://user:pass@localhost:5432/app",
     )
     monkeypatch.setenv("RAGTRADER_API_QDRANT_URL", "https://example-qdrant")
+    monkeypatch.setenv("RAGTRADER_API_QDRANT_API_KEY", "key")
     settings = ApiSettings()
     app = create_app(settings=settings)
 
@@ -29,6 +30,7 @@ def test_readyz_indicates_dependency_failures() -> None:
     settings = ApiSettings(
         postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
         qdrant_url="https://example-qdrant",
+        qdrant_api_key="key",
     )
     # Simulate a missing dependency in readiness checks.
     settings.postgres_dsn = None

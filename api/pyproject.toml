@@ -17,6 +17,8 @@ dependencies = [
   "alembic>=1.13",
   "psycopg[binary]>=3.1",
   "uvicorn>=0.29",
+  "qdrant-client>=1.9",
+  "tenacity>=8.2",
 ]
 
 [project.optional-dependencies]

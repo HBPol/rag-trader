@@ -60,6 +60,8 @@ class ApiSettings:
     version: str
     postgres_dsn: str | None
     qdrant_url: str
+    qdrant_api_key: str | None
+    use_qdrant_cloud: bool
     require_database: bool
     require_vector_store: bool
 
@@ -71,6 +73,8 @@ class ApiSettings:
         version: str | None = None,
         postgres_dsn: str | None = _MISSING,
         qdrant_url: str | None = None,
+        qdrant_api_key: str | None = None,
+        use_qdrant_cloud: bool | None = None,
         require_database: bool | None = None,
         require_vector_store: bool | None = None,
     ) -> None:
@@ -95,30 +99,46 @@ class ApiSettings:
             if require_vector_store is not None
             else _coerce_bool(env_vars.get("RAGTRADER_API_REQUIRE_VECTOR_STORE"), default=True)
         )
+        raw_use_qdrant_cloud = (
+            use_qdrant_cloud
+            if use_qdrant_cloud is not None
+            else _coerce_bool(env_vars.get("RAGTRADER_API_USE_QDRANT_CLOUD"), default=True)
+        )
 
         if postgres_dsn is _MISSING:
             postgres_candidate = env_vars.get("RAGTRADER_API_POSTGRES_DSN")
         else:
             postgres_candidate = postgres_dsn
-        qdrant_candidate = qdrant_url if qdrant_url is not None else env_vars.get("RAGTRADER_API_QDRANT_URL", "https://qdrant.cloud")
+        qdrant_candidate = qdrant_url if qdrant_url is not None else env_vars.get("RAGTRADER_API_QDRANT_URL", "http://localhost:6333")
+        qdrant_key = qdrant_api_key if qdrant_api_key is not None else env_vars.get("RAGTRADER_API_QDRANT_API_KEY")
 
         validated_postgres = _validate_postgres_dsn(postgres_candidate, required=raw_require_db)
         validated_qdrant = _validate_url(qdrant_candidate, allow_empty=not raw_require_vector)
         if validated_qdrant is None:
             raise SettingsValidationError("Qdrant URL is required when require_vector_store is enabled.")
+        if raw_require_vector and raw_use_qdrant_cloud and not qdrant_key:
+            raise SettingsValidationError(
+                "Qdrant API key is required when use_qdrant_cloud is enabled."
+            )
 
         self.env = raw_env
         self.app_name = raw_app_name
         self.version = raw_version
         self.postgres_dsn = validated_postgres
         self.qdrant_url = validated_qdrant
+        self.qdrant_api_key = qdrant_key
+        self.use_qdrant_cloud = raw_use_qdrant_cloud
         self.require_database = raw_require_db
         self.require_vector_store = raw_require_vector
 
     def readiness_checks(self) -> Dict[str, bool]:
         checks: Dict[str, bool] = {
             "database": (not self.require_database) or (self.postgres_dsn is not None),
-            "vector_store": (not self.require_vector_store) or bool(self.qdrant_url),
+            "vector_store": (not self.require_vector_store)
+            or (
+                bool(self.qdrant_url)
+                and (not self.use_qdrant_cloud or bool(self.qdrant_api_key))
+            ),
         }
         return checks
 
@@ -139,4 +159,8 @@ def get_settings() -> ApiSettings:
     return ApiSettings()
 
 
-__all__ = ["ApiSettings", "SettingsValidationError", "get_settings"]
+__all__ = [
+    "ApiSettings",
+    "SettingsValidationError",
+    "get_settings",
+]
