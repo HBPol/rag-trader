@@ -5,7 +5,14 @@ from __future__ import annotations
 from typing import Final
 
 from testcontainers.core.generic import DockerContainer
-from testcontainers.core.waiting_utils import LogMessageWaitStrategy
+
+try:  # pragma: no cover - import fallback logic
+    from testcontainers.core.waiting import LogMessageWaitStrategy
+except ImportError:  # pragma: no cover - maintain compatibility with older versions
+    try:
+        from testcontainers.core.waiting_utils import LogMessageWaitStrategy
+    except ImportError:  # pragma: no cover - final fallback for legacy package layout
+        from testcontainers.waiting import LogMessageWaitStrategy
 
 POSTGRES_IMAGE: Final[str] = "postgres:15-alpine"
 POSTGRES_DB: Final[str] = "test"
