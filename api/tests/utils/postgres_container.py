@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Final
 
 from testcontainers.core.generic import DockerContainer
-from testcontainers.waiting import LogMessageWaitStrategy
+from testcontainers.core.waiting_utils import LogMessageWaitStrategy
 
 POSTGRES_IMAGE: Final[str] = "postgres:15-alpine"
 POSTGRES_DB: Final[str] = "test"
