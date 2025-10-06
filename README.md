@@ -1,6 +1,6 @@
 # RAGTrader
 
-[![CI](https://github.com/HBPol/rag-trader/actions/workflows/ci.yml/badge.svg)](https://github.com/HBPol/rag-trader/actions/workflows/ci.yml)
+[![Monorepo CI](https://github.com/HBPol/rag-trader/actions/workflows/ci.yml/badge.svg)](https://github.com/HBPol/rag-trader/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/HBPol/rag-trader/graph/badge.svg?token=)](https://codecov.io/gh/HBPol/rag-trader)
 
 RAGTrader — Retrieve, Reason, Trade. A crypto analytics & strategy prototyping app
