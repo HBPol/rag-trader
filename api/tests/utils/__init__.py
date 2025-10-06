@@ -1,4 +1,4 @@
-"""Test utility exports to simplify imports."""
+"""Convenience exports for the tests utilities package."""
 
 from .postgres_container import PostgresTestContainer
 

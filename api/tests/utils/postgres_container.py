@@ -1,4 +1,4 @@
-"""Custom Postgres test container helpers."""
+"""Custom Postgres container helper for integration tests."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ class PostgresTestContainer(DockerContainer):
         self._database = database
         self._user = user
         self._password = password
-        self._port = str(port)
+        self._port = port
 
         self.with_env("POSTGRES_DB", database)
         self.with_env("POSTGRES_USER", user)
@@ -42,5 +42,5 @@ class PostgresTestContainer(DockerContainer):
 
     def get_connection_url(self) -> str:
         host = self.get_container_host_ip()
-        port = self.get_exposed_port(self._port)
+        port = self.get_exposed_port(POSTGRES_PORT)
         return f"postgresql://{self._user}:{self._password}@{host}:{port}/{self._database}"
