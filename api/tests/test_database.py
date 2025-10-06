@@ -7,7 +7,7 @@ from typing import Iterator
 import pytest
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
-from testcontainers.postgres import PostgresContainer
+from tests.utils.postgres_container import PostgresTestContainer
 
 from ragtrader_api.db import database
 from ragtrader_api.db.migrations import apply_migrations
@@ -15,15 +15,15 @@ from ragtrader_api.settings import ApiSettings
 
 
 @pytest.fixture(scope="session")
-def postgres_container() -> Iterator[PostgresContainer]:
+def postgres_container() -> Iterator[PostgresTestContainer]:
     """Spin up a disposable Postgres instance for the test session."""
 
-    with PostgresContainer("postgres:15-alpine") as container:
+    with PostgresTestContainer() as container:
         yield container
 
 
 @pytest.fixture()
-def engine(postgres_container: PostgresContainer) -> Iterator[Engine]:
+def engine(postgres_container: PostgresTestContainer) -> Iterator[Engine]:
     """Create a SQLAlchemy engine bound to the disposable database."""
 
     raw_url = postgres_container.get_connection_url()
