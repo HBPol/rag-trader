@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import socket
 import time
 from typing import Any, Final
 
@@ -94,6 +95,51 @@ class PostgresTestContainer(DockerContainer):
         self.waiting_for(
             LogMessageWaitStrategy("database system is ready to accept connections")
         )
+
+    def start(self) -> "PostgresTestContainer":  # type: ignore[override]
+        super().start()
+        self._wait_for_database_ready()
+        return self
+
+    def _wait_for_database_ready(self) -> None:
+        """Actively wait until Postgres accepts incoming connections."""
+
+        host = self.get_container_host_ip()
+        port = int(self.get_exposed_port(self._port))
+
+        # Best-effort TCP probe to ensure the port is reachable even when
+        # psycopg is unavailable. This mirrors the behaviour of the
+        # ``WaitForLogs`` strategy which blocks until the service is ready.
+        tcp_deadline = time.monotonic() + 30
+        while True:
+            try:
+                with socket.create_connection((host, port), timeout=1):
+                    break
+            except OSError:
+                if time.monotonic() >= tcp_deadline:
+                    raise TimeoutError("Timed out waiting for Postgres port to open")
+                time.sleep(0.1)
+
+        try:
+            import psycopg
+        except ImportError:  # pragma: no cover - optional dependency
+            return
+
+        dsn = (
+            f"host={host} port={port} dbname={self._database} "
+            f"user={self._user} password={self._password}"
+        )
+        deadline = time.monotonic() + 30
+        while True:
+            try:
+                with psycopg.connect(dsn, connect_timeout=1) as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT 1")
+                return
+            except psycopg.OperationalError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("Timed out waiting for Postgres to accept connections")
+                time.sleep(0.2)
 
     def get_connection_url(self) -> str:
         host = self.get_container_host_ip()
