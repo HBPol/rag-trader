@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { createContext } from 'react';
 import type { ReactNode } from 'react';
 import './globals.css';
+import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = {
   title: 'RAGTrader',
@@ -43,7 +44,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
+      <body className={cn('min-h-screen bg-background font-sans antialiased text-foreground')}>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

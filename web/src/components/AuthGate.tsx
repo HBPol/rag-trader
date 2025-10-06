@@ -2,7 +2,9 @@
 
 import type { ReactNode } from 'react';
 import { useContext } from 'react';
-import { AuthContext } from '../app/layout';
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
+import { AuthContext } from '@/app/layout';
 
 type AuthGateProps = {
   children: ReactNode;
@@ -10,14 +12,20 @@ type AuthGateProps = {
 };
 
 const defaultLockedView = (
-  <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-950 p-8 text-center text-slate-100">
-    <h1 className="text-3xl font-semibold">RAGTrader</h1>
-    <p className="max-w-lg text-base text-slate-300">
-      Sign in to unlock market insights, watchlists, and custom retrieval workflows.
-    </p>
-    <p className="text-sm text-slate-500">
-      Authentication is coming soon—use the mocked auth flag while integration is in flight.
-    </p>
+  <main className="flex min-h-screen items-center justify-center bg-background p-4 text-foreground">
+    <Card className="w-full max-w-lg text-center">
+      <CardHeader>
+        <CardTitle>RAGTrader</CardTitle>
+        <CardDescription>
+          Sign in to unlock market insights, watchlists, and custom retrieval workflows.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">
+          Authentication is coming soon—use the mocked auth flag while integration is in flight.
+        </p>
+      </CardContent>
+    </Card>
   </main>
 );
 

@@ -13,7 +13,11 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "types": ["vitest/globals", "jest-dom"]
+    "types": ["vitest/globals", "jest-dom"],
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["next-env.d.ts", "src/**/*", "__tests__/**/*"],
   "exclude": ["node_modules"]
