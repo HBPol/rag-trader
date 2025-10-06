@@ -36,6 +36,11 @@ except ImportError:  # pragma: no cover - maintain compatibility with older vers
                         wait_kwargs["timeout"] = self._timeout
                     container.wait_for_logs(self._message, **wait_kwargs)
 
+                # Modern testcontainers expects wait strategies to expose
+                # ``wait_until_ready``; fall back to ``wait`` for compatibility.
+                def wait_until_ready(self, container: DockerContainer) -> None:  # pragma: no cover - shim passthrough
+                    self.wait(container)
+
 POSTGRES_IMAGE: Final[str] = "postgres:15-alpine"
 POSTGRES_DB: Final[str] = "test"
 POSTGRES_USER: Final[str] = "test"
