@@ -7,7 +7,7 @@ from typing import Iterator
 import pytest
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
-from tests.utils.postgres_container import PostgresTestContainer
+from tests.utils import PostgresTestContainer
 
 from ragtrader_api.db import database
 from ragtrader_api.db.migrations import apply_migrations
