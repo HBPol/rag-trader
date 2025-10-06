@@ -64,6 +64,10 @@ pnpm test
 - **Compose smoke test** ensures `.env.example` and the Docker Compose files stay aligned. Run
   `pytest tests/test_compose.py` before relying on the stack locally or in CI. See [Compose Smoke
   Tests](#compose-smoke-tests) for details on the scenarios covered.
+- **External reachability probes** live in [`tools/reachability.py`](tools/reachability.py). They
+  verify Coinbase, RSS feeds, and Qdrant respond before we run heavier jobs. Execute
+  `python tools/reachability.py` locally or rely on the "External Reachability" CI job to exercise
+  them on every push.
 - **PyCharm + Docker**: add a Docker Compose interpreter pointed at the `api` service so
   editor actions reuse the container runtime. In *Settings → Project → Python Interpreter*,
   click **Add Interpreter… → Docker Compose**, select `docker-compose.yml` (and optionally
@@ -139,6 +143,34 @@ pytest tests/test_compose.py
 The tests boot the stack defined in [`docker-compose.yml`](docker-compose.yml) (optionally layered
 with [`docker-compose.override.yml`](docker-compose.override.yml)) and assert each service's
 `/healthz` endpoint responds successfully.
+
+## External reachability probes
+
+[`tools/reachability.py`](tools/reachability.py) provides lightweight HTTP checks for Coinbase,
+required RSS feeds, and Qdrant. The script powers the "External Reachability" GitHub Actions job and
+can be run manually via:
+
+```bash
+python tools/reachability.py
+```
+
+The following environment variables control its behaviour (see [`.env.example`](.env.example) for
+defaults):
+
+| Variable | Purpose |
+| --- | --- |
+| `REACHABILITY_SKIP_ALL` | Skip every probe (useful when running CI in a fully offline environment). |
+| `REACHABILITY_SKIP_COINBASE` | Skip the Coinbase probe while keeping RSS/Qdrant. |
+| `REACHABILITY_SKIP_RSS` | Skip RSS feed checks. |
+| `REACHABILITY_SKIP_QDRANT` | Skip the Qdrant health check. |
+| `REACHABILITY_RSS_FEEDS` | Comma-separated list of RSS feed URLs to probe. |
+| `REACHABILITY_QDRANT_URL` | Overrides `QDRANT_URL` for the Qdrant health check, if needed. |
+| `REACHABILITY_TIMEOUT_SECONDS` | HTTP timeout applied to each request (defaults to 10 seconds). |
+| `RSS_BASIC_AUTH` | `username:password` pair for RSS feeds that require HTTP Basic authentication. |
+| `QDRANT_API_KEY` | Optional API key forwarded via the `api-key` header when hitting Qdrant. |
+
+Rate limits (HTTP `429`) are treated as skipped probes so the job reports a neutral result instead of
+failing when external providers throttle CI.
 
 ## Coinbase OHLCV ingestion job
 

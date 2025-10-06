@@ -7,6 +7,29 @@ on:
   workflow_dispatch:
 
 jobs:
+  reachability:
+    name: External Reachability
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install probe dependencies
+        run: pip install requests
+
+      - name: Run reachability probes
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          REACHABILITY_RSS_FEEDS: ${{ secrets.REACHABILITY_RSS_FEEDS }}
+          REACHABILITY_SKIP_QDRANT: ${{ secrets.REACHABILITY_SKIP_QDRANT }}
+          RSS_BASIC_AUTH: ${{ secrets.RSS_BASIC_AUTH }}
+        run: python tools/reachability.py
+
   python-quality:
     name: Python Quality (${{ matrix.package }})
     runs-on: ubuntu-latest
