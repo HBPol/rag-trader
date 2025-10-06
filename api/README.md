@@ -20,7 +20,7 @@ The settings model reads environment variables using the
 The default environment is `dev`, with additional allowed values of
 `staging` and `prod`.
 
-`env.example` contains a ready-to-use DSN targeting the docker-compose
+`.env.example` contains a ready-to-use DSN targeting the docker-compose
 Postgres service; copy it into your `.env` to get started quickly.
 
 ## Health Endpoints

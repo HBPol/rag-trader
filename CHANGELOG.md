@@ -10,3 +10,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - Monorepo scaffold with API, pipelines, and web workspaces, plus shared tooling.
 - Database engine helpers, Alembic migrations for instruments/OHLCV tables, and Docker wiring for the API service.
+- Coinbase OHLCV ingestion job with CLI wiring, idempotent persistence, and documentation updates.

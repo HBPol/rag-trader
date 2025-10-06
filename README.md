@@ -18,7 +18,7 @@ backtest via a safe Strategy DSL.
 | Path | Purpose |
 | --- | --- |
 | `api/` | FastAPI service (Python 3.11). Contains settings scaffolding and pytest-based unit tests. |
-| `pipelines/` | Batch & streaming jobs (Python 3.11). Provides a registry primitive for ingestion tasks. |
+| `pipelines/` | Batch & streaming jobs (Python 3.11). Hosts the Coinbase OHLCV ingestion job and registry primitives. |
 | `web/` | Next.js 14 frontend (TypeScript). Includes layout shell, styling entry point, and Vitest smoke test. |
 
 Each package owns its dependencies (`pyproject.toml` / `package.json`) and test suite so we can
@@ -76,3 +76,22 @@ docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --buil
 curl -f http://localhost:8000/healthz
 open http://localhost:5173
 ```
+
+## Coinbase OHLCV ingestion job
+
+The pipelines package exposes `ragtrader_pipelines.coinbase` which fetches
+Coinbase candles and upserts them into the API database. Run it locally or
+schedule it via Cloud Scheduler:
+
+```bash
+cd pipelines
+python -m ragtrader_pipelines.coinbase \
+  --symbols BTC-USD,ETH-USD \
+  --granularity MIN_60 \
+  --lookback-minutes 360 \
+  --database-url "postgresql+psycopg://user:pass@localhost:5432/ragtrader"
+```
+
+The job enforces idempotent writes via SQLAlchemy’s `ON CONFLICT` upsert and
+defaults to hourly candles, matching the `ohlcv` schema defined in the API
+service.
