@@ -84,6 +84,22 @@ curl -f http://localhost:8000/healthz
 open http://localhost:5173
 ```
 
+## Container Images
+
+The repository ships production-ready Dockerfiles for the API and web
+applications so the stack can be deployed with Docker Compose or any
+other orchestrator:
+
+| Path | Description | Default port |
+| --- | --- | --- |
+| `api/Dockerfile` | Multi-stage Python image that installs dependencies into a virtual environment and serves the FastAPI app via Uvicorn. | `8000` |
+| `web/Dockerfile` | Multi-stage Node.js image that builds the Next.js frontend and runs it with `next start`. | `5173` |
+
+Both images honour the environment variables defined in
+`.env.example` (such as `API_PORT`, `WEB_PORT`, `RAGTRADER_API_POSTGRES_DSN`, and
+`VITE_API_BASE_URL`) so you can tailor behaviour via `.env` or Compose
+overrides without rebuilding the containers.
+
 ## Coinbase OHLCV ingestion job
 
 The pipelines package exposes `ragtrader_pipelines.coinbase` which fetches
