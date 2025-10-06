@@ -21,10 +21,13 @@ tree.txt
 web/node_modules/
 web/.next/
 web/coverage/
+pnpm-lock.yaml
 
 # Others...
 __pycache__/
 *.pyc
 *.pyo
+*.egg-info/
+*.egg-info
 requirements.in
 requirements-dev.in
