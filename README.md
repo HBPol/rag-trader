@@ -1,7 +1,7 @@
 # RAGTrader
 
 [![Monorepo CI](https://github.com/HBPol/rag-trader/actions/workflows/ci.yml/badge.svg)](https://github.com/HBPol/rag-trader/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/HBPol/rag-trader/graph/badge.svg?token=)](https://codecov.io/gh/HBPol/rag-trader)
+[![codecov](https://codecov.io/gh/HBPol/rag-trader/graph/badge.svg?token=FE8QZDDHMO)](https://codecov.io/gh/HBPol/rag-trader)
 
 RAGTrader — Retrieve, Reason, Trade. A crypto analytics & strategy prototyping app
 that fuses Coinbase price data with scraped crowd/news sentiment, visualizes lead–lag &
