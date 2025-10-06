@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from testcontainers.core.generic import DockerContainer
-from testcontainers.core.waiting_utils import LogMessageWaitStrategy
+from testcontainers.waiting import LogMessageWaitStrategy
 
 
 class PostgresTestContainer(DockerContainer):
@@ -15,8 +15,8 @@ class PostgresTestContainer(DockerContainer):
         self.with_env("POSTGRES_USER", "test")
         self.with_env("POSTGRES_PASSWORD", "test")
         self.with_exposed_ports(5432)
-        self.wait_strategy = LogMessageWaitStrategy(
-            "database system is ready to accept connections"
+        self.waiting_for(
+            LogMessageWaitStrategy("database system is ready to accept connections")
         )
 
     def get_connection_url(self) -> str:
