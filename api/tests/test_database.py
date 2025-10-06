@@ -5,6 +5,11 @@ from __future__ import annotations
 from typing import Iterator
 
 import pytest
+
+pytest.importorskip("sqlalchemy")
+pytest.importorskip("psycopg")
+pytest.importorskip("alembic")
+
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 from tests.utils import PostgresTestContainer
