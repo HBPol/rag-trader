@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any, Final
 
 from testcontainers.core.generic import DockerContainer
@@ -31,10 +32,30 @@ except ImportError:  # pragma: no cover - maintain compatibility with older vers
                     self._stream = stream
 
                 def wait(self, container: DockerContainer) -> None:
-                    wait_kwargs: dict[str, Any] = {"stream": self._stream}
+                    wrapped = getattr(container, "_container", None)
+                    if wrapped is None:
+                        raise RuntimeError("Container has not been started yet")
+
+                    deadline: float | None = None
                     if self._timeout is not None:
-                        wait_kwargs["timeout"] = self._timeout
-                    container.wait_for_logs(self._message, **wait_kwargs)
+                        deadline = time.monotonic() + self._timeout
+
+                    poll_interval = 0.1
+                    stdout = self._stream != "stderr"
+                    stderr = self._stream != "stdout"
+
+                    while True:
+                        logs: bytes = wrapped.logs(stdout=stdout, stderr=stderr)
+                        decoded = logs.decode("utf-8", errors="ignore")
+                        if self._message in decoded:
+                            return
+
+                        if deadline is not None and time.monotonic() > deadline:
+                            raise TimeoutError(
+                                "Timed out waiting for container log message"
+                            )
+
+                        time.sleep(poll_interval)
 
                 # Modern testcontainers expects wait strategies to expose
                 # ``wait_until_ready``; fall back to ``wait`` for compatibility.
