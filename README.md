@@ -30,6 +30,8 @@ iterate with TDD and keep tooling focused.
 - Python 3.11+
 - Node.js 20+
 - pnpm / npm / yarn for frontend dependencies
+- Docker Engine + Docker Compose plugin (for the provided stack)
+- Copy the root `.env.example` to `.env` so Compose and local tooling share the same configuration
 
 ### Bootstrap local environments
 
@@ -60,7 +62,8 @@ pnpm test
 - **Docker Compose & CI** ensure parity across services via automated smoke tests running in
   GitHub Actions.
 - **Compose smoke test** ensures `.env.example` and the Docker Compose files stay aligned. Run
-  `pytest tests/test_compose.py` before relying on the stack locally or in CI.
+  `pytest tests/test_compose.py` before relying on the stack locally or in CI. See [Compose Smoke
+  Tests](#compose-smoke-tests) for details on the scenarios covered.
 - **PyCharm + Docker**: add a Docker Compose interpreter pointed at the `api` service so
   editor actions reuse the container runtime. In *Settings → Project → Python Interpreter*,
   click **Add Interpreter… → Docker Compose**, select `docker-compose.yml` (and optionally
@@ -89,6 +92,24 @@ curl -f http://localhost:8000/healthz
 open http://localhost:5173
 ```
 
+Once the services report healthy, exercise the FastAPI service at
+`http://localhost:8000/docs` or `http://localhost:8000/healthz` and browse the web frontend on
+`http://localhost:5173` to confirm the containers are wired together correctly.
+
+### Docker Compose profiles
+
+The repository ships two Compose descriptors:
+
+- `docker-compose.yml` is the baseline stack used in CI smoke tests. It provisions the API,
+  frontend, and supporting services that are shared across environments (e.g. Postgres, Redis).
+- `docker-compose.override.yml` is opt-in. It swaps the API from using the managed Qdrant Cloud
+  endpoint to a co-located Qdrant container so you can iterate entirely offline.
+
+Use the base file on its own when you want to mirror CI or production, where the vector store lives
+in Qdrant Cloud. Layer the override file when you want an all-local environment. Both files consume
+the variables documented in [Container Images](#container-images) and stay tested via the
+[Compose Smoke Tests](#compose-smoke-tests).
+
 ## Container Images
 
 The repository ships production-ready Dockerfiles for the API and web
@@ -104,6 +125,20 @@ Both images honour the environment variables defined in
 `.env.example` (such as `API_PORT`, `WEB_PORT`, `RAGTRADER_API_POSTGRES_DSN`, and
 `VITE_API_BASE_URL`) so you can tailor behaviour via `.env` or Compose
 overrides without rebuilding the containers.
+
+## Compose Smoke Tests
+
+The regression suite in `tests/test_compose.py` validates that the Docker Compose files, environment
+variables, and health checks stay in sync. After updating `.env`, any Dockerfile, or either Compose
+descriptor, run:
+
+```bash
+pytest tests/test_compose.py
+```
+
+The tests boot the stack defined in [`docker-compose.yml`](docker-compose.yml) (optionally layered
+with [`docker-compose.override.yml`](docker-compose.override.yml)) and assert each service's
+`/healthz` endpoint responds successfully.
 
 ## Coinbase OHLCV ingestion job
 
