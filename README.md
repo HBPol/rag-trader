@@ -59,6 +59,13 @@ pnpm test
 - **Pre-commit** enforces Ruff, Black, isort, mypy, ESLint, and Prettier.
 - Docker Compose services and CI workflows will be introduced in later issues per the
   [project plan](project_docs/ProjectPlan.md).
+- **PyCharm + Docker**: add a Docker Compose interpreter pointed at the `api` service so
+  editor actions reuse the container runtime. In *Settings → Project → Python Interpreter*,
+  click **Add Interpreter… → Docker Compose**, select `docker-compose.yml` (and optionally
+  `docker-compose.override.yml` if you want the extra services), choose the **Service** named
+  `api`, and keep the default `/usr/local/bin/python` path that PyCharm shows. That binary is the
+  interpreter baked into the image that ships with the project, so linting, tests, and run
+  configurations inside PyCharm mirror what `docker compose up` executes.
 
 ## Quickstart
 
