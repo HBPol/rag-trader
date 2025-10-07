@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable, Iterable, Sequence
 from importlib import import_module
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any
 
 try:  # pragma: no cover - optional dependency guard
     from qdrant_client import QdrantClient

@@ -9,8 +9,9 @@ the public helpers exposed here.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Tuple
+from typing import Any
 
 from .settings import ApiSettings, get_settings
 
@@ -20,7 +21,7 @@ class Response:
     """Simple representation of an HTTP response payload."""
 
     status_code: int
-    json: Dict[str, Any]
+    json: dict[str, Any]
 
 
 class MiniApp:
@@ -28,7 +29,7 @@ class MiniApp:
 
     def __init__(self, settings: ApiSettings) -> None:
         self.settings = settings
-        self._routes: Dict[Tuple[str, str], Callable[[], Response]] = {}
+        self._routes: dict[tuple[str, str], Callable[[], Response]] = {}
         self._register_default_routes()
 
     def _register_default_routes(self) -> None:
@@ -54,7 +55,7 @@ class MiniApp:
     def _readyz(self) -> Response:
         checks = self.settings.readiness_checks()
         status_code = 200 if all(checks.values()) else 503
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "status": "ok" if status_code == 200 else "error",
             "checks": checks,
         }

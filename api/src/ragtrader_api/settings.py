@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Dict, Final
+from typing import Any, Final
 from urllib.parse import urlparse
 
 
@@ -131,8 +131,8 @@ class ApiSettings:
         self.require_database = raw_require_db
         self.require_vector_store = raw_require_vector
 
-    def readiness_checks(self) -> Dict[str, bool]:
-        checks: Dict[str, bool] = {
+    def readiness_checks(self) -> dict[str, bool]:
+        checks: dict[str, bool] = {
             "database": (not self.require_database) or (self.postgres_dsn is not None),
             "vector_store": (not self.require_vector_store)
             or (
@@ -145,7 +145,7 @@ class ApiSettings:
     def readiness_errors(self) -> list[str]:
         return [name for name, ok in self.readiness_checks().items() if not ok]
 
-    def health_payload(self) -> Dict[str, Any]:
+    def health_payload(self) -> dict[str, Any]:
         return {
             "status": "ok",
             "service": self.app_name,
