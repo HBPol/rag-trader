@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import IntEnum
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 if TYPE_CHECKING:  # pragma: no cover - import for type checkers only
     from sqlalchemy.engine import Engine
@@ -17,7 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover - import for type checkers only
 try:  # pragma: no cover - optional dependency during tests
     import httpx
 except ModuleNotFoundError:  # pragma: no cover - deferred runtime failure
-    httpx = None  # type: ignore[assignment]
+    httpx = cast(Any, None)
 
 DEFAULT_BASE_URL = "https://api.exchange.coinbase.com"
 
@@ -188,7 +188,7 @@ class SqlAlchemyCandleRepository:
         """Persist the provided candles to the backing database."""
 
         from ragtrader_api.db.models import Ohlcv
-        from sqlalchemy.dialects.postgresql import insert  # type: ignore
+        from sqlalchemy.dialects.postgresql import insert
         from sqlalchemy.orm import Session
 
         with Session(self._engine) as session:

@@ -13,6 +13,7 @@ requires-python = ">=3.11"
 dependencies = [
   "pandas>=2.2",
   "httpx>=0.26",
+  "sqlalchemy>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -49,6 +50,16 @@ ignore = ["S101"]
 python_version = "3.11"
 strict = true
 packages = ["ragtrader_pipelines"]
+mypy_path = ["src", "../api/src"]
+
+[[tool.mypy.overrides]]
+module = ["sqlalchemy", "sqlalchemy.*", "alembic", "alembic.*", "httpx", "qdrant_client"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["ragtrader_api.*"]
+follow_imports = "skip"
+ignore_missing_imports = true
 
 [tool.coverage.run]
 branch = true

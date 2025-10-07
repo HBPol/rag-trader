@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Final
+from typing import Any, Final, cast
 from urllib.parse import urlparse
 
 
@@ -83,7 +83,7 @@ class ApiSettings:
         env: str | None = None,
         app_name: str | None = None,
         version: str | None = None,
-        postgres_dsn: str | None = _MISSING,
+        postgres_dsn: str | None | object = _MISSING,
         qdrant_url: str | None = None,
         qdrant_api_key: str | None = None,
         use_qdrant_cloud: bool | None = None,
@@ -139,7 +139,7 @@ class ApiSettings:
         if postgres_dsn is _MISSING:
             postgres_candidate = env_vars.get("RAGTRADER_API_POSTGRES_DSN")
         else:
-            postgres_candidate = postgres_dsn
+            postgres_candidate = cast(str | None, postgres_dsn)
         qdrant_candidate = (
             qdrant_url
             if qdrant_url is not None
