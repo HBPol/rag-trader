@@ -36,7 +36,12 @@ class MiniApp:
         self.add_route("GET", "/healthz", self._healthz)
         self.add_route("GET", "/readyz", self._readyz)
 
-    def add_route(self, method: str, path: str, handler: Callable[[], Response]) -> None:
+    def add_route(
+        self,
+        method: str,
+        path: str,
+        handler: Callable[[], Response],
+    ) -> None:
         self._routes[(method.upper(), path)] = handler
 
     def dispatch(self, method: str, path: str) -> Response:

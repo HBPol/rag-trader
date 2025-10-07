@@ -22,11 +22,11 @@ def create_fastapi_app() -> FastAPI:
     fastapi_app = FastAPI(title="RAGTrader API")
 
     @fastapi_app.get("/healthz")
-    async def healthz() -> JSONResponse:  # pragma: no cover - exercised via integration tests
+    async def healthz() -> JSONResponse:  # pragma: no cover - via integration tests
         return _adapt_response(mini_app.dispatch("GET", "/healthz"))
 
     @fastapi_app.get("/readyz")
-    async def readyz() -> JSONResponse:  # pragma: no cover - exercised via integration tests
+    async def readyz() -> JSONResponse:  # pragma: no cover - via integration tests
         return _adapt_response(mini_app.dispatch("GET", "/readyz"))
 
     return fastapi_app

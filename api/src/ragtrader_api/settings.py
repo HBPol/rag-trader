@@ -27,27 +27,39 @@ def _validate_url(candidate: str | None, *, allow_empty: bool = False) -> str | 
     if candidate is None:
         if allow_empty:
             return None
-        raise SettingsValidationError("A URL value is required but missing.")
+        raise SettingsValidationError(
+            "A URL value is required but missing."
+        )
 
     parsed = urlparse(candidate)
     if parsed.scheme not in {"http", "https"}:
-        raise SettingsValidationError(f"Unsupported URL scheme for value: {candidate!r}")
+        raise SettingsValidationError(
+            f"Unsupported URL scheme for value: {candidate!r}"
+        )
     if not parsed.netloc:
-        raise SettingsValidationError(f"URL must include a hostname: {candidate!r}")
+        raise SettingsValidationError(
+            f"URL must include a hostname: {candidate!r}"
+        )
     return candidate
 
 
 def _validate_postgres_dsn(candidate: str | None, *, required: bool) -> str | None:
     if candidate is None:
         if required:
-            raise SettingsValidationError("POSTGRES_DSN is required when require_database is enabled.")
+            raise SettingsValidationError(
+                "POSTGRES_DSN is required when require_database is enabled."
+            )
         return None
 
     parsed = urlparse(candidate)
     if not parsed.scheme.startswith("postgres"):
-        raise SettingsValidationError("Postgres DSN must use the postgres scheme.")
+        raise SettingsValidationError(
+            "Postgres DSN must use the postgres scheme."
+        )
     if not parsed.hostname:
-        raise SettingsValidationError("Postgres DSN must include a hostname.")
+        raise SettingsValidationError(
+            "Postgres DSN must include a hostname."
+        )
     return candidate
 
 
@@ -80,42 +92,77 @@ class ApiSettings:
     ) -> None:
         env_vars = os.environ
 
-        raw_env = env if env is not None else env_vars.get("RAGTRADER_API_ENV", "dev")
+        raw_env = (
+            env if env is not None else env_vars.get("RAGTRADER_API_ENV", "dev")
+        )
         if raw_env not in _ALLOWED_ENVS:
             raise SettingsValidationError(
                 f"env must be one of {_ALLOWED_ENVS!r}; received {raw_env!r}."
             )
 
-        raw_app_name = app_name if app_name is not None else env_vars.get("RAGTRADER_API_APP_NAME", "ragtrader-api")
-        raw_version = version if version is not None else env_vars.get("RAGTRADER_API_VERSION", "0.1.0")
+        raw_app_name = (
+            app_name
+            if app_name is not None
+            else env_vars.get("RAGTRADER_API_APP_NAME", "ragtrader-api")
+        )
+        raw_version = (
+            version
+            if version is not None
+            else env_vars.get("RAGTRADER_API_VERSION", "0.1.0")
+        )
 
         raw_require_db = (
             require_database
             if require_database is not None
-            else _coerce_bool(env_vars.get("RAGTRADER_API_REQUIRE_DATABASE"), default=True)
+            else _coerce_bool(
+                env_vars.get("RAGTRADER_API_REQUIRE_DATABASE"),
+                default=True,
+            )
         )
         raw_require_vector = (
             require_vector_store
             if require_vector_store is not None
-            else _coerce_bool(env_vars.get("RAGTRADER_API_REQUIRE_VECTOR_STORE"), default=True)
+            else _coerce_bool(
+                env_vars.get("RAGTRADER_API_REQUIRE_VECTOR_STORE"),
+                default=True,
+            )
         )
         raw_use_qdrant_cloud = (
             use_qdrant_cloud
             if use_qdrant_cloud is not None
-            else _coerce_bool(env_vars.get("RAGTRADER_API_USE_QDRANT_CLOUD"), default=True)
+            else _coerce_bool(
+                env_vars.get("RAGTRADER_API_USE_QDRANT_CLOUD"),
+                default=True,
+            )
         )
 
         if postgres_dsn is _MISSING:
             postgres_candidate = env_vars.get("RAGTRADER_API_POSTGRES_DSN")
         else:
             postgres_candidate = postgres_dsn
-        qdrant_candidate = qdrant_url if qdrant_url is not None else env_vars.get("RAGTRADER_API_QDRANT_URL", "http://localhost:6333")
-        qdrant_key = qdrant_api_key if qdrant_api_key is not None else env_vars.get("RAGTRADER_API_QDRANT_API_KEY")
+        qdrant_candidate = (
+            qdrant_url
+            if qdrant_url is not None
+            else env_vars.get("RAGTRADER_API_QDRANT_URL", "http://localhost:6333")
+        )
+        qdrant_key = (
+            qdrant_api_key
+            if qdrant_api_key is not None
+            else env_vars.get("RAGTRADER_API_QDRANT_API_KEY")
+        )
 
-        validated_postgres = _validate_postgres_dsn(postgres_candidate, required=raw_require_db)
-        validated_qdrant = _validate_url(qdrant_candidate, allow_empty=not raw_require_vector)
+        validated_postgres = _validate_postgres_dsn(
+            postgres_candidate,
+            required=raw_require_db,
+        )
+        validated_qdrant = _validate_url(
+            qdrant_candidate,
+            allow_empty=not raw_require_vector,
+        )
         if validated_qdrant is None:
-            raise SettingsValidationError("Qdrant URL is required when require_vector_store is enabled.")
+            raise SettingsValidationError(
+                "Qdrant URL is required when require_vector_store is enabled."
+            )
         if raw_require_vector and raw_use_qdrant_cloud and not qdrant_key:
             raise SettingsValidationError(
                 "Qdrant API key is required when use_qdrant_cloud is enabled."

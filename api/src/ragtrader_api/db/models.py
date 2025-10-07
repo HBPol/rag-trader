@@ -32,7 +32,7 @@ class Instrument(Base):
         server_onupdate=text("CURRENT_TIMESTAMP"),
     )
 
-    ohlcv: Mapped[list["Ohlcv"]] = relationship(back_populates="instrument")
+    ohlcv: Mapped[list[Ohlcv]] = relationship(back_populates="instrument")
 
 
 class Ohlcv(Base):
@@ -44,7 +44,9 @@ class Ohlcv(Base):
     )
 
     symbol: Mapped[str] = mapped_column(
-        String(16), ForeignKey("instruments.symbol", ondelete="CASCADE"), primary_key=True
+        String(16),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        primary_key=True,
     )
     interval: Mapped[str] = mapped_column(String(16), primary_key=True)
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)

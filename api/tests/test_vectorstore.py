@@ -110,4 +110,7 @@ def test_repository_delete_points_delegates_to_client() -> None:
     selector = {"ids": [1, 2, 3]}
 
     assert repo.delete_points("demo", selector) == {"status": "ok"}
-    client.delete.assert_called_once_with(collection_name="demo", points_selector=selector)
+    client.delete.assert_called_once_with(
+        collection_name="demo",
+        points_selector=selector,
+    )

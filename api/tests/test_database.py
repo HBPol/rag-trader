@@ -12,11 +12,11 @@ pytest.importorskip("alembic")
 
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
-from tests.utils import PostgresTestContainer
 
 from ragtrader_api.db import database
 from ragtrader_api.db.migrations import apply_migrations
 from ragtrader_api.settings import ApiSettings
+from tests.utils import PostgresTestContainer
 
 
 @pytest.fixture(scope="session")

@@ -16,8 +16,9 @@ except ModuleNotFoundError:  # pragma: no cover - executed only when dependency 
 
         def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: D401 - match Qdrant signature
             raise ModuleNotFoundError(
-                "qdrant-client is required to use VectorStoreRepository. Install the service "
-                "dependencies via `pip install -e .[dev]`."
+                "qdrant-client is required to use VectorStoreRepository."
+                " Install the service dependencies via"
+                " `pip install -e .[dev]`."
             )
 
 from ragtrader_api.settings import ApiSettings
@@ -54,7 +55,9 @@ class VectorStoreRepository:
         self._retry_attempts = retry_attempts
         self._wait_strategy = wait_strategy
         self._backoff_strategy = backoff_strategy or _default_backoff
-        self._retryable_exceptions = retryable_exceptions or (ConnectionError, TimeoutError)
+        self._retryable_exceptions = (
+            retryable_exceptions or (ConnectionError, TimeoutError)
+        )
         self._tenacity_support: dict[str, Any] | None = None
 
     @property
@@ -69,10 +72,14 @@ class VectorStoreRepository:
                     factory_kwargs["api_key"] = self._settings.qdrant_api_key
                 else:
                     _LOGGER.warning(
-                        "Qdrant cloud mode enabled but no API key provided; continuing without authentication."
+                        "Qdrant cloud mode enabled but no API key provided;"
+                        " continuing without authentication."
                     )
             else:
-                _LOGGER.debug("Initializing Qdrant self-hosted client for %s", self._settings.qdrant_url)
+                _LOGGER.debug(
+                    "Initializing Qdrant self-hosted client for %s",
+                    self._settings.qdrant_url,
+                )
 
             self._client = self._client_factory(**factory_kwargs)
         return self._client
@@ -113,7 +120,7 @@ class VectorStoreRepository:
 
             try:
                 return _runner()
-            except tenacity["RetryError"] as exc:  # pragma: no cover - defensive re-raise path
+            except tenacity["RetryError"] as exc:  # pragma: no cover - defensive path
                 raise exc.last_attempt.exception() from exc
 
         attempt = 1
@@ -126,7 +133,10 @@ class VectorStoreRepository:
 
                 delay = max(self._backoff_strategy(attempt), 0.0)
                 _LOGGER.warning(
-                    "Vector store operation failed (attempt %s/%s): %s", attempt, self._retry_attempts, exc
+                    "Vector store operation failed (attempt %s/%s): %s",
+                    attempt,
+                    self._retry_attempts,
+                    exc,
                 )
                 if delay:
                     time.sleep(delay)
@@ -138,7 +148,12 @@ class VectorStoreRepository:
 
         return self._build_client()
 
-    def create_collection(self, collection_name: str, vectors_config: Any, **kwargs: Any) -> Any:
+    def create_collection(
+        self,
+        collection_name: str,
+        vectors_config: Any,
+        **kwargs: Any,
+    ) -> Any:
         """Create a collection in Qdrant."""
 
         def _op(client: QdrantClient) -> Any:
@@ -159,11 +174,20 @@ class VectorStoreRepository:
         """Insert or update a batch of points."""
 
         def _op(client: QdrantClient) -> Any:
-            return client.upsert(collection_name=collection_name, points=points, **kwargs)
+            return client.upsert(
+                collection_name=collection_name,
+                points=points,
+                **kwargs,
+            )
 
         return self._run_with_retry(_op)
 
-    def delete_points(self, collection_name: str, points_selector: Any, **kwargs: Any) -> Any:
+    def delete_points(
+        self,
+        collection_name: str,
+        points_selector: Any,
+        **kwargs: Any,
+    ) -> Any:
         """Delete selected points from a collection."""
 
         def _op(client: QdrantClient) -> Any:

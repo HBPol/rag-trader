@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import socket
 import time
 from typing import Any, Final
@@ -16,7 +17,7 @@ except ImportError:  # pragma: no cover - maintain compatibility with older vers
     except ImportError:  # pragma: no cover - legacy package layout
         try:
             from testcontainers.waiting import LogMessageWaitStrategy
-        except ImportError:  # pragma: no cover - last-resort shim for environments without the class
+        except ImportError:  # pragma: no cover - fallback for missing class
 
             class LogMessageWaitStrategy:  # type: ignore[override]
                 """Minimal shim replicating the log wait strategy API."""
@@ -60,13 +61,19 @@ except ImportError:  # pragma: no cover - maintain compatibility with older vers
 
                 # Modern testcontainers expects wait strategies to expose
                 # ``wait_until_ready``; fall back to ``wait`` for compatibility.
-                def wait_until_ready(self, container: DockerContainer) -> None:  # pragma: no cover - shim passthrough
+                def wait_until_ready(
+                    self,
+                    container: DockerContainer,
+                ) -> None:  # pragma: no cover - shim passthrough
                     self.wait(container)
 
 POSTGRES_IMAGE: Final[str] = "postgres:15-alpine"
 POSTGRES_DB: Final[str] = "test"
 POSTGRES_USER: Final[str] = "test"
-POSTGRES_PASSWORD: Final[str] = "test"
+POSTGRES_PASSWORD: Final[str] = os.getenv(
+    "RAGTRADER_TEST_POSTGRES_PASSWORD",
+    "test",
+)
 POSTGRES_PORT: Final[int] = 5432
 
 

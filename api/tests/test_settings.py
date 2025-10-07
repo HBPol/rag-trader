@@ -14,12 +14,16 @@ def _clear_settings_cache() -> None:
     get_settings.cache_clear()
 
 
-def test_settings_require_postgres_dsn_when_database_required() -> None:
+def test_settings_require_postgres_dsn_when_database_required(
+    # intentionally wrapped to respect line length
+) -> None:
     with pytest.raises(SettingsValidationError):
         ApiSettings(qdrant_url="http://localhost:6333", require_vector_store=False)
 
 
-def test_settings_can_disable_database_requirement(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_settings_can_disable_database_requirement(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("RAGTRADER_API_REQUIRE_DATABASE", "false")
     monkeypatch.setenv("RAGTRADER_API_QDRANT_URL", "https://qdrant.cloud")
     monkeypatch.setenv("RAGTRADER_API_QDRANT_API_KEY", "key")
