@@ -57,6 +57,40 @@ pnpm install  # or npm install / yarn install
 pnpm test
 ```
 
+#### Regenerating `web/pnpm-lock.yaml` locally
+
+When network access to the npm registry is unavailable in the remote development
+environment, generate the frontend lockfile on a machine that can reach the
+registry and then push it to the repository:
+
+1. Install [pnpm](https://pnpm.io/installation) if it is not already available.
+2. From the repository root, run:
+
+   ```bash
+   cd web
+   pnpm install
+   ```
+
+   This will create or update `pnpm-lock.yaml` based on `package.json`.
+3. Commit the new lockfile alongside any dependency updates:
+
+   ```bash
+   git add web/pnpm-lock.yaml
+   git commit -m "chore(web): add pnpm lockfile"
+   git push
+   ```
+4. Re-run the frontend checks to confirm everything passes with the lockfile in
+   place:
+
+   ```bash
+   pnpm install
+   pnpm lint
+   ```
+
+Keeping the lockfile under version control ensures GitHub Actions continues to
+use the pnpm cache configured in `.github/workflows/ci.yml` and that local
+installs remain reproducible.
+
 ### Root Tooling
 - **Pre-commit** enforces Ruff, Black, isort, mypy, ESLint, and Prettier.
 - **Docker Compose & CI** expose the API, web, Postgres, and Redis services (with an optional

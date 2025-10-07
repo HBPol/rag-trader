@@ -21,7 +21,6 @@ tree.txt
 web/node_modules/
 web/.next/
 web/coverage/
-pnpm-lock.yaml
 
 # Others...
 __pycache__/
