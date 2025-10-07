@@ -36,10 +36,15 @@ iterate with TDD and keep tooling focused.
 ### Bootstrap local environments
 
 ```bash
+# Create a shared virtual environment for all Python tooling
+python -m venv .venv
+source .venv/bin/activate
+
+# Install editable packages and root developer requirements
+pip install -e api[dev] -e pipelines[dev] -r requirements-dev.txt
+
 # API service (FastAPI)
 cd api
-python -m venv .venv && source .venv/bin/activate
-pip install -e .[dev]
 pytest
 
 # Apply database migrations (requires Docker or a reachable Postgres DSN)
@@ -47,15 +52,24 @@ python -m ragtrader_api.db
 
 # Pipelines package
 cd ../pipelines
-python -m venv .venv && source .venv/bin/activate
-pip install -e .[dev]
 pytest
 
 # Web package
 cd ../web
 pnpm install  # or npm install / yarn install
 pnpm test
+
+# Return to the repository root when finished
+cd ..
+
+# Deactivate the shared virtual environment if you no longer need it
+deactivate
 ```
+
+> **Heads-up:** The editable installs for `api/` and `pipelines/` require build
+> backends such as `setuptools>=68`. Ensure your environment can reach PyPI (or
+> configure an internal mirror / wheelhouse) before running the `pip install`
+> step, or pre-install the build requirements manually.
 
 #### Regenerating `web/pnpm-lock.yaml` locally
 
@@ -118,8 +132,7 @@ Ruff (lint + format), Black, isort, mypy (Python API & pipelines), ESLint, and P
 Run the hooks locally from the repository root before opening a PR:
 
 ```bash
-pip install pre-commit  # or pipx install pre-commit
-pre-commit install      # sets up the Git hook
+pre-commit install      # sets up the Git hook using the shared virtualenv
 pre-commit run --all-files
 ```
 
