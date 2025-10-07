@@ -96,7 +96,7 @@ class PostgresTestContainer(DockerContainer):
             LogMessageWaitStrategy("database system is ready to accept connections")
         )
 
-    def start(self) -> "PostgresTestContainer":  # type: ignore[override]
+    def start(self) -> PostgresTestContainer:  # type: ignore[override]
         super().start()
         self._wait_for_database_ready()
         return self
@@ -117,7 +117,9 @@ class PostgresTestContainer(DockerContainer):
                     break
             except OSError:
                 if time.monotonic() >= tcp_deadline:
-                    raise TimeoutError("Timed out waiting for Postgres port to open")
+                    raise TimeoutError(
+                        "Timed out waiting for Postgres port to open"
+                    ) from None
                 time.sleep(0.1)
 
         try:
@@ -138,7 +140,9 @@ class PostgresTestContainer(DockerContainer):
                 return
             except psycopg.OperationalError:
                 if time.monotonic() >= deadline:
-                    raise TimeoutError("Timed out waiting for Postgres to accept connections")
+                    raise TimeoutError(
+                        "Timed out waiting for Postgres to accept connections"
+                    ) from None
                 time.sleep(0.2)
 
     def get_connection_url(self) -> str:
