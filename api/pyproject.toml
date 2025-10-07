@@ -62,3 +62,6 @@ packages = ["ragtrader_api"]
 [tool.coverage.run]
 branch = true
 source = ["ragtrader_api"]
+
+[tool.setuptools.package-data]
+ragtrader_api = ["py.typed"]
