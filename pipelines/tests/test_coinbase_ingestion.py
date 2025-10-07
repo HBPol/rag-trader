@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Sequence
 
 import pytest
 
@@ -40,7 +40,7 @@ class StubRepository:
 
 
 def test_job_requests_expected_time_window() -> None:
-    now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     lookback = timedelta(hours=4)
     client = StubClient()
     repo = StubRepository()
@@ -59,8 +59,8 @@ def test_job_requests_expected_time_window() -> None:
 
 
 def test_job_deduplicates_records_before_writing() -> None:
-    now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
-    ts = int(datetime(2024, 1, 1, 8, 0, tzinfo=timezone.utc).timestamp())
+    now = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    ts = int(datetime(2024, 1, 1, 8, 0, tzinfo=UTC).timestamp())
     client = StubClient(
         payload=[
             [ts, 100.0, 110.0, 95.0, 105.0, 42.0],
@@ -71,13 +71,17 @@ def test_job_deduplicates_records_before_writing() -> None:
     repo = StubRepository()
     job = CoinbaseOhlcvIngestion(client=client, repository=repo, clock=lambda: now)
 
-    job.run(symbols=["ETH-USD"], granularity=Granularity.MIN_60, lookback=timedelta(hours=4))
+    job.run(
+        symbols=["ETH-USD"],
+        granularity=Granularity.MIN_60,
+        lookback=timedelta(hours=4),
+    )
 
     assert len(repo.writes) == 1
     records = list(repo.writes[0])
     assert [record.ts for record in records] == [
-        datetime(2024, 1, 1, 8, 0, tzinfo=timezone.utc),
-        datetime(2024, 1, 1, 9, 0, tzinfo=timezone.utc),
+        datetime(2024, 1, 1, 8, 0, tzinfo=UTC),
+        datetime(2024, 1, 1, 9, 0, tzinfo=UTC),
     ]
     assert {record.volume for record in records} == {
         Decimal("42.0"),
@@ -91,7 +95,7 @@ def test_job_deduplicates_records_before_writing() -> None:
         OhlcvRecord(
             symbol="BTC-USD",
             interval="1h",
-            ts=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            ts=datetime(2024, 1, 1, tzinfo=UTC),
             open=Decimal("100"),
             high=Decimal("110"),
             low=Decimal("95"),

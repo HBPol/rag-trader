@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import argparse
 import os
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import IntEnum
-from typing import Callable, Iterable, Protocol, Sequence
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:  # pragma: no cover - import for type checkers only
+    from sqlalchemy.engine import Engine
 
 try:  # pragma: no cover - optional dependency during tests
     import httpx
@@ -75,7 +79,11 @@ class CoinbaseClient:
         if httpx is None:  # pragma: no cover - runtime dependency guard
             msg = "httpx must be installed to use CoinbaseClient"
             raise RuntimeError(msg)
-        self._client = httpx.Client(base_url=base_url, timeout=timeout, transport=transport)
+        self._client = httpx.Client(
+            base_url=base_url,
+            timeout=timeout,
+            transport=transport,
+        )
 
     def fetch_candles(
         self,
@@ -113,7 +121,7 @@ class CoinbaseOhlcvIngestion:
     ) -> None:
         self._client = client
         self._repository = repository
-        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._clock = clock or (lambda: datetime.now(UTC))
 
     def run(
         self,
@@ -145,7 +153,7 @@ class CoinbaseOhlcvIngestion:
             if len(candle) < 6:  # pragma: no cover - defensive branch
                 continue
             ts_seconds, low, high, open_, close, volume = candle[:6]
-            ts = datetime.fromtimestamp(int(ts_seconds), tz=timezone.utc)
+            ts = datetime.fromtimestamp(int(ts_seconds), tz=UTC)
             record = OhlcvRecord(
                 symbol=symbol,
                 interval=granularity.label,
@@ -163,24 +171,25 @@ class CoinbaseOhlcvIngestion:
 class SqlAlchemyCandleRepository:
     """SQLAlchemy-backed repository for OHLCV candles."""
 
-    def __init__(self, engine: "Engine") -> None:  # type: ignore[name-defined]
+    def __init__(self, engine: Engine) -> None:
         self._engine = engine
 
     @classmethod
-    def from_dsn(cls, dsn: str) -> "SqlAlchemyCandleRepository":
+    def from_dsn(cls, dsn: str) -> SqlAlchemyCandleRepository:
         try:  # pragma: no cover - runtime dependency guard
             from sqlalchemy import create_engine
-        except ModuleNotFoundError as exc:  # pragma: no cover - runtime dependency guard
+        except ModuleNotFoundError as exc:  # pragma: no cover
             msg = "sqlalchemy must be installed to use SqlAlchemyCandleRepository"
             raise RuntimeError(msg) from exc
         engine = create_engine(dsn, future=True)
         return cls(engine)
 
-    def upsert_many(self, records: Sequence[OhlcvRecord]) -> None:  # pragma: no cover - requires database
-        from sqlalchemy.dialects.postgresql import insert  # type: ignore
-        from sqlalchemy.orm import Session
+    def upsert_many(self, records: Sequence[OhlcvRecord]) -> None:  # pragma: no cover
+        """Persist the provided candles to the backing database."""
 
         from ragtrader_api.db.models import Ohlcv
+        from sqlalchemy.dialects.postgresql import insert  # type: ignore
+        from sqlalchemy.orm import Session
 
         with Session(self._engine) as session:
             stmt = insert(Ohlcv).values(
@@ -214,7 +223,7 @@ class SqlAlchemyCandleRepository:
 
 def _ensure_aware(value: datetime) -> datetime:
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
+        return value.replace(tzinfo=UTC)
     return value
 
 
