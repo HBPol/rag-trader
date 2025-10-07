@@ -53,3 +53,9 @@ packages = ["ragtrader_pipelines"]
 [tool.coverage.run]
 branch = true
 source = ["ragtrader_pipelines"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+ragtrader_pipelines = ["py.typed"]
