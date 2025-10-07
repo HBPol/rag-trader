@@ -11,15 +11,19 @@ from typing import Any
 try:  # pragma: no cover - optional dependency guard
     from qdrant_client import QdrantClient
 except ModuleNotFoundError:  # pragma: no cover - executed only when dependency missing
+
     class QdrantClient:  # type: ignore[override]
         """Fallback stub to provide a helpful error when qdrant-client is absent."""
 
-        def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: D401 - match Qdrant signature
+        def __init__(
+            self, *args: Any, **kwargs: Any
+        ) -> None:  # noqa: D401 - match Qdrant signature
             raise ModuleNotFoundError(
                 "qdrant-client is required to use VectorStoreRepository."
                 " Install the service dependencies via"
                 " `pip install -e .[dev]`."
             )
+
 
 from ragtrader_api.settings import ApiSettings
 
@@ -55,8 +59,9 @@ class VectorStoreRepository:
         self._retry_attempts = retry_attempts
         self._wait_strategy = wait_strategy
         self._backoff_strategy = backoff_strategy or _default_backoff
-        self._retryable_exceptions = (
-            retryable_exceptions or (ConnectionError, TimeoutError)
+        self._retryable_exceptions = retryable_exceptions or (
+            ConnectionError,
+            TimeoutError,
         )
         self._tenacity_support: dict[str, Any] | None = None
 
@@ -109,6 +114,7 @@ class VectorStoreRepository:
     def _run_with_retry(self, operation: Callable[[QdrantClient], Any]) -> Any:
         tenacity = self._load_tenacity()
         if tenacity:
+
             @tenacity["retry"](
                 reraise=True,
                 stop=tenacity["stop_after_attempt"](self._retry_attempts),

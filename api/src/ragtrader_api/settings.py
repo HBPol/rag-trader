@@ -27,9 +27,7 @@ def _validate_url(candidate: str | None, *, allow_empty: bool = False) -> str | 
     if candidate is None:
         if allow_empty:
             return None
-        raise SettingsValidationError(
-            "A URL value is required but missing."
-        )
+        raise SettingsValidationError("A URL value is required but missing.")
 
     parsed = urlparse(candidate)
     if parsed.scheme not in {"http", "https"}:
@@ -37,9 +35,7 @@ def _validate_url(candidate: str | None, *, allow_empty: bool = False) -> str | 
             f"Unsupported URL scheme for value: {candidate!r}"
         )
     if not parsed.netloc:
-        raise SettingsValidationError(
-            f"URL must include a hostname: {candidate!r}"
-        )
+        raise SettingsValidationError(f"URL must include a hostname: {candidate!r}")
     return candidate
 
 
@@ -53,13 +49,9 @@ def _validate_postgres_dsn(candidate: str | None, *, required: bool) -> str | No
 
     parsed = urlparse(candidate)
     if not parsed.scheme.startswith("postgres"):
-        raise SettingsValidationError(
-            "Postgres DSN must use the postgres scheme."
-        )
+        raise SettingsValidationError("Postgres DSN must use the postgres scheme.")
     if not parsed.hostname:
-        raise SettingsValidationError(
-            "Postgres DSN must include a hostname."
-        )
+        raise SettingsValidationError("Postgres DSN must include a hostname.")
     return candidate
 
 
@@ -92,9 +84,7 @@ class ApiSettings:
     ) -> None:
         env_vars = os.environ
 
-        raw_env = (
-            env if env is not None else env_vars.get("RAGTRADER_API_ENV", "dev")
-        )
+        raw_env = env if env is not None else env_vars.get("RAGTRADER_API_ENV", "dev")
         if raw_env not in _ALLOWED_ENVS:
             raise SettingsValidationError(
                 f"env must be one of {_ALLOWED_ENVS!r}; received {raw_env!r}."

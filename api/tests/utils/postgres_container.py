@@ -67,6 +67,7 @@ except ImportError:  # pragma: no cover - maintain compatibility with older vers
                 ) -> None:  # pragma: no cover - shim passthrough
                     self.wait(container)
 
+
 POSTGRES_IMAGE: Final[str] = "postgres:15-alpine"
 POSTGRES_DB: Final[str] = "test"
 POSTGRES_USER: Final[str] = "test"
@@ -155,4 +156,6 @@ class PostgresTestContainer(DockerContainer):
     def get_connection_url(self) -> str:
         host = self.get_container_host_ip()
         port = self.get_exposed_port(POSTGRES_PORT)
-        return f"postgresql://{self._user}:{self._password}@{host}:{port}/{self._database}"
+        return (
+            f"postgresql://{self._user}:{self._password}@{host}:{port}/{self._database}"
+        )

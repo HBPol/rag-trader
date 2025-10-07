@@ -39,9 +39,7 @@ class Ohlcv(Base):
     """Open-high-low-close-volume candlesticks."""
 
     __tablename__ = "ohlcv"
-    __table_args__ = (
-        Index("ix_ohlcv_symbol_interval_ts", "symbol", "interval", "ts"),
-    )
+    __table_args__ = (Index("ix_ohlcv_symbol_interval_ts", "symbol", "interval", "ts"),)
 
     symbol: Mapped[str] = mapped_column(
         String(16),
