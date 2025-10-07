@@ -77,6 +77,29 @@ pnpm test
   interpreter baked into the image that ships with the project, so linting, tests, and run
   configurations inside PyCharm mirror what `docker compose up` executes.
 
+#### Run pre-commit locally
+
+The root `.pre-commit-config.yaml` bundles the exact linting and formatting jobs that CI runs:
+Ruff (lint + format), Black, isort, mypy (Python API & pipelines), ESLint, and Prettier (web).
+Run the hooks locally from the repository root before opening a PR:
+
+```bash
+pip install pre-commit  # or pipx install pre-commit
+pre-commit install      # sets up the Git hook
+pre-commit run --all-files
+```
+
+The final command will execute every hook over the whole tree, matching the checks that GitHub
+Actions enforces. To rerun a single tool across the repository, target its hook name instead:
+
+```bash
+pre-commit run ruff --all-files
+pre-commit run eslint --all-files
+```
+
+Pre-commit caches environments under `~/.cache/pre-commit`, so subsequent runs are fast and only
+touch the files you modified.
+
 ## Quickstart
 
 ```bash
