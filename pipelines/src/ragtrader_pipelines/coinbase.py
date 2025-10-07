@@ -92,7 +92,7 @@ class CoinbaseClient:
         start: datetime,
         end: datetime,
     ) -> list[list[float]]:
-        params = {
+        params: dict[str, str | int] = {
             "granularity": granularity,
             "start": start.isoformat(),
             "end": end.isoformat(),
