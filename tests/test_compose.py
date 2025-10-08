@@ -9,7 +9,7 @@ import subprocess
 import time
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 import requests
@@ -31,10 +31,10 @@ REQUIRED_ENV_VARS = {
 }
 
 
-def parse_env_file(path: Path) -> Dict[str, str]:
+def parse_env_file(path: Path) -> dict[str, str]:
     """Parse a simple .env style file into a dictionary."""
 
-    env: Dict[str, str] = {}
+    env: dict[str, str] = {}
     pattern = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$")
     for line in path.read_text().splitlines():
         stripped = line.strip()
@@ -67,7 +67,7 @@ def environment_to_dict(environment: Iterable[Any]) -> dict[str, str]:
 
 
 @pytest.fixture(scope="module")
-def env_example() -> Dict[str, str]:
+def env_example() -> dict[str, str]:
     return parse_env_file(ENV_EXAMPLE)
 
 
@@ -76,7 +76,7 @@ def compose_configs() -> dict[str, dict[str, Any]]:
     return {path.name: load_compose_file(path) for path in COMPOSE_FILES}
 
 
-def test_env_example_defines_required_variables(env_example: Dict[str, str]) -> None:
+def test_env_example_defines_required_variables(env_example: dict[str, str]) -> None:
     missing = REQUIRED_ENV_VARS - env_example.keys()
     assert not missing, f"Missing required variables in .env.example: {missing}"
     dsn = env_example["RAGTRADER_API_POSTGRES_DSN"]
@@ -113,11 +113,12 @@ def test_api_service_forwards_database_and_qdrant_settings(
 
 @pytest.mark.smoke
 def test_compose_stack_smoke() -> None:
-    if shutil.which("docker") is None:
+    docker_path = shutil.which("docker")
+    if docker_path is None:
         pytest.skip("Docker is not available on this system.")
 
     compose_base_cmd = [
-        "docker",
+        docker_path,
         "compose",
         "-f",
         "docker-compose.yml",
@@ -142,7 +143,7 @@ def test_compose_stack_smoke() -> None:
         created_env = True
 
     try:
-        subprocess.run(
+        subprocess.run(  # noqa: S603 - executes a fixed docker-compose command in tests
             compose_base_cmd + ["down", "-v"],
             cwd=REPO_ROOT,
             env=env,
@@ -150,19 +151,19 @@ def test_compose_stack_smoke() -> None:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        subprocess.run(
+        subprocess.run(  # noqa: S603 - executes a fixed docker-compose command in tests
             compose_base_cmd + ["up", "-d", "--build"],
             cwd=REPO_ROOT,
             env=env,
             check=True,
         )
 
-        wait_for_container_health("ragtrader-postgres", env)
-        wait_for_container_health("ragtrader-qdrant", env)
+        wait_for_container_health("ragtrader-postgres", env, docker_path)
+        wait_for_container_health("ragtrader-qdrant", env, docker_path)
         wait_for_url(f"http://localhost:{env['API_PORT']}/healthz")
         wait_for_url("http://localhost:6333")
     finally:
-        subprocess.run(
+        subprocess.run(  # noqa: S603 - executes a fixed docker-compose command in tests
             compose_base_cmd + ["down", "-v"],
             cwd=REPO_ROOT,
             env=env,
@@ -173,12 +174,12 @@ def test_compose_stack_smoke() -> None:
 
 
 def wait_for_container_health(
-    container_name: str, env: dict[str, str], timeout: float = 120.0
+    container_name: str, env: dict[str, str], docker_path: str, timeout: float = 120.0
 ) -> None:
     deadline = time.time() + timeout
     while time.time() < deadline:
-        result = subprocess.run(
-            ["docker", "inspect", "-f", "{{.State.Health.Status}}", container_name],
+        result = subprocess.run(  # noqa: S603 - executes a fixed docker command in tests
+            [docker_path, "inspect", "-f", "{{.State.Health.Status}}", container_name],
             cwd=REPO_ROOT,
             env=env,
             stdout=subprocess.PIPE,

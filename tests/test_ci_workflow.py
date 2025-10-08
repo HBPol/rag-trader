@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import pytest
 
 yaml = pytest.importorskip("yaml")
 
 
-Workflow = Dict[str, Any]
+Workflow = dict[str, Any]
 
 
 @pytest.fixture(scope="module")
@@ -23,12 +23,12 @@ def ci_workflow() -> Workflow:
 
 
 @pytest.fixture(scope="module")
-def python_quality_job(ci_workflow: Workflow) -> Dict[str, Any]:
+def python_quality_job(ci_workflow: Workflow) -> dict[str, Any]:
     return ci_workflow["jobs"]["python-quality"]
 
 
 @pytest.fixture(scope="module")
-def node_quality_job(ci_workflow: Workflow) -> Dict[str, Any]:
+def node_quality_job(ci_workflow: Workflow) -> dict[str, Any]:
     return ci_workflow["jobs"]["node-quality"]
 
 
@@ -37,11 +37,11 @@ def vitest_config_text() -> str:
     return Path("web/vitest.config.ts").read_text(encoding="utf-8")
 
 
-def _step_names(job: Dict[str, Any]) -> List[str]:
+def _step_names(job: dict[str, Any]) -> list[str]:
     return [step.get("name", "") for step in job.get("steps", [])]
 
 
-def _find_step(job: Dict[str, Any], name: str) -> Dict[str, Any]:
+def _find_step(job: dict[str, Any], name: str) -> dict[str, Any]:
     for step in job.get("steps", []):
         if step.get("name") == name:
             return step
@@ -63,7 +63,7 @@ def test_ci_jobs_present(ci_workflow: Workflow) -> None:
 
 
 def test_python_quality_has_static_analysis_steps(
-    python_quality_job: Dict[str, Any],
+    python_quality_job: dict[str, Any],
 ) -> None:
     names = _step_names(python_quality_job)
     for required in ["Ruff", "Black", "isort", "mypy"]:
@@ -71,7 +71,7 @@ def test_python_quality_has_static_analysis_steps(
 
 
 def test_python_quality_pytest_has_coverage_gate(
-    python_quality_job: Dict[str, Any],
+    python_quality_job: dict[str, Any],
 ) -> None:
     pytest_step = _find_step(python_quality_job, "Pytest with coverage gate")
     run_command = pytest_step.get("run", "")
@@ -81,7 +81,7 @@ def test_python_quality_pytest_has_coverage_gate(
 
 
 def test_python_quality_matrix_and_python_version(
-    python_quality_job: Dict[str, Any],
+    python_quality_job: dict[str, Any],
 ) -> None:
     matrix = python_quality_job["strategy"]["matrix"]["include"]
     packages = {entry["package"] for entry in matrix}
@@ -93,7 +93,7 @@ def test_python_quality_matrix_and_python_version(
     assert setup_python["with"]["python-version"] == "3.11"
 
 
-def test_node_quality_configuration(node_quality_job: Dict[str, Any]) -> None:
+def test_node_quality_configuration(node_quality_job: dict[str, Any]) -> None:
     names = _step_names(node_quality_job)
     for required in ["ESLint", "TypeScript type check", "Vitest with coverage gate"]:
         assert required in names, f"Node quality job missing '{required}' step"

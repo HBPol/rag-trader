@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 from urllib import error, request
+from urllib.parse import urlparse
+
+ALLOWED_URL_SCHEMES = {"http", "https"}
 
 
 class RequestException(Exception):
@@ -26,9 +30,18 @@ class Response:
 def get(
     url: str, headers: Mapping[str, str] | None = None, timeout: float | None = None
 ) -> Response:
-    req = request.Request(url, headers=headers or {})
+    scheme = urlparse(url).scheme
+    if scheme and scheme not in ALLOWED_URL_SCHEMES:
+        raise ValueError(f"Unsupported URL scheme for shimmed request: {scheme}")
+
+    req = request.Request(  # noqa: S310 - restricted to http(s) URLs by validation above
+        url,
+        headers=headers or {},
+    )
     try:
-        with request.urlopen(req, timeout=timeout) as resp:
+        with request.urlopen(  # noqa: S310 - restricted to http(s) URLs by validation above
+            req, timeout=timeout
+        ) as resp:
             body = resp.read()
             headers_map = dict(resp.headers.items())
             return Response(

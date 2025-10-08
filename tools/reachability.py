@@ -5,9 +5,9 @@ from __future__ import annotations
 import base64
 import os
 import sys
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, Mapping, Sequence
 
 try:  # pragma: no cover - exercised in environments with real requests installed
     import requests  # type: ignore[assignment]

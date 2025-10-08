@@ -9,6 +9,7 @@ from typing import Any, Final
 
 from testcontainers.core.generic import DockerContainer
 
+
 def _resolve_log_wait_strategy() -> type[Any]:
     try:  # pragma: no cover - import fallback logic for various testcontainers versions
         from testcontainers.core.waiting import (

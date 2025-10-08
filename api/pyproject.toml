@@ -45,6 +45,7 @@ target-version = ["py311"]
 
 [tool.isort]
 profile = "black"
+known_first_party = ["ragtrader_api", "ragtrader_pipelines"]
 
 [tool.ruff]
 line-length = 88
