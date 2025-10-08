@@ -6,26 +6,42 @@ import logging
 import time
 from collections.abc import Callable, Iterable, Sequence
 from importlib import import_module
-from typing import Any
+from typing import Any, Protocol, cast
 
-try:  # pragma: no cover - optional dependency guard
-    from qdrant_client import QdrantClient
+from ragtrader_api.settings import ApiSettings
+
+
+class QdrantClientProtocol(Protocol):
+    """Subset of the Qdrant client API used by the repository."""
+
+    def create_collection(self, *args: Any, **kwargs: Any) -> Any: ...
+
+    def upsert(self, *args: Any, **kwargs: Any) -> Any: ...
+
+    def delete(self, *args: Any, **kwargs: Any) -> Any: ...
+
+    def delete_collection(self, *args: Any, **kwargs: Any) -> Any: ...
+
+
+try:  # pragma: no cover - optional dependency guard at runtime
+    from qdrant_client import QdrantClient as _RealQdrantClient
 except ModuleNotFoundError:  # pragma: no cover - executed only when dependency missing
 
-    class QdrantClient:  # type: ignore[override]
+    class _MissingQdrantClient:
         """Fallback stub to provide a helpful error when qdrant-client is absent."""
 
-        def __init__(
-            self, *args: Any, **kwargs: Any
-        ) -> None:  # noqa: D401 - match Qdrant signature
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             raise ModuleNotFoundError(
                 "qdrant-client is required to use VectorStoreRepository."
                 " Install the service dependencies via"
                 " `pip install -e .[dev]`."
             )
 
+    _RealQdrantClient = _MissingQdrantClient
 
-from ragtrader_api.settings import ApiSettings
+
+ClientFactory = Callable[..., QdrantClientProtocol]
+DEFAULT_CLIENT_FACTORY: ClientFactory = cast(ClientFactory, _RealQdrantClient)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,7 +49,8 @@ _LOGGER = logging.getLogger(__name__)
 def _default_backoff(attempt: int) -> float:
     """Return an exponential backoff delay in seconds."""
 
-    return min(0.1 * (2 ** (attempt - 1)), 1.0)
+    delay = 0.1 * float(2 ** (attempt - 1))
+    return float(min(delay, 1.0))
 
 
 class VectorStoreRepository:
@@ -43,8 +60,8 @@ class VectorStoreRepository:
         self,
         settings: ApiSettings,
         *,
-        client: QdrantClient | None = None,
-        client_factory: Callable[..., QdrantClient] = QdrantClient,
+        client: QdrantClientProtocol | None = None,
+        client_factory: ClientFactory | None = None,
         retry_attempts: int = 3,
         wait_strategy: Any | None = None,
         backoff_strategy: Callable[[int], float] | None = None,
@@ -54,8 +71,8 @@ class VectorStoreRepository:
             raise ValueError("retry_attempts must be at least 1")
 
         self._settings = settings
-        self._client_factory = client_factory
-        self._client = client
+        self._client_factory: ClientFactory = client_factory or DEFAULT_CLIENT_FACTORY
+        self._client: QdrantClientProtocol | None = client
         self._retry_attempts = retry_attempts
         self._wait_strategy = wait_strategy
         self._backoff_strategy = backoff_strategy or _default_backoff
@@ -69,7 +86,7 @@ class VectorStoreRepository:
     def settings(self) -> ApiSettings:
         return self._settings
 
-    def _build_client(self) -> QdrantClient:
+    def _build_client(self) -> QdrantClientProtocol:
         if self._client is None:
             factory_kwargs: dict[str, Any] = {"url": self._settings.qdrant_url}
             if self._settings.use_qdrant_cloud:
@@ -111,16 +128,22 @@ class VectorStoreRepository:
                 }
         return self._tenacity_support or None
 
-    def _run_with_retry(self, operation: Callable[[QdrantClient], Any]) -> Any:
+    def _run_with_retry(self, operation: Callable[[QdrantClientProtocol], Any]) -> Any:
         tenacity = self._load_tenacity()
         if tenacity:
-
-            @tenacity["retry"](
-                reraise=True,
-                stop=tenacity["stop_after_attempt"](self._retry_attempts),
-                wait=tenacity["wait"],
-                retry=tenacity["retry_if_exception_type"](self._retryable_exceptions),
+            retry_decorator = cast(
+                Callable[[Callable[[], Any]], Callable[[], Any]],
+                tenacity["retry"](
+                    reraise=True,
+                    stop=tenacity["stop_after_attempt"](self._retry_attempts),
+                    wait=tenacity["wait"],
+                    retry=tenacity["retry_if_exception_type"](
+                        self._retryable_exceptions
+                    ),
+                ),
             )
+
+            @retry_decorator
             def _runner() -> Any:
                 return operation(self._build_client())
 
@@ -149,7 +172,7 @@ class VectorStoreRepository:
                 attempt += 1
 
     @property
-    def client(self) -> QdrantClient:
+    def client(self) -> QdrantClientProtocol:
         """Return the lazily-initialized Qdrant client."""
 
         return self._build_client()
@@ -162,7 +185,7 @@ class VectorStoreRepository:
     ) -> Any:
         """Create a collection in Qdrant."""
 
-        def _op(client: QdrantClient) -> Any:
+        def _op(client: QdrantClientProtocol) -> Any:
             return client.create_collection(
                 collection_name=collection_name,
                 vectors_config=vectors_config,
@@ -179,7 +202,7 @@ class VectorStoreRepository:
     ) -> Any:
         """Insert or update a batch of points."""
 
-        def _op(client: QdrantClient) -> Any:
+        def _op(client: QdrantClientProtocol) -> Any:
             return client.upsert(
                 collection_name=collection_name,
                 points=points,
@@ -196,7 +219,7 @@ class VectorStoreRepository:
     ) -> Any:
         """Delete selected points from a collection."""
 
-        def _op(client: QdrantClient) -> Any:
+        def _op(client: QdrantClientProtocol) -> Any:
             return client.delete(
                 collection_name=collection_name,
                 points_selector=points_selector,
@@ -208,7 +231,7 @@ class VectorStoreRepository:
     def delete_collection(self, collection_name: str, **kwargs: Any) -> Any:
         """Drop a collection entirely."""
 
-        def _op(client: QdrantClient) -> Any:
+        def _op(client: QdrantClientProtocol) -> Any:
             return client.delete_collection(collection_name=collection_name, **kwargs)
 
         return self._run_with_retry(_op)
