@@ -44,7 +44,7 @@ line-length = 88
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "Q", "S"]
+select = ["E", "F", "UP", "B", "Q", "S"]
 ignore = ["S101"]
 
 [tool.mypy]

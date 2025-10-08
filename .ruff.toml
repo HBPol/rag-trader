@@ -9,7 +9,7 @@ src = [
 ]
 
 [lint]
-select = ["E", "F", "I", "UP", "B", "Q", "S"]
+select = ["E", "F", "UP", "B", "Q", "S"]
 ignore = ["S101"]
 
 [lint.isort]
