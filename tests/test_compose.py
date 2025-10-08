@@ -79,9 +79,17 @@ def compose_configs() -> dict[str, dict[str, Any]]:
 def run_docker(
     docker_path: str, args: Sequence[str], **kwargs: Any
 ) -> subprocess.CompletedProcess[Any]:
+    docker_executable = Path(docker_path)
+    if not docker_executable.is_absolute():
+        msg = f"Docker path must be absolute, got: {docker_path!r}"
+        raise ValueError(msg)
+    if docker_executable.name not in {"docker", "docker.exe"}:
+        msg = f"Unexpected docker executable: {docker_executable.name!r}"
+        raise ValueError(msg)
+
+    command = [docker_executable.as_posix(), *map(str, args)]
     return subprocess.run(
-        ["docker", *args],
-        executable=docker_path,
+        command,
         shell=False,
         **kwargs,
     )
