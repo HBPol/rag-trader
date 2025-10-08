@@ -9,7 +9,7 @@ from unittest.mock import Mock
 import pytest
 
 from ragtrader_api.settings import ApiSettings
-from ragtrader_api.vectorstore import VectorStoreRepository
+from ragtrader_api.vectorstore import QdrantClientProtocol, VectorStoreRepository
 
 
 def _settings(**overrides: Any) -> ApiSettings:
@@ -62,15 +62,24 @@ def test_repository_omits_api_key_for_self_hosted() -> None:
 
 
 def test_repository_upsert_retries_transient_failures() -> None:
-    class _FlakyClient:
+    class _FlakyClient(QdrantClientProtocol):
         def __init__(self) -> None:
             self.calls = 0
+
+        def create_collection(self, *args: Any, **kwargs: Any) -> Any:
+            return {"collection": kwargs.get("collection_name")}
 
         def upsert(self, *, collection_name: str, points: Any, **_: Any) -> str:
             self.calls += 1
             if self.calls < 3:
                 raise ConnectionError("temporary failure")
             return f"{collection_name}:{len(list(points))}"
+
+        def delete(self, *args: Any, **kwargs: Any) -> Any:
+            return {"status": "noop"}
+
+        def delete_collection(self, *args: Any, **kwargs: Any) -> Any:
+            return True
 
     client = _FlakyClient()
     repo = VectorStoreRepository(
@@ -87,9 +96,18 @@ def test_repository_upsert_retries_transient_failures() -> None:
 
 
 def test_repository_raises_after_retry_budget_exhausted() -> None:
-    class _FailingClient:
+    class _FailingClient(QdrantClientProtocol):
+        def create_collection(self, *args: Any, **kwargs: Any) -> Any:
+            return {"collection": kwargs.get("collection_name")}
+
         def upsert(self, **_: Any) -> None:
             raise ConnectionError("still failing")
+
+        def delete(self, *args: Any, **kwargs: Any) -> Any:
+            return {"status": "noop"}
+
+        def delete_collection(self, *args: Any, **kwargs: Any) -> Any:
+            return True
 
     repo = VectorStoreRepository(
         _settings(),
