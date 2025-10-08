@@ -7,7 +7,7 @@ import re
 import shutil
 import subprocess
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -76,6 +76,17 @@ def compose_configs() -> dict[str, dict[str, Any]]:
     return {path.name: load_compose_file(path) for path in COMPOSE_FILES}
 
 
+def run_docker(
+    docker_path: str, args: Sequence[str], **kwargs: Any
+) -> subprocess.CompletedProcess[Any]:
+    return subprocess.run(
+        ["docker", *args],
+        executable=docker_path,
+        shell=False,
+        **kwargs,
+    )
+
+
 def test_env_example_defines_required_variables(env_example: dict[str, str]) -> None:
     missing = REQUIRED_ENV_VARS - env_example.keys()
     assert not missing, f"Missing required variables in .env.example: {missing}"
@@ -117,8 +128,7 @@ def test_compose_stack_smoke() -> None:
     if docker_path is None:
         pytest.skip("Docker is not available on this system.")
 
-    compose_base_cmd = [
-        docker_path,
+    compose_base_args = [
         "compose",
         "-f",
         "docker-compose.yml",
@@ -143,16 +153,18 @@ def test_compose_stack_smoke() -> None:
         created_env = True
 
     try:
-        subprocess.run(  # noqa: S603 - executes a fixed docker-compose command in tests
-            compose_base_cmd + ["down", "-v"],
+        run_docker(
+            docker_path,
+            [*compose_base_args, "down", "-v"],
             cwd=REPO_ROOT,
             env=env,
             check=False,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        subprocess.run(  # noqa: S603 - executes a fixed docker-compose command in tests
-            compose_base_cmd + ["up", "-d", "--build"],
+        run_docker(
+            docker_path,
+            [*compose_base_args, "up", "-d", "--build"],
             cwd=REPO_ROOT,
             env=env,
             check=True,
@@ -163,8 +175,9 @@ def test_compose_stack_smoke() -> None:
         wait_for_url(f"http://localhost:{env['API_PORT']}/healthz")
         wait_for_url("http://localhost:6333")
     finally:
-        subprocess.run(  # noqa: S603 - executes a fixed docker-compose command in tests
-            compose_base_cmd + ["down", "-v"],
+        run_docker(
+            docker_path,
+            [*compose_base_args, "down", "-v"],
             cwd=REPO_ROOT,
             env=env,
             check=False,
@@ -178,8 +191,9 @@ def wait_for_container_health(
 ) -> None:
     deadline = time.time() + timeout
     while time.time() < deadline:
-        result = subprocess.run(  # noqa: S603 - executes a fixed docker command in tests
-            [docker_path, "inspect", "-f", "{{.State.Health.Status}}", container_name],
+        result = run_docker(
+            docker_path,
+            ("inspect", "-f", "{{.State.Health.Status}}", container_name),
             cwd=REPO_ROOT,
             env=env,
             stdout=subprocess.PIPE,
