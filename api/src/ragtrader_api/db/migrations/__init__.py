@@ -5,6 +5,8 @@ from __future__ import annotations
 from importlib import resources
 from typing import TYPE_CHECKING, Any, cast
 
+_ALEMBIC_IMPORT_ERROR: ModuleNotFoundError | None
+
 try:  # pragma: no cover - optional dependency guard
     from alembic import command as _alembic_command
     from alembic.config import Config

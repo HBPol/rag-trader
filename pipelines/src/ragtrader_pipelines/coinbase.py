@@ -66,7 +66,20 @@ class CandleRepository(Protocol):
         """Persist the provided candles."""
 
 
-class CoinbaseClient:
+class CoinbaseClientProtocol(Protocol):
+    """Protocol describing the Coinbase client dependency."""
+
+    def fetch_candles(
+        self,
+        symbol: str,
+        granularity: int,
+        start: datetime,
+        end: datetime,
+    ) -> list[list[float]]:
+        """Return raw candle data for the requested parameters."""
+
+
+class CoinbaseClient(CoinbaseClientProtocol):
     """Thin wrapper around the Coinbase candles endpoint."""
 
     def __init__(
@@ -115,7 +128,7 @@ class CoinbaseOhlcvIngestion:
     def __init__(
         self,
         *,
-        client: CoinbaseClient,
+        client: CoinbaseClientProtocol,
         repository: CandleRepository,
         clock: Callable[[], datetime] | None = None,
     ) -> None:

@@ -10,16 +10,22 @@ from typing import Any, Final
 from testcontainers.core.generic import DockerContainer
 
 try:  # pragma: no cover - import fallback logic for various testcontainers versions
-    from testcontainers.core.waiting import LogMessageWaitStrategy
+    from testcontainers.core.waiting import (
+        LogMessageWaitStrategy as _LogMessageWaitStrategy,
+    )
 except ImportError:  # pragma: no cover - maintain compatibility with older versions
     try:
-        from testcontainers.core.waiting_utils import LogMessageWaitStrategy
+        from testcontainers.core.waiting_utils import (
+            LogMessageWaitStrategy as _LogMessageWaitStrategy,
+        )
     except ImportError:  # pragma: no cover - legacy package layout
         try:
-            from testcontainers.waiting import LogMessageWaitStrategy
+            from testcontainers.waiting import (
+                LogMessageWaitStrategy as _LogMessageWaitStrategy,
+            )
         except ImportError:  # pragma: no cover - fallback for missing class
 
-            class LogMessageWaitStrategy:  # type: ignore[override]
+            class _LogMessageWaitStrategy:  # type: ignore[override]
                 """Minimal shim replicating the log wait strategy API."""
 
                 def __init__(
@@ -66,6 +72,9 @@ except ImportError:  # pragma: no cover - maintain compatibility with older vers
                     container: DockerContainer,
                 ) -> None:  # pragma: no cover - shim passthrough
                     self.wait(container)
+
+
+LogMessageWaitStrategy = _LogMessageWaitStrategy
 
 
 POSTGRES_IMAGE: Final[str] = "postgres:15-alpine"
