@@ -12,5 +12,8 @@ src = [
 select = ["E", "F", "UP", "B", "Q", "S"]
 ignore = ["S101"]
 
+[lint.per-file-ignores]
+"tests/test_compose.py" = ["S603"]
+
 [lint.isort]
 known-first-party = ["ragtrader_api", "ragtrader_pipelines"]
