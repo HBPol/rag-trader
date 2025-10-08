@@ -1,4 +1,5 @@
 """Regression tests for the GitHub Actions CI workflow configuration."""
+
 from __future__ import annotations
 
 import re
@@ -61,13 +62,17 @@ def test_ci_jobs_present(ci_workflow: Workflow) -> None:
     assert not missing, f"Missing required jobs: {sorted(missing)}"
 
 
-def test_python_quality_has_static_analysis_steps(python_quality_job: Dict[str, Any]) -> None:
+def test_python_quality_has_static_analysis_steps(
+    python_quality_job: Dict[str, Any],
+) -> None:
     names = _step_names(python_quality_job)
     for required in ["Ruff", "Black", "isort", "mypy"]:
         assert required in names, f"Python quality job missing '{required}' step"
 
 
-def test_python_quality_pytest_has_coverage_gate(python_quality_job: Dict[str, Any]) -> None:
+def test_python_quality_pytest_has_coverage_gate(
+    python_quality_job: Dict[str, Any],
+) -> None:
     pytest_step = _find_step(python_quality_job, "Pytest with coverage gate")
     run_command = pytest_step.get("run", "")
     match = re.search(r"--cov-fail-under=(\d+)", run_command)
@@ -75,7 +80,9 @@ def test_python_quality_pytest_has_coverage_gate(python_quality_job: Dict[str, A
     assert int(match.group(1)) >= 80, "Backend coverage threshold must be at least 80%"
 
 
-def test_python_quality_matrix_and_python_version(python_quality_job: Dict[str, Any]) -> None:
+def test_python_quality_matrix_and_python_version(
+    python_quality_job: Dict[str, Any],
+) -> None:
     matrix = python_quality_job["strategy"]["matrix"]["include"]
     packages = {entry["package"] for entry in matrix}
     assert packages == {"api", "pipelines"}
@@ -96,7 +103,11 @@ def test_node_quality_configuration(node_quality_job: Dict[str, Any]) -> None:
 
 
 def test_frontend_coverage_thresholds(vitest_config_text: str) -> None:
-    thresholds = dict(re.findall(r"(lines|functions|statements|branches):\s*(\d+)", vitest_config_text))
+    thresholds = dict(
+        re.findall(
+            r"(lines|functions|statements|branches):\s*(\d+)", vitest_config_text
+        )
+    )
     assert thresholds, "Vitest config must define coverage thresholds"
     for metric, value in thresholds.items():
         assert int(value) >= 70, f"Frontend coverage for {metric} must be at least 70%"
@@ -113,4 +124,6 @@ def test_docker_build_job_present(ci_workflow: Workflow) -> None:
 def test_reachability_job_runs_probes(ci_workflow: Workflow) -> None:
     reachability = ci_workflow["jobs"]["reachability"]
     run_step = _find_step(reachability, "Run reachability probes")
-    assert "tools/reachability.py" in run_step.get("run", ""), "Reachability job must invoke probes script"
+    assert "tools/reachability.py" in run_step.get(
+        "run", ""
+    ), "Reachability job must invoke probes script"

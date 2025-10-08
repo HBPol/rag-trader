@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import base64
 import os
 import sys
-import base64
 from dataclasses import dataclass
 from enum import Enum
 from typing import Iterable, Mapping, Sequence
@@ -66,7 +66,9 @@ def build_rss_feeds(env: Mapping[str, str]) -> Sequence[str]:
     return feeds
 
 
-def probe_url(name: str, url: str, *, headers: Mapping[str, str] | None = None, timeout: float) -> ProbeResult:
+def probe_url(
+    name: str, url: str, *, headers: Mapping[str, str] | None = None, timeout: float
+) -> ProbeResult:
     try:
         response: Response = requests.get(url, headers=headers, timeout=timeout)
     except requests.RequestException as exc:
@@ -84,7 +86,11 @@ def probe_url(name: str, url: str, *, headers: Mapping[str, str] | None = None, 
             status=ProbeStatus.FAILURE,
             detail=f"HTTP {response.status_code} for {url}",
         )
-    return ProbeResult(name=name, status=ProbeStatus.SUCCESS, detail=f"HTTP {response.status_code} for {url}")
+    return ProbeResult(
+        name=name,
+        status=ProbeStatus.SUCCESS,
+        detail=f"HTTP {response.status_code} for {url}",
+    )
 
 
 def probe_coinbase(env: Mapping[str, str], timeout: float) -> ProbeResult:
@@ -95,7 +101,9 @@ def probe_coinbase(env: Mapping[str, str], timeout: float) -> ProbeResult:
             detail="REACHABILITY_SKIP_COINBASE is set",
         )
 
-    base_url = env.get("COINBASE_API_BASE", "https://api.exchange.coinbase.com").rstrip("/")
+    base_url = env.get("COINBASE_API_BASE", "https://api.exchange.coinbase.com").rstrip(
+        "/"
+    )
     url = f"{base_url}/time"
     return probe_url("coinbase", url, timeout=timeout)
 
@@ -173,7 +181,9 @@ def run_probes(env: Mapping[str, str] | None = None) -> list[ProbeResult]:
             )
         ]
 
-    timeout = float(env_map.get("REACHABILITY_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS))
+    timeout = float(
+        env_map.get("REACHABILITY_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS)
+    )
     results: list[ProbeResult] = []
     results.append(probe_coinbase(env_map, timeout=timeout))
     results.extend(probe_rss_feeds(env_map, timeout=timeout))

@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Iterable
 from pathlib import Path
-import sys
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import pytest
-
 from tools import reachability
 from tools.reachability import ProbeStatus
 
@@ -17,7 +16,9 @@ requests = reachability.requests
 
 
 def make_response(url: str, status: int) -> requests.Response:
-    if hasattr(requests.Response, "__annotations__") and "status_code" in getattr(requests.Response, "__annotations__", {}):
+    if hasattr(requests.Response, "__annotations__") and "status_code" in getattr(
+        requests.Response, "__annotations__", {}
+    ):
         return requests.Response(status_code=status, text="", headers={}, url=url)
 
     response = requests.Response()
@@ -28,7 +29,9 @@ def make_response(url: str, status: int) -> requests.Response:
     return response
 
 
-def collect_statuses(results: Iterable[reachability.ProbeResult]) -> dict[str, reachability.ProbeResult]:
+def collect_statuses(
+    results: Iterable[reachability.ProbeResult],
+) -> dict[str, reachability.ProbeResult]:
     return {result.name: result for result in results}
 
 
@@ -40,9 +43,15 @@ def test_run_probes_success(monkeypatch: pytest.MonkeyPatch) -> None:
     }
 
     responses = {
-        "https://example.com/coinbase/time": make_response("https://example.com/coinbase/time", 200),
-        "https://rss.example.com/feed": make_response("https://rss.example.com/feed", 200),
-        "https://vector.example.com/healthz": make_response("https://vector.example.com/healthz", 200),
+        "https://example.com/coinbase/time": make_response(
+            "https://example.com/coinbase/time", 200
+        ),
+        "https://rss.example.com/feed": make_response(
+            "https://rss.example.com/feed", 200
+        ),
+        "https://vector.example.com/healthz": make_response(
+            "https://vector.example.com/healthz", 200
+        ),
     }
 
     def fake_get(url: str, headers=None, timeout=None):  # type: ignore[override]
@@ -66,9 +75,15 @@ def test_run_probes_rate_limit_emits_skip(monkeypatch: pytest.MonkeyPatch) -> No
     }
 
     responses = {
-        "https://example.com/coinbase/time": make_response("https://example.com/coinbase/time", 429),
-        "https://rss.example.com/feed": make_response("https://rss.example.com/feed", 200),
-        "https://vector.example.com/healthz": make_response("https://vector.example.com/healthz", 200),
+        "https://example.com/coinbase/time": make_response(
+            "https://example.com/coinbase/time", 429
+        ),
+        "https://rss.example.com/feed": make_response(
+            "https://rss.example.com/feed", 200
+        ),
+        "https://vector.example.com/healthz": make_response(
+            "https://vector.example.com/healthz", 200
+        ),
     }
 
     def fake_get(url: str, headers=None, timeout=None):  # type: ignore[override]
@@ -93,8 +108,12 @@ def test_run_probes_failure_on_exception(monkeypatch: pytest.MonkeyPatch) -> Non
     }
 
     responses = {
-        "https://example.com/coinbase/time": make_response("https://example.com/coinbase/time", 200),
-        "https://rss.example.com/feed": make_response("https://rss.example.com/feed", 200),
+        "https://example.com/coinbase/time": make_response(
+            "https://example.com/coinbase/time", 200
+        ),
+        "https://rss.example.com/feed": make_response(
+            "https://rss.example.com/feed", 200
+        ),
     }
 
     def fake_get(url: str, headers=None, timeout=None):  # type: ignore[override]

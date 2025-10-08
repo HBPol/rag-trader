@@ -86,7 +86,9 @@ def test_env_example_defines_required_variables(env_example: Dict[str, str]) -> 
     assert env_example["RAGTRADER_API_QDRANT_URL"] == "${QDRANT_URL}"
 
 
-def test_compose_ports_use_env_overrides(compose_configs: dict[str, dict[str, Any]]) -> None:
+def test_compose_ports_use_env_overrides(
+    compose_configs: dict[str, dict[str, Any]],
+) -> None:
     base = compose_configs["docker-compose.yml"]
     services = base["services"]
     assert "${POSTGRES_PORT:-5432}:5432" in services["postgres"]["ports"]
@@ -95,9 +97,11 @@ def test_compose_ports_use_env_overrides(compose_configs: dict[str, dict[str, An
 
 
 def test_api_service_forwards_database_and_qdrant_settings(
-    compose_configs: dict[str, dict[str, Any]]
+    compose_configs: dict[str, dict[str, Any]],
 ) -> None:
-    base_env = environment_to_dict(compose_configs["docker-compose.yml"]["services"]["api"]["environment"])
+    base_env = environment_to_dict(
+        compose_configs["docker-compose.yml"]["services"]["api"]["environment"]
+    )
     assert "${RAGTRADER_API_POSTGRES_DSN" in base_env["RAGTRADER_API_POSTGRES_DSN"]
     assert "${RAGTRADER_API_QDRANT_URL" in base_env["RAGTRADER_API_QDRANT_URL"]
 
@@ -156,7 +160,7 @@ def test_compose_stack_smoke() -> None:
         wait_for_container_health("ragtrader-postgres", env)
         wait_for_container_health("ragtrader-qdrant", env)
         wait_for_url(f"http://localhost:{env['API_PORT']}/healthz")
-        wait_for_url(f"http://localhost:6333")
+        wait_for_url("http://localhost:6333")
     finally:
         subprocess.run(
             compose_base_cmd + ["down", "-v"],
@@ -168,7 +172,9 @@ def test_compose_stack_smoke() -> None:
             env_path.unlink()
 
 
-def wait_for_container_health(container_name: str, env: dict[str, str], timeout: float = 120.0) -> None:
+def wait_for_container_health(
+    container_name: str, env: dict[str, str], timeout: float = 120.0
+) -> None:
     deadline = time.time() + timeout
     while time.time() < deadline:
         result = subprocess.run(
@@ -182,7 +188,9 @@ def wait_for_container_health(container_name: str, env: dict[str, str], timeout:
         if result.returncode == 0 and result.stdout.strip() == "healthy":
             return
         time.sleep(2)
-    raise AssertionError(f"Container {container_name} did not become healthy within {timeout} seconds.")
+    raise AssertionError(
+        f"Container {container_name} did not become healthy within {timeout} seconds."
+    )
 
 
 def wait_for_url(url: str, timeout: float = 120.0) -> None:
@@ -193,7 +201,9 @@ def wait_for_url(url: str, timeout: float = 120.0) -> None:
             response = requests.get(url, timeout=5)
             if 200 <= response.status_code < 500:
                 return
-        except requests.RequestException as exc:  # pragma: no cover - network failure path
+        except (
+            requests.RequestException
+        ) as exc:  # pragma: no cover - network failure path
             last_error = exc
         time.sleep(2)
     if last_error is not None:

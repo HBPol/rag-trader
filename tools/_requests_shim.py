@@ -23,20 +23,36 @@ class Response:
     url: str
 
 
-def get(url: str, headers: Mapping[str, str] | None = None, timeout: float | None = None) -> Response:
+def get(
+    url: str, headers: Mapping[str, str] | None = None, timeout: float | None = None
+) -> Response:
     req = request.Request(url, headers=headers or {})
     try:
         with request.urlopen(req, timeout=timeout) as resp:
             body = resp.read()
             headers_map = dict(resp.headers.items())
-            return Response(status_code=resp.getcode(), text=body.decode("utf-8", "replace"), headers=headers_map, url=url)
+            return Response(
+                status_code=resp.getcode(),
+                text=body.decode("utf-8", "replace"),
+                headers=headers_map,
+                url=url,
+            )
     except error.HTTPError as exc:
         body = exc.read() if hasattr(exc, "read") else b""
         headers_map = dict(getattr(exc, "headers", {}) or {})
-        return Response(status_code=exc.code, text=body.decode("utf-8", "replace"), headers=headers_map, url=url)
-    except error.URLError as exc:  # pragma: no cover - exercised via tests raising ConnectionError
+        return Response(
+            status_code=exc.code,
+            text=body.decode("utf-8", "replace"),
+            headers=headers_map,
+            url=url,
+        )
+    except (
+        error.URLError
+    ) as exc:  # pragma: no cover - exercised via tests raising ConnectionError
         raise ConnectionError(str(exc)) from exc
 
 
-def __getattr__(name: str) -> Any:  # pragma: no cover - compatibility for unexpected attributes
+def __getattr__(
+    name: str,
+) -> Any:  # pragma: no cover - compatibility for unexpected attributes
     raise AttributeError(f"requests shim does not implement attribute: {name}")
