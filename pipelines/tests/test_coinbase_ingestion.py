@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+
 from ragtrader_pipelines.coinbase import (
     CoinbaseOhlcvIngestion,
     Granularity,

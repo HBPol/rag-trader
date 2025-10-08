@@ -200,10 +200,9 @@ class SqlAlchemyCandleRepository:
     def upsert_many(self, records: Sequence[OhlcvRecord]) -> None:  # pragma: no cover
         """Persist the provided candles to the backing database."""
 
+        from ragtrader_api.db.models import Ohlcv
         from sqlalchemy.dialects.postgresql import insert
         from sqlalchemy.orm import Session
-
-        from ragtrader_api.db.models import Ohlcv
 
         with Session(self._engine) as session:
             stmt = insert(Ohlcv).values(

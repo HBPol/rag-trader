@@ -1,6 +1,7 @@
 """Tests for the pipeline registry scaffold."""
 
 import pytest
+
 from ragtrader_pipelines.registry import PipelineRegistry
 
 
