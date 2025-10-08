@@ -5,11 +5,6 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 import pytest
-
-pytest.importorskip("sqlalchemy")
-pytest.importorskip("psycopg")
-pytest.importorskip("alembic")
-
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
@@ -17,6 +12,10 @@ from ragtrader_api.db import database
 from ragtrader_api.db.migrations import apply_migrations
 from ragtrader_api.settings import ApiSettings
 from tests.utils import PostgresTestContainer
+
+pytest.importorskip("sqlalchemy")
+pytest.importorskip("psycopg")
+pytest.importorskip("alembic")
 
 
 @pytest.fixture(scope="session")
