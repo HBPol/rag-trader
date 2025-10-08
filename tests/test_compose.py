@@ -87,9 +87,12 @@ def run_docker(
         msg = f"Unexpected docker executable: {docker_executable.name!r}"
         raise ValueError(msg)
 
-    command = [docker_executable.as_posix(), *map(str, args)]
-    return subprocess.run(
-        command,
+    docker_args = ["docker", *[str(arg) for arg in args]]
+    # The command vector is static within the test suite to ensure predictable
+    # execution.
+    return subprocess.run(  # noqa: S603
+        docker_args,
+        executable=docker_executable.as_posix(),
         shell=False,
         **kwargs,
     )
