@@ -9,69 +9,83 @@ from typing import Any, Final
 
 from testcontainers.core.generic import DockerContainer
 
-try:  # pragma: no cover - import fallback logic for various testcontainers versions
-    from testcontainers.core.waiting import (
-        LogMessageWaitStrategy as _LogMessageWaitStrategy,
-    )
-except ImportError:  # pragma: no cover - maintain compatibility with older versions
-    try:
-        from testcontainers.core.waiting_utils import (
-            LogMessageWaitStrategy as _LogMessageWaitStrategy,
+def _resolve_log_wait_strategy() -> type[Any]:
+    try:  # pragma: no cover - import fallback logic for various testcontainers versions
+        from testcontainers.core.waiting import (
+            LogMessageWaitStrategy as _core_log_wait_strategy,
         )
-    except ImportError:  # pragma: no cover - legacy package layout
+    except ImportError:  # pragma: no cover - maintain compatibility with older versions
         try:
-            from testcontainers.waiting import (
-                LogMessageWaitStrategy as _LogMessageWaitStrategy,
+            from testcontainers.core.waiting_utils import (
+                LogMessageWaitStrategy as _waiting_utils_log_wait_strategy,
             )
-        except ImportError:  # pragma: no cover - fallback for missing class
+        except ImportError:  # pragma: no cover - legacy package layout
+            try:
+                from testcontainers.waiting import (
+                    LogMessageWaitStrategy as _legacy_log_wait_strategy,
+                )
+            except ImportError:  # pragma: no cover - fallback for missing class
 
-            class _LogMessageWaitStrategy:  # type: ignore[override]
-                """Minimal shim replicating the log wait strategy API."""
+                class _shim_log_wait_strategy:  # type: ignore[override]
+                    """Minimal shim replicating the log wait strategy API."""
 
-                def __init__(
-                    self,
-                    message: str,
-                    timeout: float | None = None,
-                    stream: str = "stdout",
-                    **_: Any,
-                ) -> None:
-                    self._message = message
-                    self._timeout = timeout
-                    self._stream = stream
+                    def __init__(
+                        self,
+                        message: str,
+                        timeout: float | None = None,
+                        stream: str = "stdout",
+                        **_: Any,
+                    ) -> None:
+                        self._message = message
+                        self._timeout = timeout
+                        self._stream = stream
 
-                def wait(self, container: DockerContainer) -> None:
-                    wrapped = getattr(container, "_container", None)
-                    if wrapped is None:
-                        raise RuntimeError("Container has not been started yet")
+                    def wait(self, container: DockerContainer) -> None:
+                        wrapped = getattr(container, "_container", None)
+                        if wrapped is None:
+                            raise RuntimeError("Container has not been started yet")
 
-                    deadline: float | None = None
-                    if self._timeout is not None:
-                        deadline = time.monotonic() + self._timeout
+                        deadline: float | None = None
+                        if self._timeout is not None:
+                            deadline = time.monotonic() + self._timeout
 
-                    poll_interval = 0.1
-                    stdout = self._stream != "stderr"
-                    stderr = self._stream != "stdout"
+                        poll_interval = 0.1
+                        stdout = self._stream != "stderr"
+                        stderr = self._stream != "stdout"
 
-                    while True:
-                        logs: bytes = wrapped.logs(stdout=stdout, stderr=stderr)
-                        decoded = logs.decode("utf-8", errors="ignore")
-                        if self._message in decoded:
-                            return
+                        while True:
+                            logs: bytes = wrapped.logs(stdout=stdout, stderr=stderr)
+                            decoded = logs.decode("utf-8", errors="ignore")
+                            if self._message in decoded:
+                                return
 
-                        if deadline is not None and time.monotonic() > deadline:
-                            raise TimeoutError(
-                                "Timed out waiting for container log message"
-                            )
+                            if deadline is not None and time.monotonic() > deadline:
+                                raise TimeoutError(
+                                    "Timed out waiting for container log message"
+                                )
 
-                        time.sleep(poll_interval)
+                            time.sleep(poll_interval)
 
-                # Modern testcontainers expects wait strategies to expose
-                # ``wait_until_ready``; fall back to ``wait`` for compatibility.
-                def wait_until_ready(
-                    self,
-                    container: DockerContainer,
-                ) -> None:  # pragma: no cover - shim passthrough
-                    self.wait(container)
+                    # Modern testcontainers expects wait strategies to expose
+                    # ``wait_until_ready``; fall back to ``wait`` for compatibility.
+                    def wait_until_ready(
+                        self,
+                        container: DockerContainer,
+                    ) -> None:  # pragma: no cover - shim passthrough
+                        self.wait(container)
+
+                _LogMessageWaitStrategy = _shim_log_wait_strategy
+            else:
+                _LogMessageWaitStrategy = _legacy_log_wait_strategy
+        else:
+            _LogMessageWaitStrategy = _waiting_utils_log_wait_strategy
+    else:
+        _LogMessageWaitStrategy = _core_log_wait_strategy
+
+    return _LogMessageWaitStrategy
+
+
+_LogMessageWaitStrategy = _resolve_log_wait_strategy()
 
 
 LogMessageWaitStrategy = _LogMessageWaitStrategy
