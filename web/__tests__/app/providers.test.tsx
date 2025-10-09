@@ -6,10 +6,7 @@ describe("resolveDefaultAuthValue", () => {
     vi.resetModules();
   });
 
-  it.each<[
-    boolean,
-    string | undefined,
-  ]>([
+  it.each<[boolean, string | undefined]>([
     [true, "authenticated"],
     [false, "locked"],
     [false, undefined],

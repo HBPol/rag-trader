@@ -20,7 +20,9 @@ def test_main_invokes_dependencies_in_order(monkeypatch) -> None:
         )
 
     fake_sqlalchemy = types.ModuleType("sqlalchemy")
-    fake_sqlalchemy.create_engine = lambda *args, **kwargs: None  # pragma: no cover - stub
+    fake_sqlalchemy.create_engine = (
+        lambda *args, **kwargs: None
+    )  # pragma: no cover - stub
     fake_sqlalchemy.DateTime = _stub_type("DateTime")
     fake_sqlalchemy.ForeignKey = _stub_type("ForeignKey")
     fake_sqlalchemy.Index = _stub_type("Index")

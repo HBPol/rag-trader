@@ -12,15 +12,21 @@ afterEach(() => {
 
 describe("Project configuration", () => {
   it("exposes the expected Next.js config", async () => {
-    const nextConfig = await loadModule<Record<string, unknown>>("../next.config.js");
+    const nextConfig =
+      await loadModule<Record<string, unknown>>("../next.config.js");
 
     expect(nextConfig).toHaveProperty("reactStrictMode", true);
     expect(nextConfig).toHaveProperty("experimental");
-    expect((nextConfig as { experimental?: { typedRoutes?: boolean } }).experimental?.typedRoutes).toBe(true);
+    expect(
+      (nextConfig as { experimental?: { typedRoutes?: boolean } }).experimental
+        ?.typedRoutes,
+    ).toBe(true);
   });
 
   it("registers PostCSS plugins for Tailwind and autoprefixer", async () => {
-    const postcssConfig = await loadModule<{ plugins: Record<string, unknown> }>("../postcss.config.js");
+    const postcssConfig = await loadModule<{
+      plugins: Record<string, unknown>;
+    }>("../postcss.config.js");
 
     expect(postcssConfig.plugins).toBeDefined();
     expect(postcssConfig.plugins).toHaveProperty("tailwindcss");

@@ -89,7 +89,9 @@ def test_fastapi_routes_delegate_to_mini_app(
 
         assert isinstance(health_response, JSONResponse)
         assert health_response.status_code == 200
-        assert json.loads(health_response.body.decode("utf-8")) == {"endpoint": "health"}
+        assert json.loads(health_response.body.decode("utf-8")) == {
+            "endpoint": "health"
+        }
 
         assert isinstance(ready_response, JSONResponse)
         assert ready_response.status_code == 503
