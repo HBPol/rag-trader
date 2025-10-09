@@ -15,14 +15,14 @@ from ragtrader_api.db import models
 config: Config | None = getattr(context, "config", None)
 
 
-def _get_config() -> Config:
-    """Retrieve the Alembic configuration, raising when unavailable."""
+def _get_config() -> object:
+    """Retrieve the Alembic configuration-like object, raising when unavailable."""
 
     config_obj = globals().get("config")
-    if not isinstance(config_obj, Config):
+    if not config_obj:
         config_obj = getattr(context, "config", None)
 
-    if not isinstance(config_obj, Config):
+    if config_obj is None:
         raise RuntimeError("Alembic configuration is not available.")
 
     return config_obj
