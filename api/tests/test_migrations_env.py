@@ -40,15 +40,15 @@ def _default_begin_transaction():
     return _Transaction()
 
 
-alembic_context = ModuleType("alembic.context")
-alembic_context.config = default_config
-alembic_context.configure = lambda **_kwargs: None
-alembic_context.begin_transaction = _default_begin_transaction
-alembic_context.run_migrations = lambda: None
-alembic_context.is_offline_mode = lambda: True
+alembic_context_stub = ModuleType("alembic.context")
+alembic_context_stub.config = default_config
+alembic_context_stub.configure = lambda **_kwargs: None
+alembic_context_stub.begin_transaction = _default_begin_transaction
+alembic_context_stub.run_migrations = lambda: None
+alembic_context_stub.is_offline_mode = lambda: True
 
-alembic_command = ModuleType("alembic.command")
-alembic_command.upgrade = lambda *_, **__: None
+alembic_command_stub = ModuleType("alembic.command")
+alembic_command_stub.upgrade = lambda *_, **__: None
 
 try:  # pragma: no cover - exercised only when Alembic is available
     alembic_module = importlib.import_module("alembic")
@@ -58,11 +58,23 @@ except ModuleNotFoundError:  # pragma: no cover - executed in the pared-down tes
 else:
     sys.modules["alembic"] = alembic_module
 
-alembic_module.context = alembic_context
-alembic_module.command = getattr(alembic_module, "command", alembic_command)
+try:  # pragma: no cover - exercised only when Alembic is available
+    alembic_context_module = importlib.import_module("alembic.context")
+except ModuleNotFoundError:  # pragma: no cover - executed in the pared-down test env
+    alembic_context_module = alembic_context_stub
+    sys.modules.setdefault("alembic.context", alembic_context_stub)
 
-sys.modules["alembic.context"] = alembic_context
-sys.modules.setdefault("alembic.command", alembic_command)
+try:  # pragma: no cover - exercised only when Alembic is available
+    alembic_command_module = importlib.import_module("alembic.command")
+except ModuleNotFoundError:  # pragma: no cover - executed in the pared-down test env
+    alembic_command_module = alembic_command_stub
+    sys.modules.setdefault("alembic.command", alembic_command_stub)
+
+if not hasattr(alembic_module, "context"):
+    alembic_module.context = alembic_context_module
+
+if not hasattr(alembic_module, "command"):
+    alembic_module.command = alembic_command_module
 
 try:  # pragma: no cover - exercised only when SQLAlchemy is available
     importlib.import_module("sqlalchemy")
