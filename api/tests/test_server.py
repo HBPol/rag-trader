@@ -32,12 +32,12 @@ def server_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
 
     yield module
 
+    get_settings.cache_clear()
+    importlib.reload(module)
+
     monkeypatch.delenv("RAGTRADER_API_REQUIRE_DATABASE", raising=False)
     monkeypatch.delenv("RAGTRADER_API_REQUIRE_VECTOR_STORE", raising=False)
     monkeypatch.delenv("RAGTRADER_API_USE_QDRANT_CLOUD", raising=False)
-
-    get_settings.cache_clear()
-    importlib.reload(module)
 
 
 def test_adapt_response_returns_json_response(server_module: ModuleType) -> None:
@@ -50,7 +50,7 @@ def test_adapt_response_returns_json_response(server_module: ModuleType) -> None
     assert json.loads(response.body.decode("utf-8")) == payload.json
 
 
-@pytest.mark.anyio
+@pytest.mark.anyio("asyncio")
 async def test_fastapi_routes_delegate_to_mini_app(
     server_module: ModuleType, monkeypatch: pytest.MonkeyPatch
 ) -> None:
