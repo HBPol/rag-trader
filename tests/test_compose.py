@@ -131,6 +131,10 @@ def test_api_service_forwards_database_and_qdrant_settings(
         compose_configs["docker-compose.override.yml"]["services"]["api"]["environment"]
     )
     assert override_env["RAGTRADER_API_QDRANT_URL"] == "http://qdrant:6333"
+    assert (
+        override_env["RAGTRADER_API_USE_QDRANT_CLOUD"]
+        == "${RAGTRADER_API_USE_QDRANT_CLOUD:-false}"
+    )
 
 
 @pytest.mark.smoke
