@@ -136,6 +136,16 @@ pre-commit install      # sets up the Git hook using the shared virtualenv
 pre-commit run --all-files
 ```
 
+Mypy mirrors the GitHub Actions matrix: execute it once from `api/` and once from
+`pipelines/` so the service-specific `pyproject.toml` configs load in strict mode.
+`pre-commit run mypy --all-files` wraps those two invocations, matching CI exactly:
+
+```bash
+cd api && mypy --config-file=pyproject.toml
+cd pipelines && mypy --config-file=pyproject.toml
+pre-commit run mypy --all-files
+```
+
 The final command will execute every hook over the whole tree, matching the checks that GitHub
 Actions enforces. To rerun a single tool across the repository, target its hook name instead:
 
