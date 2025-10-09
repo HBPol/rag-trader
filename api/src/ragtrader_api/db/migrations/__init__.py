@@ -3,19 +3,32 @@
 from __future__ import annotations
 
 from importlib import resources
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NoReturn, cast
 
 _ALEMBIC_IMPORT_ERROR: ModuleNotFoundError | None
 
 try:  # pragma: no cover - optional dependency guard
     from alembic import command as _alembic_command
-    from alembic.config import Config
+    from alembic.config import Config as _AlembicConfig
 except ModuleNotFoundError as exc:  # pragma: no cover - runtime dependency guard
     _ALEMBIC_IMPORT_ERROR = exc
     _alembic_command = cast(Any, None)
-    Config = cast(Any, object)
+
+    def _raise_alembic_import_error() -> NoReturn:
+        if _ALEMBIC_IMPORT_ERROR is None:  # pragma: no cover - sanity fallback
+            raise ModuleNotFoundError("alembic must be installed")
+        raise _ALEMBIC_IMPORT_ERROR
+
+    class _MissingAlembicConfig:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            _raise_alembic_import_error()
+
+    _ConfigFactory = cast(type[Any], _MissingAlembicConfig)
 else:
     _ALEMBIC_IMPORT_ERROR = None
+    _ConfigFactory = cast(type[Any], _AlembicConfig)
+
+Config = _ConfigFactory
 
 if TYPE_CHECKING:  # pragma: no cover - import for type checkers only
     from sqlalchemy.engine import Engine
