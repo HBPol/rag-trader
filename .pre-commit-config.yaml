@@ -18,19 +18,27 @@ repos:
         name: mypy (api)
         entry: python -m mypy --config-file=api/pyproject.toml
         language: python
+        env:
+          PYTHONPATH: api/src:pipelines/src
         additional_dependencies:
           - mypy==1.8.0
-          - ./api[dev]
-          - ./pipelines[dev]
+          - ./api
+          - ./pipelines
+          - pytest>=8.0
+          - httpx>=0.26
         pass_filenames: false
       - id: mypy-pipelines
         name: mypy (pipelines)
         entry: python -m mypy --config-file=pipelines/pyproject.toml
         language: python
+        env:
+          PYTHONPATH: api/src:pipelines/src
         additional_dependencies:
           - mypy==1.8.0
-          - ./api[dev]
-          - ./pipelines[dev]
+          - ./api
+          - ./pipelines
+          - pytest>=8.0
+          - httpx>=0.26
         pass_filenames: false
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v8.56.0
