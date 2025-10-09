@@ -139,6 +139,11 @@ pre-commit install      # sets up the Git hook using the shared virtualenv
 pre-commit run --all-files
 ```
 
+All hooks now execute in the shared virtualenv described in [Bootstrap local environments](#bootstrap-local-environments)
+(for example: `pip install -e api[dev] -e pipelines[dev] ...`). Activate that environment before
+running `pre-commit run` so the Python tooling and dependencies are available without
+package-specific bootstrapping.
+
 Mypy mirrors the GitHub Actions matrix: execute it once from `api/` and once from
 `pipelines/` so the service-specific `pyproject.toml` configs load in strict mode.
 `pre-commit run mypy --all-files` wraps those two invocations, matching CI exactly:
