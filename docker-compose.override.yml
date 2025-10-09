@@ -2,7 +2,9 @@ version: "3.9"
 
 services:
   qdrant:
-    image: qdrant/qdrant:v1.11.0
+    build:
+      context: .
+      dockerfile: docker/qdrant/Dockerfile
     container_name: ragtrader-qdrant
     restart: unless-stopped
     ports:
@@ -11,10 +13,11 @@ services:
     volumes:
       - qdrantdata:/qdrant/storage
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:6333/readyz"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:6333/healthz"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 12
+      start_period: 30s
 
   api:
     environment:
