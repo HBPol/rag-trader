@@ -16,48 +16,53 @@ if str(SRC_PATH) not in sys.path:
 
 # Provide lightweight stand-ins for optional dependencies that may not be installed
 # in the unit-test environment.
+default_config = type(
+    "DefaultAlembicConfig",
+    (),
+    {
+        "config_file_name": None,
+        "config_ini_section": "alembic",
+        "attributes": {},
+        "get_main_option": staticmethod(lambda _key: ""),
+        "get_section": staticmethod(lambda _section: {}),
+    },
+)()
+
+
+def _default_begin_transaction():
+    class _Transaction:
+        def __enter__(self) -> "_Transaction":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+    return _Transaction()
+
+
+alembic_context = ModuleType("alembic.context")
+alembic_context.config = default_config
+alembic_context.configure = lambda **_kwargs: None
+alembic_context.begin_transaction = _default_begin_transaction
+alembic_context.run_migrations = lambda: None
+alembic_context.is_offline_mode = lambda: True
+
+alembic_command = ModuleType("alembic.command")
+alembic_command.upgrade = lambda *_, **__: None
+
 try:  # pragma: no cover - exercised only when Alembic is available
-    importlib.import_module("alembic")
+    alembic_module = importlib.import_module("alembic")
 except ModuleNotFoundError:  # pragma: no cover - executed in the pared-down test env
-    default_config = type(
-        "DefaultAlembicConfig",
-        (),
-        {
-            "config_file_name": None,
-            "config_ini_section": "alembic",
-            "attributes": {},
-            "get_main_option": staticmethod(lambda _key: ""),
-            "get_section": staticmethod(lambda _section: {}),
-        },
-    )()
-
-    def _default_begin_transaction():
-        class _Transaction:
-            def __enter__(self) -> "_Transaction":
-                return self
-
-            def __exit__(self, exc_type, exc, tb) -> bool:
-                return False
-
-        return _Transaction()
-
-    alembic_context = ModuleType("alembic.context")
-    alembic_context.config = default_config
-    alembic_context.configure = lambda **_kwargs: None
-    alembic_context.begin_transaction = _default_begin_transaction
-    alembic_context.run_migrations = lambda: None
-    alembic_context.is_offline_mode = lambda: True
-
-    alembic_command = ModuleType("alembic.command")
-    alembic_command.upgrade = lambda *_, **__: None
-
     alembic_module = ModuleType("alembic")
-    alembic_module.context = alembic_context
-    alembic_module.command = alembic_command
-
     sys.modules.setdefault("alembic", alembic_module)
-    sys.modules.setdefault("alembic.context", alembic_context)
-    sys.modules.setdefault("alembic.command", alembic_command)
+else:
+    sys.modules["alembic"] = alembic_module
+
+alembic_module.context = alembic_context
+alembic_module.command = getattr(alembic_module, "command", alembic_command)
+
+sys.modules["alembic.context"] = alembic_context
+sys.modules.setdefault("alembic.command", alembic_command)
 
 try:  # pragma: no cover - exercised only when SQLAlchemy is available
     importlib.import_module("sqlalchemy")
