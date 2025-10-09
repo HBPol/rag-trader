@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { AuthProvider } from "../src/app/layout";
+import { AuthProvider } from "../src/app/providers";
 import Home from "../src/app/page";
 
 describe("Home page scaffold", () => {
