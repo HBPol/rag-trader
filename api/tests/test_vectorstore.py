@@ -67,7 +67,9 @@ def test_repository_requires_positive_retry_attempts() -> None:
         VectorStoreRepository(_settings(), retry_attempts=0)
 
 
-def test_repository_warns_when_cloud_without_key(caplog: pytest.LogCaptureFixture) -> None:
+def test_repository_warns_when_cloud_without_key(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     captured_kwargs: dict[str, Any] = {}
 
     def _factory(**kwargs: Any) -> Mock:
@@ -125,7 +127,9 @@ def test_repository_close_calls_client_close_and_clears_reference() -> None:
     assert client.closed == 1
 
 
-def test_repository_loads_tenacity_when_available(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_repository_loads_tenacity_when_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     retry = object()
     retry_if_exception_type = object()
     stop_after_attempt = object()

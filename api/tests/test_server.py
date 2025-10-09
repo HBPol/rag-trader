@@ -31,7 +31,9 @@ def test_adapt_response_returns_json_response() -> None:
 
 
 @pytest.mark.asyncio
-async def test_fastapi_routes_delegate_to_mini_app(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_fastapi_routes_delegate_to_mini_app(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class StubMiniApp:
         def __init__(self) -> None:
             self.calls: list[tuple[str, str]] = []
