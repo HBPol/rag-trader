@@ -23,8 +23,11 @@ class QdrantClientProtocol(Protocol):
     def delete_collection(self, *args: Any, **kwargs: Any) -> Any: ...
 
 
+ClientFactory = Callable[..., QdrantClientProtocol]
+
+
 try:  # pragma: no cover - optional dependency guard at runtime
-    from qdrant_client import QdrantClient as _QdrantClient
+    from qdrant_client import QdrantClient as _ImportedQdrantClient
 except ModuleNotFoundError:  # pragma: no cover - executed only when dependency missing
 
     class _MissingQdrantClient:
@@ -37,11 +40,12 @@ except ModuleNotFoundError:  # pragma: no cover - executed only when dependency 
                 " `pip install -e .[dev]`."
             )
 
-    _QdrantClient = _MissingQdrantClient
+    _default_client_factory = cast(ClientFactory, _MissingQdrantClient)
+else:
+    _default_client_factory = cast(ClientFactory, _ImportedQdrantClient)
 
 
-ClientFactory = Callable[..., QdrantClientProtocol]
-DEFAULT_CLIENT_FACTORY: ClientFactory = cast(ClientFactory, _QdrantClient)
+DEFAULT_CLIENT_FACTORY: ClientFactory = _default_client_factory
 
 _LOGGER = logging.getLogger(__name__)
 
