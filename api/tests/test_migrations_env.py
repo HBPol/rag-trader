@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from tests.utils.alembic_stubs import ensure_alembic_sqlalchemy_stubs
 import ragtrader_api.db.migrations.env as env_module
+from tests.utils.alembic_stubs import ensure_alembic_sqlalchemy_stubs
 
 ensure_alembic_sqlalchemy_stubs()
 
