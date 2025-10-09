@@ -9,8 +9,11 @@ TDD in upcoming issues.
 
 ```bash
 pnpm install # or npm install / yarn install
-pnpm test
+pnpm test -- --coverage
 ```
+
+Install dependencies (`pnpm install`) before running the Vitest coverage gate so the command matches
+the CI job that uploads `coverage/lcov.info` to Codecov.
 
 ## UI toolkit and styling conventions
 

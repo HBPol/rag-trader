@@ -12,8 +12,11 @@ for execution.
 
 ```bash
 pip install -e .[dev]
-pytest
+PYTHONPATH=src pytest --cov=ragtrader_pipelines --cov-report=term --cov-report=xml --cov-fail-under=80
 ```
+
+Mirroring CI, export `PYTHONPATH=src` so pytest discovers the package modules before applying the
+80 percent coverage threshold.
 
 ## Coinbase OHLCV ingestion
 

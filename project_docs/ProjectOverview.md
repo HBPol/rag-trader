@@ -108,7 +108,10 @@ docker compose logs -f api
 curl -f http://localhost:${API_PORT:-8000}/healthz
 open http://localhost:${WEB_PORT:-5173}
 # run tests (incl. external reachability smoke tests)
-docker compose exec api pytest -q
+docker compose exec api env PYTHONPATH=src pytest --cov=ragtrader_api --cov-report=term --cov-report=xml --cov-fail-under=80
+# swap the service to "web" for Vitest coverage, or run pipelines locally with
+#   PYTHONPATH=src pytest --cov=ragtrader_pipelines --cov-report=term --cov-report=xml --cov-fail-under=80
+docker compose exec web pnpm test -- --coverage
 ```
 
 To use **self-hosted Qdrant** in dev, add the `qdrant` service to `docker-compose.yml` and set `QDRANT_URL=http://qdrant:6333`.

@@ -45,19 +45,19 @@ pip install -e api[dev] -e pipelines[dev] -r requirements-dev.txt
 
 # API service (FastAPI)
 cd api
-pytest
+PYTHONPATH=src pytest --cov=ragtrader_api --cov-report=term --cov-report=xml --cov-fail-under=80
 
 # Apply database migrations (requires Docker or a reachable Postgres DSN)
 python -m ragtrader_api.db
 
 # Pipelines package
 cd ../pipelines
-pytest
+PYTHONPATH=src pytest --cov=ragtrader_pipelines --cov-report=term --cov-report=xml --cov-fail-under=80
 
 # Web package
 cd ../web
 pnpm install  # or npm install / yarn install
-pnpm test
+pnpm test -- --coverage
 
 # Return to the repository root when finished
 cd ..
@@ -156,6 +156,19 @@ pre-commit run eslint --all-files
 
 Pre-commit caches environments under `~/.cache/pre-commit`, so subsequent runs are fast and only
 touch the files you modified.
+
+### Testing & Coverage
+
+| Area | Local virtualenv / shell | `docker compose exec` equivalent |
+| --- | --- | --- |
+| API (`ragtrader_api`) | `PYTHONPATH=src pytest --cov=ragtrader_api --cov-report=term --cov-report=xml --cov-fail-under=80` | `docker compose exec api env PYTHONPATH=src pytest --cov=ragtrader_api --cov-report=term --cov-report=xml --cov-fail-under=80` |
+| Pipelines (`ragtrader_pipelines`) | `PYTHONPATH=src pytest --cov=ragtrader_pipelines --cov-report=term --cov-report=xml --cov-fail-under=80` | _No dedicated service; run locally or via CI until a pipelines container is added._ |
+| Web (`web/`) | `pnpm test -- --coverage` | `docker compose exec web pnpm test -- --coverage` |
+| Compose smoke tests | `pytest tests/test_compose.py` | _Run from the host so the test suite can resolve the repository and Compose CLI._ |
+
+The coverage invocations match the CI gates (80% minimum for Python packages and full Vitest
+coverage reports for the frontend). Run them after `pip install -e .[dev]` (Python) or `pnpm install`
+(web) so local tooling mirrors GitHub Actions.
 
 ## Quickstart
 

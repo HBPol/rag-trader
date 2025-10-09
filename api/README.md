@@ -39,8 +39,11 @@ The lightweight application harness exposes two operational endpoints:
 ```bash
 # create and activate a virtual environment of your choice, then
 pip install -e .[dev]
-pytest
+PYTHONPATH=src pytest --cov=ragtrader_api --cov-report=term --cov-report=xml --cov-fail-under=80
 ```
+
+Set `PYTHONPATH=src` so pytest resolves the package the same way CI does before enforcing the
+80 percent coverage gate.
 
 ## Vector store repository
 
