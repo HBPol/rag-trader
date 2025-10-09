@@ -37,7 +37,7 @@ except ModuleNotFoundError:  # pragma: no cover - executed only when dependency 
             raise ModuleNotFoundError(
                 "qdrant-client is required to use VectorStoreRepository."
                 " Install the service dependencies via"
-                " `pip install -e .[dev]`."
+                " `pip install -e \"./api[dev]\"`."
             )
 
     _default_client_factory = cast(ClientFactory, _MissingQdrantClient)
