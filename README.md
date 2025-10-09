@@ -139,31 +139,37 @@ pre-commit install      # sets up the Git hook using the shared virtualenv
 pre-commit run --all-files
 ```
 
-All hooks now execute in the shared virtualenv described in [Bootstrap local environments](#bootstrap-local-environments)
-(for example: `pip install -e api[dev] -e pipelines[dev] ...`). Activate that environment before
-running `pre-commit run` so the Python tooling and dependencies are available without
-package-specific bootstrapping.
+All hooks now execute in the shared virtualenv described in [Bootstrap local environments](#bootstrap-local-environments).
+Bootstrap and activate that environment before running `pre-commit run` so the Python tooling and
+dependencies are available without package-specific bootstrapping:
+
+```bash
+pip install -e api[dev] -e pipelines[dev] -r requirements-dev.txt
+```
 
 Mypy mirrors the GitHub Actions matrix: execute it once from `api/` and once from
 `pipelines/` so the service-specific `pyproject.toml` configs load in strict mode.
-`pre-commit run mypy --all-files` wraps those two invocations, matching CI exactly:
+`pre-commit run mypy-api --all-files` and `pre-commit run mypy-pipelines --all-files` wrap those two
+invocations, matching CI exactly:
 
 ```bash
 cd api && mypy --config-file=pyproject.toml
 cd pipelines && mypy --config-file=pyproject.toml
-pre-commit run mypy --all-files
+pre-commit run mypy-api --all-files
+pre-commit run mypy-pipelines --all-files
 ```
 
 To re-run a specific hook against the full tree, use the hook's name explicitly. Each hook below is
 available via `pre-commit run <hook> --all-files`:
 
 ```bash
-pre-commit run ruff --all-files      # Python linting & formatting (Ruff)
-pre-commit run black --all-files     # Python formatting (Black)
-pre-commit run isort --all-files     # Python import sorting (isort)
-pre-commit run mypy --all-files      # Python type checks (api/ and pipelines/)
-pre-commit run eslint --all-files    # Web linting (ESLint)
-pre-commit run prettier --all-files  # Web formatting (Prettier)
+pre-commit run ruff --all-files           # Python linting & formatting (Ruff)
+pre-commit run black --all-files          # Python formatting (Black)
+pre-commit run isort --all-files          # Python import sorting (isort)
+pre-commit run mypy-api --all-files       # Python type checks (api/)
+pre-commit run mypy-pipelines --all-files # Python type checks (pipelines/)
+pre-commit run eslint --all-files         # Web linting (ESLint)
+pre-commit run prettier --all-files       # Web formatting (Prettier)
 ```
 
 Pre-commit caches environments under `~/.cache/pre-commit`, so subsequent runs are fast and only
