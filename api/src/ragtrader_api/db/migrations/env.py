@@ -5,23 +5,24 @@ from __future__ import annotations
 from logging.config import fileConfig
 
 from alembic import context
+from alembic.config import Config
 from sqlalchemy import engine_from_config, pool
 
 from ragtrader_api.db import models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
-config = getattr(context, "config", None)
+config: Config | None = getattr(context, "config", None)
 
 
-def _get_config():
+def _get_config() -> Config:
     """Retrieve the Alembic configuration, raising when unavailable."""
 
     config_obj = globals().get("config")
-    if config_obj is None:
+    if not isinstance(config_obj, Config):
         config_obj = getattr(context, "config", None)
 
-    if config_obj is None:
+    if not isinstance(config_obj, Config):
         raise RuntimeError("Alembic configuration is not available.")
 
     return config_obj
