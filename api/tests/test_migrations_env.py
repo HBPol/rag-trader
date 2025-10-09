@@ -31,7 +31,7 @@ default_config = type(
 
 def _default_begin_transaction():
     class _Transaction:
-        def __enter__(self) -> "_Transaction":
+        def __enter__(self) -> _Transaction:
             return self
 
         def __exit__(self, exc_type, exc, tb) -> bool:
@@ -63,12 +63,29 @@ try:  # pragma: no cover - exercised only when Alembic is available
 except ModuleNotFoundError:  # pragma: no cover - executed in the pared-down test env
     alembic_context_module = alembic_context_stub
     sys.modules.setdefault("alembic.context", alembic_context_stub)
+else:
+    _required_context_attrs = (
+        "config",
+        "configure",
+        "begin_transaction",
+        "run_migrations",
+        "is_offline_mode",
+    )
+    if not all(
+        hasattr(alembic_context_module, attr) for attr in _required_context_attrs
+    ):
+        sys.modules["alembic.context"] = alembic_context_stub
+        alembic_context_module = alembic_context_stub
 
 try:  # pragma: no cover - exercised only when Alembic is available
     alembic_command_module = importlib.import_module("alembic.command")
 except ModuleNotFoundError:  # pragma: no cover - executed in the pared-down test env
     alembic_command_module = alembic_command_stub
     sys.modules.setdefault("alembic.command", alembic_command_stub)
+else:
+    if not hasattr(alembic_command_module, "upgrade"):
+        sys.modules["alembic.command"] = alembic_command_stub
+        alembic_command_module = alembic_command_stub
 
 if not hasattr(alembic_module, "context"):
     alembic_module.context = alembic_context_module
@@ -179,7 +196,7 @@ class BaseContextStub:
         parent = self
 
         class _Transaction:
-            def __enter__(self_inner) -> "_Transaction":
+            def __enter__(self_inner) -> _Transaction:
                 return self_inner
 
             def __exit__(self_inner, exc_type, exc, tb) -> bool:
@@ -232,7 +249,9 @@ class EngineFactoryStub:
         self.engine = engine
         self.calls: list[dict[str, object]] = []
 
-    def __call__(self, config: dict[str, object], *, prefix: str, poolclass: object) -> EngineStub:
+    def __call__(
+        self, config: dict[str, object], *, prefix: str, poolclass: object
+    ) -> EngineStub:
         self.calls.append({"config": config, "prefix": prefix, "poolclass": poolclass})
         return self.engine
 
@@ -292,13 +311,19 @@ def test_run_migrations_online_creates_engine(monkeypatch: pytest.MonkeyPatch) -
     assert context.migrations_ran == 1
 
 
-def test_run_migrations_online_reuses_existing_connection(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_migrations_online_reuses_existing_connection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     existing_connection = object()
     config = ConfigStub(attributes={"connection": existing_connection})
     context = OnlineContextStub(config)
 
-    def _unexpected_engine_factory(*_args, **_kwargs):  # pragma: no cover - sanity guard
-        raise AssertionError("engine_from_config should not be invoked when a connection exists")
+    def _unexpected_engine_factory(
+        *_args, **_kwargs
+    ):  # pragma: no cover - sanity guard
+        raise AssertionError(
+            "engine_from_config should not be invoked when a connection exists"
+        )
 
     monkeypatch.setattr(env_module, "context", context)
     monkeypatch.setattr(env_module, "config", context.config)
@@ -308,7 +333,10 @@ def test_run_migrations_online_reuses_existing_connection(monkeypatch: pytest.Mo
 
     assert config.get_section_requests == []
     assert context.configure_calls == [
-        {"connection": existing_connection, "target_metadata": env_module.target_metadata}
+        {
+            "connection": existing_connection,
+            "target_metadata": env_module.target_metadata,
+        }
     ]
     assert context.transactions_started == 1
     assert context.transactions_ended == 1
