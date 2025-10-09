@@ -2,20 +2,36 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from logging.config import fileConfig
+from typing import Protocol, cast
 
 from alembic import context
-from alembic.config import Config
 from sqlalchemy import engine_from_config, pool
 
 from ragtrader_api.db import models
 
+
+class _AlembicConfig(Protocol):
+    """Protocol describing the parts of Alembic's configuration we rely on."""
+
+    config_file_name: str | None
+    config_ini_section: str
+    attributes: Mapping[str, object]
+
+    def get_main_option(self, option: str) -> str: ...
+
+    def get_section(self, name: str) -> Mapping[str, str] | None: ...
+
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
-config: Config | None = getattr(context, "config", None)
+config: _AlembicConfig | None = cast(
+    _AlembicConfig | None, getattr(context, "config", None)
+)
 
 
-def _get_config() -> object:
+def _get_config() -> _AlembicConfig:
     """Retrieve the Alembic configuration-like object, raising when unavailable."""
 
     config_obj = globals().get("config")
@@ -25,7 +41,7 @@ def _get_config() -> object:
     if config_obj is None:
         raise RuntimeError("Alembic configuration is not available.")
 
-    return config_obj
+    return cast(_AlembicConfig, config_obj)
 
 
 # Interpret the config file for Python logging.
@@ -40,7 +56,7 @@ target_metadata = models.Base.metadata
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
 
-    config_obj = _get_config()
+    config_obj: _AlembicConfig = _get_config()
     url = config_obj.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -56,7 +72,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
 
-    config_obj = _get_config()
+    config_obj: _AlembicConfig = _get_config()
     connectable = config_obj.attributes.get("connection")
 
     if connectable is None:
