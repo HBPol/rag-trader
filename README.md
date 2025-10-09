@@ -127,9 +127,12 @@ installs remain reproducible.
 
 #### Run pre-commit locally
 
-The root `.pre-commit-config.yaml` bundles the exact linting and formatting jobs that CI runs:
-Ruff (lint + format), Black, isort, mypy (Python API & pipelines), ESLint, and Prettier (web).
-Run the hooks locally from the repository root before opening a PR:
+The root [`.pre-commit-config.yaml`](.pre-commit-config.yaml) defines the exact linting and
+formatting jobs that GitHub Actions executes. Python-focused hooks (Ruff, Black, isort, mypy)
+target the `api/` and `pipelines/` packages, while the JavaScript/TypeScript hooks (ESLint and
+Prettier) cover the `web/` app. Run everything from the repository root before opening a PR—there's
+no need to `cd` into individual packages, because `pre-commit run --all-files` mirrors the CI
+workflow one-for-one:
 
 ```bash
 pre-commit install      # sets up the Git hook using the shared virtualenv
@@ -146,12 +149,16 @@ cd pipelines && mypy --config-file=pyproject.toml
 pre-commit run mypy --all-files
 ```
 
-The final command will execute every hook over the whole tree, matching the checks that GitHub
-Actions enforces. To rerun a single tool across the repository, target its hook name instead:
+To re-run a specific hook against the full tree, use the hook's name explicitly. Each hook below is
+available via `pre-commit run <hook> --all-files`:
 
 ```bash
-pre-commit run ruff --all-files
-pre-commit run eslint --all-files
+pre-commit run ruff --all-files      # Python linting & formatting (Ruff)
+pre-commit run black --all-files     # Python formatting (Black)
+pre-commit run isort --all-files     # Python import sorting (isort)
+pre-commit run mypy --all-files      # Python type checks (api/ and pipelines/)
+pre-commit run eslint --all-files    # Web linting (ESLint)
+pre-commit run prettier --all-files  # Web formatting (Prettier)
 ```
 
 Pre-commit caches environments under `~/.cache/pre-commit`, so subsequent runs are fast and only
