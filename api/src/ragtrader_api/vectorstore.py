@@ -24,7 +24,7 @@ class QdrantClientProtocol(Protocol):
 
 
 try:  # pragma: no cover - optional dependency guard at runtime
-    from qdrant_client import QdrantClient as _RealQdrantClient
+    from qdrant_client import QdrantClient as _QdrantClient
 except ModuleNotFoundError:  # pragma: no cover - executed only when dependency missing
 
     class _MissingQdrantClient:
@@ -37,11 +37,11 @@ except ModuleNotFoundError:  # pragma: no cover - executed only when dependency 
                 " `pip install -e .[dev]`."
             )
 
-    _RealQdrantClient = _MissingQdrantClient
+    _QdrantClient = _MissingQdrantClient
 
 
 ClientFactory = Callable[..., QdrantClientProtocol]
-DEFAULT_CLIENT_FACTORY: ClientFactory = cast(ClientFactory, _RealQdrantClient)
+DEFAULT_CLIENT_FACTORY: ClientFactory = cast(ClientFactory, _QdrantClient)
 
 _LOGGER = logging.getLogger(__name__)
 
