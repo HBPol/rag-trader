@@ -9,9 +9,14 @@ from types import ModuleType
 
 import pytest
 
-pytest.importorskip("fastapi")
-from fastapi.responses import JSONResponse
-from fastapi.routing import APIRoute
+try:
+    from fastapi.responses import JSONResponse
+    from fastapi.routing import APIRoute
+except ModuleNotFoundError:  # pragma: no cover - executed in pared-down test env
+    pytest.skip(
+        "FastAPI is not installed; skipping server tests.",
+        allow_module_level=True,
+    )
 
 from ragtrader_api.app import Response
 
@@ -95,6 +100,8 @@ def test_fastapi_routes_delegate_to_mini_app(
 
         assert isinstance(ready_response, JSONResponse)
         assert ready_response.status_code == 503
-        assert json.loads(ready_response.body.decode("utf-8")) == {"endpoint": "ready"}
+        assert json.loads(ready_response.body.decode("utf-8")) == {
+            "endpoint": "ready",
+        }
 
     asyncio.run(run_test())
