@@ -312,4 +312,7 @@ python -m ragtrader_pipelines.coinbase \
 
 The job enforces idempotent writes via SQLAlchemy’s `ON CONFLICT` upsert and
 defaults to hourly candles, matching the `ohlcv` schema defined in the API
-service.
+service. When it encounters a brand-new symbol it automatically seeds the
+`instruments` table (using the symbol as the display name) before inserting the
+OHLCV rows, so you can bootstrap fresh environments without a separate metadata
+seed step.
