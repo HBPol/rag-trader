@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from logging.config import fileConfig
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+from sqlalchemy.engine import Connection
 
 from ragtrader_api.db import models
 
@@ -77,8 +78,9 @@ def run_migrations_online() -> None:
 
     if connectable is None:
         section = config_obj.get_section(config_obj.config_ini_section)
+        section_dict: dict[str, Any] = dict(section) if section is not None else {}
         connectable = engine_from_config(
-            section or {},
+            section_dict,
             prefix="sqlalchemy.",
             poolclass=pool.NullPool,
         )
@@ -89,7 +91,8 @@ def run_migrations_online() -> None:
             with context.begin_transaction():
                 context.run_migrations()
     else:
-        context.configure(connection=connectable, target_metadata=target_metadata)
+        connection = cast(Connection, connectable)
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
