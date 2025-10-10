@@ -7,19 +7,36 @@ try:  # pragma: no cover - metadata may be missing in editable installs
 except PackageNotFoundError:  # pragma: no cover
     __version__ = "0.0.0"
 
-from .coinbase import (  # noqa: F401 - re-exported for convenience
-    CoinbaseClient,
-    CoinbaseOhlcvIngestion,
-    Granularity,
-    OhlcvRecord,
-    SqlAlchemyCandleRepository,
-)
+from importlib import import_module
+from typing import TYPE_CHECKING, Any
 
-__all__ = [
-    "__version__",
+_COINBASE_EXPORTS = {
     "CoinbaseClient",
     "CoinbaseOhlcvIngestion",
     "Granularity",
     "OhlcvRecord",
     "SqlAlchemyCandleRepository",
-]
+}
+
+if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
+    from .coinbase import (  # noqa: F401
+        CoinbaseClient,
+        CoinbaseOhlcvIngestion,
+        Granularity,
+        OhlcvRecord,
+        SqlAlchemyCandleRepository,
+    )
+
+
+def __getattr__(name: str) -> Any:
+    if name in _COINBASE_EXPORTS:
+        module = import_module(".coinbase", __name__)
+        return getattr(module, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(list(globals().keys()) + list(_COINBASE_EXPORTS))
+
+
+__all__ = ["__version__", *_COINBASE_EXPORTS]
