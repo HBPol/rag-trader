@@ -120,7 +120,7 @@ installs remain reproducible.
 - **PyCharm + Docker**: add a Docker Compose interpreter pointed at the `api` service so
   editor actions reuse the container runtime. In *Settings → Project → Python Interpreter*,
   click **Add Interpreter… → Docker Compose**, select `docker-compose.yml` (and optionally
-  `docker-compose.override.yml` if you want the extra services), choose the **Service** named
+  `docker-compose.qdrant.yml` if you want the extra services), choose the **Service** named
   `api`, and keep the default `/usr/local/bin/python` path that PyCharm shows. That binary is the
   interpreter baked into the image that ships with the project, so linting, tests, and run
   configurations inside PyCharm mirror what `docker compose up` executes.
@@ -207,7 +207,7 @@ docker compose up -d --build
 RAGTRADER_API_REQUIRE_VECTOR_STORE=false docker compose up -d --build
 
 # OR run with local Qdrant (override adds qdrant service + points API to it)
-docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.qdrant.yml up -d --build
 
 # health checks
 curl -f http://localhost:8000/healthz
@@ -216,7 +216,7 @@ open http://localhost:5173
 
 > **Notes**
 > - You can create or reuse a managed cluster in [Qdrant Cloud](https://qdrant.tech/cloud/) to obtain the `QDRANT_URL` and `QDRANT_API_KEY` values referenced in `.env.example`.
-> - The override stack is opt-in: include `-f docker-compose.override.yml` when you want the co-located Qdrant container, or omit it to keep pointing at Qdrant Cloud.
+> - The override stack is opt-in: include `-f docker-compose.qdrant.yml` when you want the co-located Qdrant container, or omit it to keep pointing at Qdrant Cloud.
 
 Once the services report healthy, exercise the FastAPI service at
 `http://localhost:8000/docs` or `http://localhost:8000/healthz` and browse the web frontend on
@@ -228,7 +228,7 @@ The repository ships two Compose descriptors:
 
 - `docker-compose.yml` is the baseline stack used in CI smoke tests. It provisions the API,
   frontend, and supporting services that are shared across environments (e.g. Postgres, Redis).
-- `docker-compose.override.yml` is opt-in. It swaps the API from using the managed Qdrant Cloud
+- `docker-compose.qdrant.yml` is opt-in. It swaps the API from using the managed Qdrant Cloud
   endpoint to a co-located Qdrant container so you can iterate entirely offline.
 
 Use the base file on its own when you want to mirror CI or production, where the vector store lives
@@ -263,7 +263,7 @@ pytest tests/test_compose.py
 ```
 
 The tests boot the stack defined in [`docker-compose.yml`](docker-compose.yml) (optionally layered
-with [`docker-compose.override.yml`](docker-compose.override.yml)) and assert each service's
+  with [`docker-compose.qdrant.yml`](docker-compose.qdrant.yml)) and assert each service's
 `/healthz` endpoint responds successfully.
 
 ## External reachability probes
