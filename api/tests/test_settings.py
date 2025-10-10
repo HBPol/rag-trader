@@ -19,7 +19,17 @@ def _clear_settings_cache() -> None:
 
 def test_settings_require_postgres_dsn_when_database_required(
     # intentionally wrapped to respect line length
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    for key in [
+        "RAGTRADER_API_POSTGRES_DSN",
+        "POSTGRES_HOST",
+        "POSTGRES_PORT",
+        "POSTGRES_DB",
+        "POSTGRES_USER",
+        "POSTGRES_PASSWORD",
+    ]:
+        monkeypatch.delenv(key, raising=False)
     with pytest.raises(SettingsValidationError):
         ApiSettings(qdrant_url="http://localhost:6333", require_vector_store=False)
 
