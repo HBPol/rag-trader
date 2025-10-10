@@ -126,6 +126,7 @@ def test_env_file_expands_placeholders(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.delenv("RAGTRADER_API_ENV", raising=False)
+    monkeypatch.delenv("ENV", raising=False)
     monkeypatch.setenv(
         "RAGTRADER_API_POSTGRES_DSN",
         "postgresql+psycopg://user:pass@localhost:5432/app",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -42,6 +43,21 @@ def _parse_env_file(path: Path) -> dict[str, str]:
     return env
 
 
+_ENV_VAR_PATTERN = re.compile(
+    r"\$(?:{(?P<braced>[A-Za-z_][A-Za-z0-9_]*)}|(?P<bare>[A-Za-z_][A-Za-z0-9_]*))"
+)
+
+
+def _expand_value(value: str, env: Mapping[str, str]) -> str:
+    def _replace(match: re.Match[str]) -> str:
+        key = match.group("braced") or match.group("bare")
+        if key is None:
+            return match.group(0)
+        return env.get(key, match.group(0))
+
+    return _ENV_VAR_PATTERN.sub(_replace, value)
+
+
 def _ensure_env_loaded() -> None:
     global _ENV_FILE_LOADED
     if _ENV_FILE_LOADED:
@@ -59,9 +75,12 @@ def _ensure_env_loaded() -> None:
     for candidate in candidates:
         if not candidate.exists():
             continue
-        for key, value in _parse_env_file(candidate).items():
-            expanded = os.path.expandvars(value)
-            os.environ.setdefault(key, expanded)
+        parsed = _parse_env_file(candidate)
+        current_env: dict[str, str] = dict(os.environ)
+        for key, value in parsed.items():
+            expanded = _expand_value(value, current_env)
+            actual = os.environ.setdefault(key, expanded)
+            current_env[key] = actual
         break
 
     _ENV_FILE_LOADED = True
