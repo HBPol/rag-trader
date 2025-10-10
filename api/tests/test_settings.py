@@ -112,6 +112,28 @@ def test_settings_load_from_env_file(
     assert settings.qdrant_url == "http://qdrant-env:6333"
 
 
+def test_env_file_expands_placeholders(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("RAGTRADER_API_ENV", raising=False)
+    monkeypatch.setenv(
+        "RAGTRADER_API_POSTGRES_DSN",
+        "postgresql+psycopg://user:pass@localhost:5432/app",
+    )
+    monkeypatch.setenv("RAGTRADER_API_QDRANT_URL", "http://localhost:6333")
+    monkeypatch.setenv("RAGTRADER_API_USE_QDRANT_CLOUD", "false")
+
+    env_file = tmp_path / "api.env"
+    env_file.write_text("ENV=dev\nRAGTRADER_API_ENV=${ENV}\n")
+
+    monkeypatch.setenv("RAGTRADER_API_ENV_FILE", env_file.as_posix())
+    monkeypatch.setattr(settings_module, "_ENV_FILE_LOADED", False)
+
+    settings = ApiSettings()
+
+    assert settings.env == "dev"
+
+
 def test_get_settings_returns_cached_instance(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(
         "RAGTRADER_API_POSTGRES_DSN",

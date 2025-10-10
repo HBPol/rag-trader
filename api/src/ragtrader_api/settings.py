@@ -60,7 +60,8 @@ def _ensure_env_loaded() -> None:
         if not candidate.exists():
             continue
         for key, value in _parse_env_file(candidate).items():
-            os.environ.setdefault(key, value)
+            expanded = os.path.expandvars(value)
+            os.environ.setdefault(key, expanded)
         break
 
     _ENV_FILE_LOADED = True
