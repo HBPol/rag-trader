@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
+import ragtrader_api.settings as settings_module
 from ragtrader_api.settings import ApiSettings, SettingsValidationError, get_settings
 
 
@@ -66,6 +69,47 @@ def test_settings_infer_postgres_dsn_from_components(
     assert settings.postgres_dsn == (
         "postgresql+psycopg://user:pass@localhost:5432/app"
     )
+
+
+def test_settings_load_from_env_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for key in [
+        "RAGTRADER_API_POSTGRES_DSN",
+        "POSTGRES_HOST",
+        "POSTGRES_PORT",
+        "POSTGRES_DB",
+        "POSTGRES_USER",
+        "POSTGRES_PASSWORD",
+        "RAGTRADER_API_QDRANT_URL",
+        "RAGTRADER_API_USE_QDRANT_CLOUD",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+
+    env_file = tmp_path / "api.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "POSTGRES_HOST=env-host",
+                "POSTGRES_PORT=5433",
+                "POSTGRES_DB=env-db",
+                "POSTGRES_USER=env-user",
+                "POSTGRES_PASSWORD=env-pass",
+                "RAGTRADER_API_QDRANT_URL=http://qdrant-env:6333",
+                "RAGTRADER_API_USE_QDRANT_CLOUD=false",
+            ]
+        )
+    )
+
+    monkeypatch.setenv("RAGTRADER_API_ENV_FILE", env_file.as_posix())
+    monkeypatch.setattr(settings_module, "_ENV_FILE_LOADED", False)
+
+    settings = ApiSettings()
+
+    assert settings.postgres_dsn == (
+        "postgresql+psycopg://env-user:env-pass@env-host:5433/env-db"
+    )
+    assert settings.qdrant_url == "http://qdrant-env:6333"
 
 
 def test_get_settings_returns_cached_instance(monkeypatch: pytest.MonkeyPatch) -> None:

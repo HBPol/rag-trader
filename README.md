@@ -217,6 +217,7 @@ open http://localhost:5173
 > **Notes**
 > - You can create or reuse a managed cluster in [Qdrant Cloud](https://qdrant.tech/cloud/) to obtain the `QDRANT_URL` and `QDRANT_API_KEY` values referenced in `.env.example`.
 > - The override stack is opt-in: include `-f docker-compose.qdrant.yml` when you want the co-located Qdrant container, or omit it to keep pointing at Qdrant Cloud.
+> - The API loads variables from `.env` (or a path provided via `RAGTRADER_API_ENV_FILE`) automatically, while still honouring any explicit environment variables you export.
 
 Once the services report healthy, exercise the FastAPI service at
 `http://localhost:8000/docs` or `http://localhost:8000/healthz` and browse the web frontend on

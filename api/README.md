@@ -23,7 +23,10 @@ The default environment is `dev`, with additional allowed values of
 `staging` and `prod`.
 
 `.env.example` contains a ready-to-use DSN targeting the docker-compose
-Postgres service; copy it into your `.env` to get started quickly. When
+Postgres service; copy it into your `.env` to get started quickly. The
+settings loader now reads that file automatically (or an override
+specified via `RAGTRADER_API_ENV_FILE`) before evaluating environment
+variables, while still letting explicit exports take precedence. When
 `RAGTRADER_API_POSTGRES_DSN` is omitted and the database requirement is
 enabled (the default), the API will synthesize a DSN using the
 `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, and

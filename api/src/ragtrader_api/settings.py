@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Final, cast
 from urllib.parse import urlparse
 
@@ -15,6 +17,56 @@ class SettingsValidationError(ValueError):
 
 _ALLOWED_ENVS: Final[set[str]] = {"dev", "staging", "prod"}
 _MISSING: Final[object] = object()
+_ENV_FILE_LOADED: bool = False
+
+
+def _repo_root() -> Path:
+    resolved = Path(__file__).resolve()
+    for _ in range(4):
+        resolved = resolved.parent
+    return resolved
+
+
+def _parse_env_file(path: Path) -> dict[str, str]:
+    env: dict[str, str] = {}
+    pattern = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$")
+    for line in path.read_text().splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        match = pattern.match(line)
+        if not match:
+            continue
+        key, value = match.groups()
+        env[key] = value
+    return env
+
+
+def _ensure_env_loaded() -> None:
+    global _ENV_FILE_LOADED
+    if _ENV_FILE_LOADED:
+        return
+
+    env_file = os.environ.get("RAGTRADER_API_ENV_FILE")
+    candidates: list[Path] = []
+    if env_file:
+        candidates.append(Path(env_file).expanduser())
+
+    repo_root = _repo_root()
+    candidates.append(repo_root / ".env")
+    candidates.append(repo_root / "api/.env")
+
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        for key, value in _parse_env_file(candidate).items():
+            os.environ.setdefault(key, value)
+        break
+
+    _ENV_FILE_LOADED = True
+
+
+_ensure_env_loaded()
 
 
 def _coerce_bool(value: str | None, *, default: bool) -> bool:
@@ -82,6 +134,7 @@ class ApiSettings:
         require_database: bool | None = None,
         require_vector_store: bool | None = None,
     ) -> None:
+        _ensure_env_loaded()
         env_vars = os.environ
 
         raw_env = env if env is not None else env_vars.get("RAGTRADER_API_ENV", "dev")
