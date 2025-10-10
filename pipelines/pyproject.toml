@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ragtrader-pipelines"
+version = "0.1.0"
+description = "Batch and streaming jobs for RAGTrader"
+authors = [{ name = "RAGTrader Team" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pandas>=2.2",
+  "httpx>=0.26",
+  "sqlalchemy>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=4.1",
+  "ruff>=0.3",
+  "black>=24.2",
+  "isort>=5.13",
+  "mypy>=1.8",
+]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+known_first_party = ["ragtrader_api", "ragtrader_pipelines"]
+
+[tool.ruff]
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "UP", "B", "Q", "S"]
+ignore = ["S101"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["ragtrader_pipelines"]
+mypy_path = ["src", "../api/src"]
+
+[[tool.mypy.overrides]]
+module = ["sqlalchemy", "sqlalchemy.*", "alembic", "alembic.*", "httpx", "qdrant_client"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["ragtrader_api.*"]
+follow_imports = "skip"
+ignore_missing_imports = true
+
+[tool.coverage.run]
+branch = true
+source = ["ragtrader_pipelines"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+ragtrader_pipelines = ["py.typed"]

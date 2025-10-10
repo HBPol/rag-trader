@@ -1,0 +1,19 @@
+line-length = 88
+target-version = "py311"
+src = [
+  "api/src",
+  "api/tests",
+  "pipelines/src",
+  "pipelines/tests",
+  "tests",
+]
+
+[lint]
+select = ["E", "F", "UP", "B", "Q", "S"]
+ignore = ["S101"]
+
+[lint.per-file-ignores]
+"tests/test_compose.py" = ["S603"]
+
+[lint.isort]
+known-first-party = ["ragtrader_api", "ragtrader_pipelines"]

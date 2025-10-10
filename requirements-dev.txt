@@ -1,0 +1,4 @@
+pytest
+pyyaml
+requests
+pre-commit>=3.6

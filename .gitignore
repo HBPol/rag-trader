@@ -1,0 +1,36 @@
+# Local environment & variables
+.env
+.venv/
+
+# JetBrains IDE folder
+.idea/
+
+# Python test coverage data
+.coverage
+.coverage.*
+coverage.xml
+**/coverage.xml
+htmlcov/
+.pytest_cache/
+
+# Temporary scratch files
+scratches/
+
+# Project scaffolder scripts
+scaffold.sh
+tree.txt
+
+# Node artifacts
+node_modules/
+web/node_modules/
+web/.next/
+web/coverage/
+
+# Others...
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.egg-info
+requirements.in
+requirements-dev.in

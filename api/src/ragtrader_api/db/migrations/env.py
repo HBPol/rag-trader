@@ -1,0 +1,111 @@
+"""Alembic environment configuration."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from logging.config import fileConfig
+from typing import Any, Protocol, cast
+
+from alembic import context
+from sqlalchemy import engine_from_config, pool
+from sqlalchemy.engine import Connection
+
+from ragtrader_api.db import models
+
+
+class _AlembicConfig(Protocol):
+    """Protocol describing the parts of Alembic's configuration we rely on."""
+
+    config_file_name: str | None
+    config_ini_section: str
+    attributes: Mapping[str, object]
+
+    def get_main_option(self, option: str) -> str: ...
+
+    def get_section(self, name: str) -> Mapping[str, str] | None: ...
+
+
+# this is the Alembic Config object, which provides
+# access to the values within the .ini file in use.
+config: _AlembicConfig | None = cast(
+    _AlembicConfig | None, getattr(context, "config", None)
+)
+
+
+def _get_config() -> _AlembicConfig:
+    """Retrieve the Alembic configuration-like object, raising when unavailable."""
+
+    config_obj = globals().get("config")
+    if not config_obj:
+        config_obj = getattr(context, "config", None)
+
+    if config_obj is None:
+        raise RuntimeError("Alembic configuration is not available.")
+
+    return cast(_AlembicConfig, config_obj)
+
+
+# Interpret the config file for Python logging.
+if (
+    config is not None and config.config_file_name is not None
+):  # pragma: no cover - optional logging
+    fileConfig(config.config_file_name)
+
+target_metadata = models.Base.metadata
+
+
+def run_migrations_offline() -> None:
+    """Run migrations in 'offline' mode."""
+
+    config_obj: _AlembicConfig = _get_config()
+    url = config_obj.get_main_option("sqlalchemy.url")
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+    )
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def run_migrations_online() -> None:
+    """Run migrations in 'online' mode."""
+
+    config_obj: _AlembicConfig = _get_config()
+    connectable = config_obj.attributes.get("connection")
+
+    if connectable is None:
+        section = config_obj.get_section(config_obj.config_ini_section)
+        section_dict: dict[str, Any] = dict(section) if section is not None else {}
+        connectable = engine_from_config(
+            section_dict,
+            prefix="sqlalchemy.",
+            poolclass=pool.NullPool,
+        )
+
+        with connectable.connect() as connection:
+            context.configure(connection=connection, target_metadata=target_metadata)
+
+            with context.begin_transaction():
+                context.run_migrations()
+    else:
+        connection = cast(Connection, connectable)
+        context.configure(connection=connection, target_metadata=target_metadata)
+
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+def run_migrations() -> None:
+    """Dispatch migration execution depending on context."""
+
+    if context.is_offline_mode():
+        run_migrations_offline()
+    else:
+        run_migrations_online()
+
+
+if config is not None:
+    run_migrations()
