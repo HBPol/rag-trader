@@ -8,7 +8,6 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
-from utils import PostgresTestContainer
 
 from ragtrader_api.db.migrations import apply_migrations
 from ragtrader_pipelines.coinbase import OhlcvRecord, SqlAlchemyCandleRepository
@@ -22,6 +21,8 @@ pytest.importorskip("testcontainers")
 @pytest.fixture(scope="module")
 def migrated_engine() -> Engine:
     """Provision a temporary Postgres database with migrations applied."""
+
+    from api.tests.utils import PostgresTestContainer
 
     with PostgresTestContainer() as container:
         raw_url = container.get_connection_url()
