@@ -130,6 +130,37 @@ class ApiSettings:
             postgres_candidate = env_vars.get("RAGTRADER_API_POSTGRES_DSN")
         else:
             postgres_candidate = cast(str | None, postgres_dsn)
+
+        if raw_require_db and not postgres_candidate:
+            postgres_host = env_vars.get("POSTGRES_HOST")
+            postgres_port = env_vars.get("POSTGRES_PORT")
+            postgres_db = env_vars.get("POSTGRES_DB")
+            postgres_user = env_vars.get("POSTGRES_USER")
+            postgres_password = env_vars.get("POSTGRES_PASSWORD")
+
+            missing_components = [
+                name
+                for name, value in {
+                    "POSTGRES_HOST": postgres_host,
+                    "POSTGRES_PORT": postgres_port,
+                    "POSTGRES_DB": postgres_db,
+                    "POSTGRES_USER": postgres_user,
+                    "POSTGRES_PASSWORD": postgres_password,
+                }.items()
+                if not value
+            ]
+            if missing_components:
+                missing_csv = ", ".join(sorted(missing_components))
+                raise SettingsValidationError(
+                    "Missing Postgres settings required to construct DSN: "
+                    f"{missing_csv}."
+                )
+
+            postgres_candidate = (
+                "postgresql+psycopg://"
+                f"{postgres_user}:{postgres_password}@"
+                f"{postgres_host}:{postgres_port}/{postgres_db}"
+            )
         qdrant_candidate = (
             qdrant_url
             if qdrant_url is not None

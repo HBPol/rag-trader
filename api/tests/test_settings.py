@@ -49,6 +49,25 @@ def test_settings_load_from_environment(monkeypatch: pytest.MonkeyPatch) -> None
     assert settings.postgres_dsn.startswith("postgresql+psycopg")
 
 
+def test_settings_infer_postgres_dsn_from_components(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("RAGTRADER_API_POSTGRES_DSN", raising=False)
+    monkeypatch.setenv("POSTGRES_HOST", "localhost")
+    monkeypatch.setenv("POSTGRES_PORT", "5432")
+    monkeypatch.setenv("POSTGRES_DB", "app")
+    monkeypatch.setenv("POSTGRES_USER", "user")
+    monkeypatch.setenv("POSTGRES_PASSWORD", "pass")
+    monkeypatch.setenv("RAGTRADER_API_QDRANT_URL", "https://example-qdrant")
+    monkeypatch.setenv("RAGTRADER_API_QDRANT_API_KEY", "key")
+
+    settings = ApiSettings()
+
+    assert settings.postgres_dsn == (
+        "postgresql+psycopg://user:pass@localhost:5432/app"
+    )
+
+
 def test_get_settings_returns_cached_instance(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(
         "RAGTRADER_API_POSTGRES_DSN",
