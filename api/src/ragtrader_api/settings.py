@@ -220,11 +220,13 @@ class ApiSettings:
             if qdrant_url is not None
             else env_vars.get("RAGTRADER_API_QDRANT_URL", "http://localhost:6333")
         )
-        qdrant_key = (
-            qdrant_api_key
-            if qdrant_api_key is not None
-            else env_vars.get("RAGTRADER_API_QDRANT_API_KEY")
-        )
+        qdrant_key: str | None
+        if qdrant_api_key is not None:
+            qdrant_key = qdrant_api_key
+        else:
+            qdrant_key = env_vars.get("RAGTRADER_API_QDRANT_API_KEY")
+            if qdrant_key is None:
+                qdrant_key = env_vars.get("QDRANT_API_KEY")
 
         validated_postgres = _validate_postgres_dsn(
             postgres_candidate,

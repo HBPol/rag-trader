@@ -15,7 +15,7 @@ The settings model reads environment variables using the
 | `RAGTRADER_API_POSTGRES_DSN` | PostgreSQL DSN used by the service when database access is required. Uses the `postgresql+psycopg://` driver string. |
 | `RAGTRADER_API_REQUIRE_DATABASE` | Set to `false` to skip enforcing a database DSN in local tests. |
 | `RAGTRADER_API_QDRANT_URL` | Base URL for the Qdrant vector store. |
-| `RAGTRADER_API_QDRANT_API_KEY` | API key used when connecting to Qdrant Cloud. Ignored for self-hosted deployments. |
+| `RAGTRADER_API_QDRANT_API_KEY` | API key used when connecting to Qdrant Cloud. Ignored for self-hosted deployments. Falls back to `QDRANT_API_KEY` when unset. |
 | `RAGTRADER_API_USE_QDRANT_CLOUD` | Set to `false` to target a self-hosted Qdrant instance without authentication. |
 | `RAGTRADER_API_REQUIRE_VECTOR_STORE` | Set to `false` to bypass vector store readiness checks. |
 

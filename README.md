@@ -195,7 +195,7 @@ coverage reports for the frontend). Run them after `pip install -e .[dev]` (Pyth
 cp .env.example .env
 
 # Fill in vector store credentials from Qdrant Cloud so the API can reach your cluster
-$EDITOR .env  # set QDRANT_URL and QDRANT_API_KEY to match .env.example hints
+$EDITOR .env  # set QDRANT_URL and either RAGTRADER_API_QDRANT_API_KEY or QDRANT_API_KEY per .env.example hints
 
 # Validate Compose parity and health checks
 pytest tests/test_compose.py
@@ -215,7 +215,7 @@ open http://localhost:5173
 ```
 
 > **Notes**
-> - You can create or reuse a managed cluster in [Qdrant Cloud](https://qdrant.tech/cloud/) to obtain the `QDRANT_URL` and `QDRANT_API_KEY` values referenced in `.env.example`.
+> - You can create or reuse a managed cluster in [Qdrant Cloud](https://qdrant.tech/cloud/) to obtain the `QDRANT_URL` and API key values referenced in `.env.example`. Set `RAGTRADER_API_QDRANT_API_KEY` (preferred) or `QDRANT_API_KEY` to satisfy the cloud credential requirement.
 > - The override stack is opt-in: include `-f docker-compose.qdrant.yml` when you want the co-located Qdrant container, or omit it to keep pointing at Qdrant Cloud.
 > - The API loads variables from `.env` (or a path provided via `RAGTRADER_API_ENV_FILE`) automatically, while still honouring any explicit environment variables you export.
 

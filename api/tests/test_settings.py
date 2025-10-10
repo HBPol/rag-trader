@@ -168,3 +168,20 @@ def test_settings_require_api_key_for_cloud() -> None:
             use_qdrant_cloud=True,
             require_vector_store=True,
         )
+
+
+def test_settings_fall_back_to_unprefixed_qdrant_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("RAGTRADER_API_QDRANT_API_KEY", raising=False)
+    monkeypatch.setenv("QDRANT_API_KEY", "fallback-key")
+
+    settings = ApiSettings(
+        postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
+        qdrant_url="https://qdrant.cloud",
+        require_database=False,
+        use_qdrant_cloud=True,
+        require_vector_store=True,
+    )
+
+    assert settings.qdrant_api_key == "fallback-key"
