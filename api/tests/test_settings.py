@@ -159,7 +159,11 @@ def test_get_settings_returns_cached_instance(monkeypatch: pytest.MonkeyPatch) -
     assert first.readiness_checks()["vector_store"] is True
 
 
-def test_settings_require_api_key_for_cloud() -> None:
+def test_settings_require_api_key_for_cloud(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("RAGTRADER_API_QDRANT_API_KEY", raising=False)
+    monkeypatch.delenv("QDRANT_API_KEY", raising=False)
     with pytest.raises(SettingsValidationError):
         ApiSettings(
             postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
