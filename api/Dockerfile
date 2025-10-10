@@ -21,6 +21,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     API_PORT=8000
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y curl \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /opt/venv /opt/venv
 COPY pyproject.toml README.md ./
 COPY src ./src
