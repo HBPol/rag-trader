@@ -32,4 +32,4 @@ def session_factory(engine: Engine) -> sessionmaker[Session]:
 SessionFactory = sessionmaker[Session]
 
 
-__all__ = ["create_engine", "session_factory", "SessionFactory"]
+__all__ = ["create_engine", "sa_create_engine", "session_factory", "SessionFactory"]
