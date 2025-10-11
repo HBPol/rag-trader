@@ -18,6 +18,15 @@ _COINBASE_EXPORTS = {
     "SqlAlchemyCandleRepository",
 }
 
+_CONTENT_EXPORTS = {
+    "ArticleCandidate",
+    "BaseContentAdapter",
+    "CoinDeskAdapter",
+    "CoinTelegraphAdapter",
+    "RedditAdapter",
+    "UnsupportedLanguageError",
+}
+
 if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
     from .coinbase import (  # noqa: F401
         CoinbaseClient,
@@ -26,17 +35,30 @@ if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
         OhlcvRecord,
         SqlAlchemyCandleRepository,
     )
+    from .content import (  # noqa: F401
+        ArticleCandidate,
+        BaseContentAdapter,
+        CoinDeskAdapter,
+        CoinTelegraphAdapter,
+        RedditAdapter,
+        UnsupportedLanguageError,
+    )
 
 
 def __getattr__(name: str) -> Any:
     if name in _COINBASE_EXPORTS:
         module = import_module(".coinbase", __name__)
         return getattr(module, name)
+    if name in _CONTENT_EXPORTS:
+        module = import_module(".content", __name__)
+        return getattr(module, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def __dir__() -> list[str]:
-    return sorted(list(globals().keys()) + list(_COINBASE_EXPORTS))
+    return sorted(
+        list(globals().keys()) + list(_COINBASE_EXPORTS) + list(_CONTENT_EXPORTS)
+    )
 
 
-__all__ = ["__version__", *_COINBASE_EXPORTS]
+__all__ = ["__version__", *_COINBASE_EXPORTS, *_CONTENT_EXPORTS]
