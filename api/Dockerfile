@@ -8,11 +8,13 @@ WORKDIR /app
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY pyproject.toml README.md ./
-COPY src ./src
+COPY api ./api
+COPY pipelines ./pipelines
 
 RUN pip install --upgrade pip \
-    && pip install .
+    && pip install ./pipelines ./api
+
+RUN python -c "import ragtrader_api.settings, ragtrader_pipelines.coinbase"
 
 FROM python:3.11-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -26,8 +28,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/venv /opt/venv
-COPY pyproject.toml README.md ./
-COPY src ./src
+COPY api ./api
+COPY pipelines ./pipelines
 
 EXPOSE 8000
 

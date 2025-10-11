@@ -23,8 +23,8 @@ services:
 
   api:
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api/Dockerfile
     container_name: ragtrader-api
     restart: unless-stopped
     env_file:
