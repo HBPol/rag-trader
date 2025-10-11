@@ -192,4 +192,6 @@ jobs:
         run: docker build -t ragtrader-api:ci -f api/Dockerfile .
 
       - name: Build Web image
+        # The web Dockerfile copies package.json from the build context, so we
+        # must keep the context rooted at web/ instead of the repository root.
         run: docker build -t ragtrader-web:ci -f web/Dockerfile web
