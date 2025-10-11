@@ -63,6 +63,7 @@ ignore = ["S101"]
 python_version = "3.11"
 strict = true
 packages = ["ragtrader_api"]
+mypy_path = ["src", "../pipelines/src"]
 
 [tool.coverage.run]
 branch = true
