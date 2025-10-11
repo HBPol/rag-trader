@@ -69,6 +69,7 @@ def test_repository_requires_positive_retry_attempts() -> None:
 
 def test_repository_warns_when_cloud_without_key(
     caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured_kwargs: dict[str, Any] = {}
 
@@ -77,6 +78,9 @@ def test_repository_warns_when_cloud_without_key(
         client = Mock()
         client.delete_collection.return_value = True
         return client
+
+    monkeypatch.delenv("RAGTRADER_API_QDRANT_API_KEY", raising=False)
+    monkeypatch.delenv("QDRANT_API_KEY", raising=False)
 
     settings = _settings(
         qdrant_api_key=None,

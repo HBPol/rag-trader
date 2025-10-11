@@ -15,7 +15,7 @@ The settings model reads environment variables using the
 | `RAGTRADER_API_POSTGRES_DSN` | PostgreSQL DSN used by the service when database access is required. Uses the `postgresql+psycopg://` driver string. |
 | `RAGTRADER_API_REQUIRE_DATABASE` | Set to `false` to skip enforcing a database DSN in local tests. |
 | `RAGTRADER_API_QDRANT_URL` | Base URL for the Qdrant vector store. |
-| `RAGTRADER_API_QDRANT_API_KEY` | API key used when connecting to Qdrant Cloud. Ignored for self-hosted deployments. |
+| `RAGTRADER_API_QDRANT_API_KEY` | API key used when connecting to Qdrant Cloud. Ignored for self-hosted deployments. Falls back to `QDRANT_API_KEY` when unset. |
 | `RAGTRADER_API_USE_QDRANT_CLOUD` | Set to `false` to target a self-hosted Qdrant instance without authentication. |
 | `RAGTRADER_API_REQUIRE_VECTOR_STORE` | Set to `false` to bypass vector store readiness checks. |
 
@@ -23,7 +23,16 @@ The default environment is `dev`, with additional allowed values of
 `staging` and `prod`.
 
 `.env.example` contains a ready-to-use DSN targeting the docker-compose
-Postgres service; copy it into your `.env` to get started quickly.
+Postgres service; copy it into your `.env` to get started quickly. The
+settings loader now reads that file automatically (or an override
+specified via `RAGTRADER_API_ENV_FILE`) before evaluating environment
+variables, while still letting explicit exports take precedence. When
+`RAGTRADER_API_POSTGRES_DSN` is omitted and the database requirement is
+enabled (the default), the API will synthesize a DSN using the
+`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, and
+`POSTGRES_PASSWORD` variables. You must still provide either the complete
+DSN or each of the underlying `POSTGRES_*` variables before the service
+starts.
 
 ## Health Endpoints
 

@@ -203,9 +203,23 @@ class SqlAlchemyCandleRepository:
         from sqlalchemy.dialects.postgresql import insert
         from sqlalchemy.orm import Session
 
-        from ragtrader_api.db.models import Ohlcv
+        from ragtrader_api.db.models import Instrument, Ohlcv
+
+        if not records:
+            return
+
+        unique_symbols = sorted({record.symbol for record in records})
 
         with Session(self._engine) as session:
+            if unique_symbols:
+                instruments_stmt = insert(Instrument).values(
+                    [{"symbol": symbol, "name": symbol} for symbol in unique_symbols]
+                )
+                instruments_stmt = instruments_stmt.on_conflict_do_nothing(
+                    index_elements=[Instrument.symbol]
+                )
+                session.execute(instruments_stmt)
+
             stmt = insert(Ohlcv).values(
                 [
                     {

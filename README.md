@@ -43,6 +43,11 @@ source .venv/bin/activate
 # Install editable packages and root developer requirements
 pip install -e api[dev] -e pipelines[dev] -r requirements-dev.txt
 
+# Install frontend dependencies (pnpm shown, npm or yarn also work)
+cd web && pnpm install
+# Run the Python and frontend test suites with coverage gates
+make test
+
 # API service (FastAPI)
 cd api
 PYTHONPATH=src pytest --cov=ragtrader_api --cov-report=term --cov-report=xml --cov-fail-under=80
@@ -57,7 +62,7 @@ PYTHONPATH=src pytest --cov=ragtrader_pipelines --cov-report=term --cov-report=x
 # Web package
 cd ../web
 pnpm install  # or npm install / yarn install
-pnpm test -- --coverage
+pnpm test -- --coverage  # or run `make test-frontend` from the repository root
 
 # Return to the repository root when finished
 cd ..
@@ -120,7 +125,7 @@ installs remain reproducible.
 - **PyCharm + Docker**: add a Docker Compose interpreter pointed at the `api` service so
   editor actions reuse the container runtime. In *Settings → Project → Python Interpreter*,
   click **Add Interpreter… → Docker Compose**, select `docker-compose.yml` (and optionally
-  `docker-compose.override.yml` if you want the extra services), choose the **Service** named
+  `docker-compose.qdrant.yml` if you want the extra services), choose the **Service** named
   `api`, and keep the default `/usr/local/bin/python` path that PyCharm shows. That binary is the
   interpreter baked into the image that ships with the project, so linting, tests, and run
   configurations inside PyCharm mirror what `docker compose up` executes.
@@ -184,6 +189,10 @@ touch the files you modified.
 | Web (`web/`) | `pnpm test -- --coverage` | `docker compose exec web pnpm test -- --coverage` |
 | Compose smoke tests | `pytest tests/test_compose.py` | _Run from the host so the test suite can resolve the repository and Compose CLI._ |
 
+Use `make test` from the repository root to execute the API and pipelines suites in sequence with their shared
+coverage thresholds. The target expects the editable installs above to be available in the active virtualenv so it
+can rely on the same Python environment used by CI.
+
 The coverage invocations match the CI gates (80% minimum for Python packages and full Vitest
 coverage reports for the frontend). Run them after `pip install -e .[dev]` (Python) or `pnpm install`
 (web) so local tooling mirrors GitHub Actions.
@@ -195,7 +204,7 @@ coverage reports for the frontend). Run them after `pip install -e .[dev]` (Pyth
 cp .env.example .env
 
 # Fill in vector store credentials from Qdrant Cloud so the API can reach your cluster
-$EDITOR .env  # set QDRANT_URL and QDRANT_API_KEY to match .env.example hints
+$EDITOR .env  # set QDRANT_URL and either RAGTRADER_API_QDRANT_API_KEY or QDRANT_API_KEY per .env.example hints
 
 # Validate Compose parity and health checks
 pytest tests/test_compose.py
@@ -207,7 +216,7 @@ docker compose up -d --build
 RAGTRADER_API_REQUIRE_VECTOR_STORE=false docker compose up -d --build
 
 # OR run with local Qdrant (override adds qdrant service + points API to it)
-docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.qdrant.yml up -d --build
 
 # health checks
 curl -f http://localhost:8000/healthz
@@ -215,8 +224,9 @@ open http://localhost:5173
 ```
 
 > **Notes**
-> - You can create or reuse a managed cluster in [Qdrant Cloud](https://qdrant.tech/cloud/) to obtain the `QDRANT_URL` and `QDRANT_API_KEY` values referenced in `.env.example`.
-> - The override stack is opt-in: include `-f docker-compose.override.yml` when you want the co-located Qdrant container, or omit it to keep pointing at Qdrant Cloud.
+> - You can create or reuse a managed cluster in [Qdrant Cloud](https://qdrant.tech/cloud/) to obtain the `QDRANT_URL` and API key values referenced in `.env.example`. Set `RAGTRADER_API_QDRANT_API_KEY` (preferred) or `QDRANT_API_KEY` to satisfy the cloud credential requirement.
+> - The override stack is opt-in: include `-f docker-compose.qdrant.yml` when you want the co-located Qdrant container, or omit it to keep pointing at Qdrant Cloud.
+> - The API loads variables from `.env` (or a path provided via `RAGTRADER_API_ENV_FILE`) automatically, while still honouring any explicit environment variables you export.
 
 Once the services report healthy, exercise the FastAPI service at
 `http://localhost:8000/docs` or `http://localhost:8000/healthz` and browse the web frontend on
@@ -228,7 +238,7 @@ The repository ships two Compose descriptors:
 
 - `docker-compose.yml` is the baseline stack used in CI smoke tests. It provisions the API,
   frontend, and supporting services that are shared across environments (e.g. Postgres, Redis).
-- `docker-compose.override.yml` is opt-in. It swaps the API from using the managed Qdrant Cloud
+- `docker-compose.qdrant.yml` is opt-in. It swaps the API from using the managed Qdrant Cloud
   endpoint to a co-located Qdrant container so you can iterate entirely offline.
 
 Use the base file on its own when you want to mirror CI or production, where the vector store lives
@@ -263,7 +273,7 @@ pytest tests/test_compose.py
 ```
 
 The tests boot the stack defined in [`docker-compose.yml`](docker-compose.yml) (optionally layered
-with [`docker-compose.override.yml`](docker-compose.override.yml)) and assert each service's
+  with [`docker-compose.qdrant.yml`](docker-compose.qdrant.yml)) and assert each service's
 `/healthz` endpoint responds successfully.
 
 ## External reachability probes
@@ -311,4 +321,39 @@ python -m ragtrader_pipelines.coinbase \
 
 The job enforces idempotent writes via SQLAlchemy’s `ON CONFLICT` upsert and
 defaults to hourly candles, matching the `ohlcv` schema defined in the API
-service.
+service. When it encounters a brand-new symbol it automatically seeds the
+`instruments` table (using the symbol as the display name) before inserting the
+OHLCV rows, so you can bootstrap fresh environments without a separate metadata
+seed step.
+
+### Cloud Scheduler trigger
+
+The API exposes `POST /jobs/poll_ohlcv` so Cloud Scheduler can trigger the
+ingestion job without shipping the CLI container. Configure the runtime via
+environment variables or Secrets Manager:
+
+| Variable | Purpose |
+| --- | --- |
+| `RAGTRADER_SCHEDULER_COINBASE_SYMBOLS` | Comma-separated Coinbase product IDs. Defaults to `BTC-USD,ETH-USD,SOL-USD`. |
+| `RAGTRADER_SCHEDULER_COINBASE_GRANULARITY` | Candle size (aliases like `1m`, `MIN_15`, `3600`). |
+| `RAGTRADER_SCHEDULER_COINBASE_LOOKBACK_MINUTES` | Window of history to request per run. Must be positive. |
+| `RAGTRADER_SCHEDULER_DATABASE_DSN` / `RAGTRADER_SCHEDULER_DATABASE_SECRET_NAME` | Direct DSN or Secrets Manager name for the ingestion database. Falls back to `RAGTRADER_API_POSTGRES_DSN`. |
+
+1. Provision a service account (e.g. `ragtrader-scheduler`) with Cloud Run
+   Invoker + Secret Manager Accessor so it can call the API and read the DSN
+   secret.
+2. Create the job, targeting your Cloud Run hostname and using the OIDC token
+   minted for that service account:
+
+   ```bash
+   gcloud scheduler jobs create http ohlcv-poll \
+     --schedule="*/5 * * * *" \
+     --uri="https://<cloud-run-host>/jobs/poll_ohlcv" \
+     --http-method=POST \
+     --oidc-service-account-email=ragtrader-scheduler@${PROJECT_ID}.iam.gserviceaccount.com \
+     --oidc-token-audience="https://<cloud-run-host>" \
+     --headers="Content-Type=application/json"
+   ```
+
+   Cloud Scheduler supplies the `Authorization: Bearer <token>` header, so the
+   endpoint does not require an additional payload.

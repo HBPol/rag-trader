@@ -18,6 +18,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
 COMPOSE_FILES = sorted(REPO_ROOT.glob("docker-compose*.yml"))
+QDRANT_COMPOSE_FILE = "docker-compose.qdrant.yml"
 REQUIRED_ENV_VARS = {
     "API_PORT",
     "WEB_PORT",
@@ -73,7 +74,11 @@ def env_example() -> dict[str, str]:
 
 @pytest.fixture(scope="module")
 def compose_configs() -> dict[str, dict[str, Any]]:
-    return {path.name: load_compose_file(path) for path in COMPOSE_FILES}
+    configs = {path.name: load_compose_file(path) for path in COMPOSE_FILES}
+    assert (
+        QDRANT_COMPOSE_FILE in configs
+    ), "Expected to load the opt-in Qdrant Compose descriptor."
+    return configs
 
 
 def run_docker(
@@ -128,7 +133,7 @@ def test_api_service_forwards_database_and_qdrant_settings(
     assert "${RAGTRADER_API_QDRANT_URL" in base_env["RAGTRADER_API_QDRANT_URL"]
 
     override_env = environment_to_dict(
-        compose_configs["docker-compose.override.yml"]["services"]["api"]["environment"]
+        compose_configs[QDRANT_COMPOSE_FILE]["services"]["api"]["environment"]
     )
     assert override_env["RAGTRADER_API_QDRANT_URL"] == "http://qdrant:6333"
     assert (
@@ -148,7 +153,7 @@ def test_compose_stack_smoke() -> None:
         "-f",
         "docker-compose.yml",
         "-f",
-        "docker-compose.override.yml",
+        QDRANT_COMPOSE_FILE,
     ]
 
     env = os.environ.copy()
