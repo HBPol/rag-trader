@@ -60,6 +60,8 @@ def test_migrations_create_expected_tables(migrated_engine: Engine) -> None:
     inspector = inspect(migrated_engine)
     assert inspector.has_table("instruments")
     assert inspector.has_table("ohlcv")
+    assert inspector.has_table("articles")
+    assert inspector.has_table("sentiments")
 
     ohlcv_columns = {col["name"] for col in inspector.get_columns("ohlcv")}
     expected_columns = {
@@ -75,3 +77,61 @@ def test_migrations_create_expected_tables(migrated_engine: Engine) -> None:
         "updated_at",
     }
     assert expected_columns.issubset(ohlcv_columns)
+
+    article_columns = {col["name"] for col in inspector.get_columns("articles")}
+    expected_article_columns = {
+        "id",
+        "source",
+        "url",
+        "title",
+        "published_ts",
+        "fetched_ts",
+        "body_excerpt",
+        "coins",
+    }
+    assert expected_article_columns.issubset(article_columns)
+
+    sentiment_columns = {col["name"] for col in inspector.get_columns("sentiments")}
+    expected_sentiment_columns = {
+        "article_id",
+        "coin",
+        "polarity",
+        "aspects",
+        "confidence",
+        "ts",
+        "zscore_window",
+        "zscore",
+    }
+    assert expected_sentiment_columns.issubset(sentiment_columns)
+
+    sentiment_fks = inspector.get_foreign_keys("sentiments")
+    assert any(
+        fk["referred_table"] == "articles"
+        and fk.get("constrained_columns") == ["article_id"]
+        and fk.get("referred_columns") == ["id"]
+        for fk in sentiment_fks
+    ), "sentiments.article_id should reference articles.id"
+
+    article_indexes = inspector.get_indexes("articles")
+    assert any(
+        index.get("unique")
+        and (
+            "url" in (index.get("column_names") or [])
+            or "url_hash" in (index.get("column_names") or [])
+            or "url_title_hash" in (index.get("column_names") or [])
+        )
+        for index in article_indexes
+    ), "Expected a unique index on articles URL information"
+
+    sentiment_indexes = inspector.get_indexes("sentiments")
+    assert any(
+        (
+            "coin" in (index.get("column_names") or [])
+            and "zscore_window" in (index.get("column_names") or [])
+        )
+        and (
+            "ts" in (index.get("column_names") or [])
+            or index.get("column_names") == ["coin", "zscore_window"]
+        )
+        for index in sentiment_indexes
+    ), "Expected an index to support sentiment window lookups"
