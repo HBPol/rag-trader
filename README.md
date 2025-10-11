@@ -43,6 +43,9 @@ source .venv/bin/activate
 # Install editable packages and root developer requirements
 pip install -e api[dev] -e pipelines[dev] -r requirements-dev.txt
 
+# Run both Python test suites (api/ and pipelines/) with coverage gates
+make test
+
 # API service (FastAPI)
 cd api
 PYTHONPATH=src pytest --cov=ragtrader_api --cov-report=term --cov-report=xml --cov-fail-under=80
@@ -183,6 +186,10 @@ touch the files you modified.
 | Pipelines (`ragtrader_pipelines`) | `PYTHONPATH=src pytest --cov=ragtrader_pipelines --cov-report=term --cov-report=xml --cov-fail-under=80` | _No dedicated service; run locally or via CI until a pipelines container is added._ |
 | Web (`web/`) | `pnpm test -- --coverage` | `docker compose exec web pnpm test -- --coverage` |
 | Compose smoke tests | `pytest tests/test_compose.py` | _Run from the host so the test suite can resolve the repository and Compose CLI._ |
+
+Use `make test` from the repository root to execute the API and pipelines suites in sequence with their shared
+coverage thresholds. The target expects the editable installs above to be available in the active virtualenv so it
+can rely on the same Python environment used by CI.
 
 The coverage invocations match the CI gates (80% minimum for Python packages and full Vitest
 coverage reports for the frontend). Run them after `pip install -e .[dev]` (Python) or `pnpm install`
