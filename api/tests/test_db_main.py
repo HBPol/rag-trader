@@ -26,12 +26,36 @@ def test_main_invokes_dependencies_in_order(monkeypatch) -> None:
     fake_sqlalchemy.DateTime = _stub_type("DateTime")
     fake_sqlalchemy.ForeignKey = _stub_type("ForeignKey")
     fake_sqlalchemy.Index = _stub_type("Index")
+    fake_sqlalchemy.Integer = _stub_type("Integer")
     fake_sqlalchemy.Numeric = _stub_type("Numeric")
     fake_sqlalchemy.String = _stub_type("String")
+    fake_sqlalchemy.Text = _stub_type("Text")
     fake_sqlalchemy.text = lambda *args, **kwargs: None  # pragma: no cover - stub
 
+    fake_sqlalchemy_dialects = types.ModuleType("sqlalchemy.dialects")
+    fake_sqlalchemy_postgresql = types.ModuleType("sqlalchemy.dialects.postgresql")
+    fake_sqlalchemy_postgresql.ARRAY = _stub_type("ARRAY")
+
+    fake_sqlalchemy_exc = types.ModuleType("sqlalchemy.exc")
+    fake_sqlalchemy_exc.OperationalError = type("OperationalError", (), {})
+
     fake_sqlalchemy_engine = types.ModuleType("sqlalchemy.engine")
+
+    class _FakeURL:
+        def __init__(self, host: str = "postgres") -> None:
+            self.host = host
+
+        def set(self, *, host: str | None = None) -> _FakeURL:  # type: ignore[misc]
+            return _FakeURL(host=host or self.host)
+
+        def render_as_string(self, *, hide_password: bool = True) -> str:
+            return "postgresql://localhost/test"
+
+    def fake_make_url(_dsn: str) -> _FakeURL:
+        return _FakeURL()
+
     fake_sqlalchemy_engine.Engine = type("Engine", (), {})
+    fake_sqlalchemy_engine.make_url = fake_make_url
 
     fake_sqlalchemy_orm = types.ModuleType("sqlalchemy.orm")
 
@@ -72,6 +96,13 @@ def test_main_invokes_dependencies_in_order(monkeypatch) -> None:
 
     monkeypatch.setitem(sys.modules, "sqlalchemy", fake_sqlalchemy)
     monkeypatch.setitem(sys.modules, "sqlalchemy.engine", fake_sqlalchemy_engine)
+    monkeypatch.setitem(sys.modules, "sqlalchemy.exc", fake_sqlalchemy_exc)
+    monkeypatch.setitem(sys.modules, "sqlalchemy.dialects", fake_sqlalchemy_dialects)
+    monkeypatch.setitem(
+        sys.modules,
+        "sqlalchemy.dialects.postgresql",
+        fake_sqlalchemy_postgresql,
+    )
     monkeypatch.setitem(sys.modules, "sqlalchemy.orm", fake_sqlalchemy_orm)
 
     db_main = importlib.import_module("ragtrader_api.db.__main__")
