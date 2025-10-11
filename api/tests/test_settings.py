@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
 import ragtrader_api.settings as settings_module
-from ragtrader_api.settings import ApiSettings, SettingsValidationError, get_settings
+from ragtrader_api.settings import (
+    ApiSettings,
+    SchedulerSettings,
+    SettingsValidationError,
+    get_settings,
+)
+from ragtrader_pipelines.coinbase import Granularity
 
 
 @pytest.fixture(autouse=True)
@@ -190,3 +197,48 @@ def test_settings_fall_back_to_unprefixed_qdrant_key(
     )
 
     assert settings.qdrant_api_key == "fallback-key"
+
+
+def test_scheduler_settings_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RAGTRADER_SCHEDULER_COINBASE_SYMBOLS", "btc-usd,eth-usd")
+    monkeypatch.setenv("RAGTRADER_SCHEDULER_COINBASE_GRANULARITY", "MIN_15")
+    monkeypatch.setenv("RAGTRADER_SCHEDULER_COINBASE_LOOKBACK_MINUTES", "45")
+    monkeypatch.setenv(
+        "RAGTRADER_SCHEDULER_DATABASE_DSN",
+        "postgresql+psycopg://scheduler:pass@localhost:5432/app",
+    )
+
+    settings = ApiSettings(
+        postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
+        qdrant_url="http://localhost:6333",
+        require_database=False,
+        require_vector_store=False,
+    )
+
+    scheduler = settings.scheduler_options()
+
+    assert isinstance(scheduler, SchedulerSettings)
+    assert scheduler.symbols == ("BTC-USD", "ETH-USD")
+    assert scheduler.granularity is Granularity.MIN_15
+    assert scheduler.lookback == timedelta(minutes=45)
+    assert scheduler.database_dsn.endswith("/app")
+
+
+def test_scheduler_settings_fall_back_to_api_dsn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("RAGTRADER_SCHEDULER_DATABASE_DSN", raising=False)
+    monkeypatch.delenv("RAGTRADER_SCHEDULER_DATABASE_SECRET_NAME", raising=False)
+
+    settings = ApiSettings(
+        postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
+        qdrant_url="http://localhost:6333",
+        require_database=False,
+        require_vector_store=False,
+    )
+
+    scheduler = settings.scheduler_options()
+
+    assert scheduler.database_dsn == "postgresql+psycopg://user:pass@localhost:5432/app"
+    assert scheduler.granularity is Granularity.MIN_1
+    assert scheduler.lookback == timedelta(minutes=15)

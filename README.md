@@ -325,3 +325,35 @@ service. When it encounters a brand-new symbol it automatically seeds the
 `instruments` table (using the symbol as the display name) before inserting the
 OHLCV rows, so you can bootstrap fresh environments without a separate metadata
 seed step.
+
+### Cloud Scheduler trigger
+
+The API exposes `POST /jobs/poll_ohlcv` so Cloud Scheduler can trigger the
+ingestion job without shipping the CLI container. Configure the runtime via
+environment variables or Secrets Manager:
+
+| Variable | Purpose |
+| --- | --- |
+| `RAGTRADER_SCHEDULER_COINBASE_SYMBOLS` | Comma-separated Coinbase product IDs. Defaults to `BTC-USD,ETH-USD,SOL-USD`. |
+| `RAGTRADER_SCHEDULER_COINBASE_GRANULARITY` | Candle size (aliases like `1m`, `MIN_15`, `3600`). |
+| `RAGTRADER_SCHEDULER_COINBASE_LOOKBACK_MINUTES` | Window of history to request per run. Must be positive. |
+| `RAGTRADER_SCHEDULER_DATABASE_DSN` / `RAGTRADER_SCHEDULER_DATABASE_SECRET_NAME` | Direct DSN or Secrets Manager name for the ingestion database. Falls back to `RAGTRADER_API_POSTGRES_DSN`. |
+
+1. Provision a service account (e.g. `ragtrader-scheduler`) with Cloud Run
+   Invoker + Secret Manager Accessor so it can call the API and read the DSN
+   secret.
+2. Create the job, targeting your Cloud Run hostname and using the OIDC token
+   minted for that service account:
+
+   ```bash
+   gcloud scheduler jobs create http ohlcv-poll \
+     --schedule="*/5 * * * *" \
+     --uri="https://<cloud-run-host>/jobs/poll_ohlcv" \
+     --http-method=POST \
+     --oidc-service-account-email=ragtrader-scheduler@${PROJECT_ID}.iam.gserviceaccount.com \
+     --oidc-token-audience="https://<cloud-run-host>" \
+     --headers="Content-Type=application/json"
+   ```
+
+   Cloud Scheduler supplies the `Authorization: Bearer <token>` header, so the
+   endpoint does not require an additional payload.

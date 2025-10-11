@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import base64
 import os
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Final, cast
 from urllib.parse import urlparse
+
+from ragtrader_pipelines.coinbase import Granularity
 
 
 class SettingsValidationError(ValueError):
@@ -17,6 +21,35 @@ class SettingsValidationError(ValueError):
 
 
 _ALLOWED_ENVS: Final[set[str]] = {"dev", "staging", "prod"}
+_DEFAULT_SCHEDULER_SYMBOLS: Final[tuple[str, ...]] = (
+    "BTC-USD",
+    "ETH-USD",
+    "SOL-USD",
+)
+_GRANULARITY_ALIASES: Final[dict[str, Granularity]] = {
+    "1M": Granularity.MIN_1,
+    "ONE_MINUTE": Granularity.MIN_1,
+    "MIN1": Granularity.MIN_1,
+    "60": Granularity.MIN_1,
+    "5M": Granularity.MIN_5,
+    "FIVE_MINUTE": Granularity.MIN_5,
+    "MIN5": Granularity.MIN_5,
+    "300": Granularity.MIN_5,
+    "15M": Granularity.MIN_15,
+    "FIFTEEN_MINUTE": Granularity.MIN_15,
+    "MIN15": Granularity.MIN_15,
+    "900": Granularity.MIN_15,
+    "60M": Granularity.MIN_60,
+    "1H": Granularity.MIN_60,
+    "HOUR": Granularity.MIN_60,
+    "3600": Granularity.MIN_60,
+    "6H": Granularity.HOUR_6,
+    "HOUR6": Granularity.HOUR_6,
+    "21600": Granularity.HOUR_6,
+    "1D": Granularity.DAY_1,
+    "DAY": Granularity.DAY_1,
+    "86400": Granularity.DAY_1,
+}
 _MISSING: Final[object] = object()
 _ENV_FILE_LOADED: bool = False
 
@@ -95,6 +128,75 @@ def _coerce_bool(value: str | None, *, default: bool) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _parse_symbols(value: str | None) -> tuple[str, ...]:
+    if value is None:
+        return _DEFAULT_SCHEDULER_SYMBOLS
+    parts = [item.strip().upper() for item in value.split(",")]
+    symbols = tuple(symbol for symbol in parts if symbol)
+    if not symbols:
+        raise SettingsValidationError(
+            "At least one symbol must be configured for polling."
+        )
+    return symbols
+
+
+def _parse_granularity(value: str | None) -> Granularity:
+    if not value:
+        return Granularity.MIN_1
+    normalized = value.strip().upper()
+    if normalized in _GRANULARITY_ALIASES:
+        return _GRANULARITY_ALIASES[normalized]
+    try:
+        return Granularity[normalized]
+    except KeyError as exc:  # pragma: no cover - defensive branch
+        allowed = ", ".join(
+            sorted({g.name for g in Granularity} | set(_GRANULARITY_ALIASES))
+        )
+        raise SettingsValidationError(
+            "Unsupported Coinbase granularity value. "
+            f"Received {value!r}; expected one of: {allowed}."
+        ) from exc
+
+
+def _coerce_positive_int(value: str | None, *, default: int) -> int:
+    candidate = value.strip() if value is not None else None
+    raw = candidate if candidate else str(default)
+    try:
+        parsed = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise SettingsValidationError(
+            "Lookback minutes must be an integer value."
+        ) from exc
+    if parsed <= 0:
+        raise SettingsValidationError("Lookback minutes must be greater than zero.")
+    return parsed
+
+
+def _load_secret_from_manager(name: str) -> str:
+    try:
+        import boto3  # type: ignore
+    except ModuleNotFoundError as exc:  # pragma: no cover - runtime dependency guard
+        msg = (
+            "boto3 must be installed to load secrets from AWS Secrets Manager. "
+            "Install boto3 or provide RAGTRADER_SCHEDULER_DATABASE_DSN."
+        )
+        raise SettingsValidationError(msg) from exc
+
+    client = boto3.client("secretsmanager")
+    response: dict[str, Any] = client.get_secret_value(SecretId=name)
+    secret_string = cast(str | None, response.get("SecretString"))
+    if secret_string:
+        return secret_string
+    secret_binary = cast(bytes | str | None, response.get("SecretBinary"))
+    if not secret_binary:
+        raise SettingsValidationError("Secret did not contain a database DSN value.")
+    if isinstance(secret_binary, bytes):
+        decoded_bytes = secret_binary
+    else:
+        decoded_bytes = base64.b64decode(secret_binary)
+    return decoded_bytes.decode("utf-8")
+
+
 def _validate_url(candidate: str | None, *, allow_empty: bool = False) -> str | None:
     if candidate is None:
         if allow_empty:
@@ -125,6 +227,53 @@ def _validate_postgres_dsn(candidate: str | None, *, required: bool) -> str | No
     if not parsed.hostname:
         raise SettingsValidationError("Postgres DSN must include a hostname.")
     return candidate
+
+
+@dataclass(slots=True)
+class SchedulerSettings:
+    """Structured configuration for the Coinbase polling job."""
+
+    symbols: tuple[str, ...]
+    granularity: Granularity
+    lookback: timedelta
+    database_dsn: str
+
+    @classmethod
+    def from_env(
+        cls,
+        env: Mapping[str, str],
+        *,
+        fallback_dsn: str | None,
+    ) -> SchedulerSettings:
+        symbols = _parse_symbols(env.get("RAGTRADER_SCHEDULER_COINBASE_SYMBOLS"))
+        granularity = _parse_granularity(
+            env.get("RAGTRADER_SCHEDULER_COINBASE_GRANULARITY")
+        )
+        lookback_minutes = _coerce_positive_int(
+            env.get("RAGTRADER_SCHEDULER_COINBASE_LOOKBACK_MINUTES"),
+            default=15,
+        )
+        database_dsn = env.get("RAGTRADER_SCHEDULER_DATABASE_DSN")
+        if not database_dsn:
+            secret_name = env.get("RAGTRADER_SCHEDULER_DATABASE_SECRET_NAME")
+            if secret_name:
+                database_dsn = _load_secret_from_manager(secret_name)
+        if not database_dsn and fallback_dsn:
+            database_dsn = fallback_dsn
+        if not database_dsn:
+            raise SettingsValidationError(
+                "Scheduler configuration requires a Postgres DSN. Set "
+                "RAGTRADER_SCHEDULER_DATABASE_DSN, provide "
+                "RAGTRADER_SCHEDULER_DATABASE_SECRET_NAME, or configure "
+                "RAGTRADER_API_POSTGRES_DSN."
+            )
+
+        return cls(
+            symbols=symbols,
+            granularity=granularity,
+            lookback=timedelta(minutes=lookback_minutes),
+            database_dsn=database_dsn,
+        )
 
 
 @dataclass(slots=True)
@@ -296,6 +445,9 @@ class ApiSettings:
             "version": self.version,
         }
 
+    def scheduler_options(self) -> SchedulerSettings:
+        return SchedulerSettings.from_env(os.environ, fallback_dsn=self.postgres_dsn)
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> ApiSettings:
@@ -304,6 +456,7 @@ def get_settings() -> ApiSettings:
 
 __all__ = [
     "ApiSettings",
+    "SchedulerSettings",
     "SettingsValidationError",
     "get_settings",
 ]

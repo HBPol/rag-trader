@@ -139,7 +139,14 @@ gcloud run deploy ragtrader-api   --image gcr.io/$PROJECT_ID/ragtrader-api:$TAG 
 gcloud run deploy ragtrader-web   --image gcr.io/$PROJECT_ID/ragtrader-web:$TAG   --region $REGION   --set-env-vars=ENV=prod,API_BASE_URL=<api-url>
 
 # (optional) scheduler for polling
-gcloud scheduler jobs create http ohlcv-pull   --schedule="*/5 * * * *"   --uri="<api-url>/jobs/poll_ohlcv"   --http-method=POST   --oauth-service-account-email=<svc>@$PROJECT_ID.iam.gserviceaccount.com
+# service account ragtrader-scheduler needs Cloud Run Invoker + Secrets Manager Accessor
+gcloud scheduler jobs create http ohlcv-poll \
+  --schedule="*/5 * * * *" \
+  --uri="https://<cloud-run-host>/jobs/poll_ohlcv" \
+  --http-method=POST \
+  --oidc-service-account-email=ragtrader-scheduler@${PROJECT_ID}.iam.gserviceaccount.com \
+  --oidc-token-audience="https://<cloud-run-host>" \
+  --headers="Content-Type=application/json"
 ```
 
 **Rollback**
