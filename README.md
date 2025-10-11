@@ -43,7 +43,9 @@ source .venv/bin/activate
 # Install editable packages and root developer requirements
 pip install -e api[dev] -e pipelines[dev] -r requirements-dev.txt
 
-# Run both Python test suites (api/ and pipelines/) with coverage gates
+# Install frontend dependencies (pnpm shown, npm or yarn also work)
+cd web && pnpm install
+# Run the Python and frontend test suites with coverage gates
 make test
 
 # API service (FastAPI)
@@ -60,7 +62,7 @@ PYTHONPATH=src pytest --cov=ragtrader_pipelines --cov-report=term --cov-report=x
 # Web package
 cd ../web
 pnpm install  # or npm install / yarn install
-pnpm test -- --coverage
+pnpm test -- --coverage  # or run `make test-frontend` from the repository root
 
 # Return to the repository root when finished
 cd ..
