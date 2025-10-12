@@ -5,7 +5,8 @@ from collections.abc import Iterable
 
 import pytest
 
-from ragtrader_pipelines.sentiment import (  # pragma: no cover -; intentional import failure until implemented
+# pragma: no cover -; intentional import failure until implemented
+from ragtrader_pipelines.sentiment import (
     SentimentSeriesPoint,
     SentimentZScore,
     ZScoreCalculator,
@@ -37,7 +38,7 @@ def _manual_zscores(window: int, scores: Iterable[float]) -> list[float]:
 )
 def test_zscore_calculator_computes_expected_window_values(
     window: int, scores: list[float]
-):
+) -> None:
     """The calculator should emit rolling z-scores matching manual calculations."""
     coin = "BTC"
     interval_seconds = 60
@@ -53,8 +54,7 @@ def test_zscore_calculator_computes_expected_window_values(
     expected_scores = _manual_zscores(window, scores)
     assert len(zscores) == len(expected_scores)
 
-    # Skip the first window - 1 points;
-    # each z-score should match manual calc and carry metadata.
+    # Skip the first window - 1 points; match manual calculations and include metadata.
     for offset, (point, expected) in enumerate(
         zip(zscores, expected_scores, strict=False)
     ):
@@ -99,9 +99,8 @@ def test_zscore_calculator_isolates_coins():
         assert result.z_score == pytest.approx(expected)
 
 
-def test_zscore_calculator_requires_enough_points():
-    """If there are not enough points to fill the window,
-    no z-score should be produced."""
+def test_zscore_calculator_requires_enough_points() -> None:
+    """No z-score should be produced when the history is shorter than the window."""
     window = 5
     points = [
         SentimentSeriesPoint(coin="BTC", timestamp=0, score=10.0),
