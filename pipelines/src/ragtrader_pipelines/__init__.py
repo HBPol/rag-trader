@@ -28,6 +28,14 @@ _CONTENT_EXPORTS = {
     "UnsupportedLanguageError",
 }
 
+_SENTIMENT_EXPORTS = {
+    "SentimentAspect",
+    "SentimentClassifier",
+    "SentimentLabel",
+    "SentimentResult",
+    "SentimentUnsupportedLanguageError",
+}
+
 if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
     from .coinbase import (  # noqa: F401
         CoinbaseClient,
@@ -45,6 +53,13 @@ if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
         RedditAdapter,
         UnsupportedLanguageError,
     )
+    from .sentiment import (  # noqa: F401
+        SentimentAspect,
+        SentimentClassifier,
+        SentimentLabel,
+        SentimentResult,
+        SentimentUnsupportedLanguageError,
+    )
 
 
 def __getattr__(name: str) -> Any:
@@ -54,13 +69,24 @@ def __getattr__(name: str) -> Any:
     if name in _CONTENT_EXPORTS:
         module = import_module(".content", __name__)
         return getattr(module, name)
+    if name in _SENTIMENT_EXPORTS:
+        module = import_module(".sentiment", __name__)
+        return getattr(module, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def __dir__() -> list[str]:
     return sorted(
-        list(globals().keys()) + list(_COINBASE_EXPORTS) + list(_CONTENT_EXPORTS)
+        list(globals().keys())
+        + list(_COINBASE_EXPORTS)
+        + list(_CONTENT_EXPORTS)
+        + list(_SENTIMENT_EXPORTS)
     )
 
 
-__all__ = ["__version__", *_COINBASE_EXPORTS, *_CONTENT_EXPORTS]
+__all__ = [
+    "__version__",
+    *_COINBASE_EXPORTS,
+    *_CONTENT_EXPORTS,
+    *_SENTIMENT_EXPORTS,
+]
