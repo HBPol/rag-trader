@@ -155,6 +155,54 @@ gcloud run revisions list --service=ragtrader-api --region $REGION
 gcloud run services update-traffic ragtrader-api --region $REGION --to-revisions <prev>=100
 ```
 
-**Observability**  
-- Local: `docker compose logs -f` for `api`, `web`, `postgres`.  
+**Observability**
+- Local: `docker compose logs -f` for `api`, `web`, `postgres`.
 - Prod: Cloud Run logs & metrics; add uptime checks for `/healthz`.
+
+### Operational Runbook — Content & Sentiment Pipelines
+
+- **3–7 day backfill**: run the content pipeline with an extended lookback
+  and conservative concurrency to avoid rate limits.
+
+  ```bash
+  # Backfill the prior 5 days with staggered windows to reduce load
+  export DATABASE_URL=...
+  export CONTENT_DEDUPE_URL=redis://redis:6379/0
+  for window_start in 120 240 360 480 600 720; do
+    python -m ragtrader_pipelines.content \
+      --adapters reddit,coindesk,coindesk_pro \
+      --lookback-minutes $window_start \
+      --freshness-window-minutes 1440 \
+      --dedupe-ttl "P3D" \
+      --zscore-window "P1D" \
+      --max-workers 4
+  done
+  ```
+
+  Monitor adapter logs and throttle if upstream rate limits trigger.
+
+- **API freshness guard**: the `/sentiment` endpoint enforces the
+  freshness window configured above. After each run, query the endpoint
+  and confirm `data_fresh_as_of` (or equivalent freshness metadata)
+  reflects timestamps within the expected guardrail.
+
+  ```bash
+  curl -fsSL "${API_BASE_URL}/sentiment?symbol=BTC-USD" | jq '.data_fresh_as_of'
+  ```
+
+  If the timestamp lags beyond the configured `--freshness-window-minutes`,
+  verify the scheduler logs and Redis dedupe cache before rerunning.
+
+- **Data validation**: run the Issue #2 regression tests after changes or
+  backfills to ensure adapters, dedupe logic, and z-score calculations
+  remain consistent.
+
+  ```bash
+  cd pipelines
+  PYTHONPATH=src pytest tests/test_content_ingestion.py \
+    tests/test_content_dedupe.py \
+    tests/test_content_zscore.py
+  ```
+
+  The suite checks for duplicate suppression, classifier range limits,
+  and correct z-score standardization across windows.

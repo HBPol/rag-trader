@@ -1,12 +1,11 @@
 # RAGTrader Pipelines
 
 This package contains the batch and streaming data jobs that power
-RAGTrader. The current focus is the Coinbase OHLCV ingestion pipeline,
-which is composed of a reusable API client, scheduler-friendly CLI
-entrypoints, and a repository layer that writes candles into the
-`ragtrader_api` database models. The registry primitives in
-`ragtrader_pipelines.registry` hold the job wiring that schedulers import
-for execution.
+RAGTrader. The Coinbase OHLCV ingestion pipeline is joined by the
+content sentiment ingestion pipeline, which combines modular source
+adapters, a deduplication cache, the shared sentiment classifier, and a
+rolling z-score calculator. Both jobs provide scheduler-friendly CLI
+entrypoints and registry wiring.
 
 ## Development
 
@@ -47,3 +46,64 @@ python -m ragtrader_pipelines.coinbase \
 The CLI requires a `DATABASE_URL` (either as a flag or environment
 variable) so that results are written to Postgres via SQLAlchemy.
 Granularity flags map one-to-one with Coinbase’s candle endpoints.
+
+## Content ingestion & sentiment enrichment
+
+The [`ragtrader_pipelines.content`](src/ragtrader_pipelines/content/__init__.py)
+module orchestrates scraping/polling adapters, a Redis-backed dedupe
+cache, and the classifier/z-score pipeline. The job can be invoked via
+CLI or imported by the scheduler registry.
+
+### CLI usage
+
+```bash
+export DATABASE_URL="postgresql+psycopg://user:pass@localhost:5432/ragtrader"
+export CONTENT_REDDIT_CLIENT_ID=...
+export CONTENT_REDDIT_CLIENT_SECRET=...
+export CONTENT_RSS_COINDESK_API_KEY=...
+python -m ragtrader_pipelines.content \
+  --adapters reddit,coindesk \
+  --lookback-minutes 180 \
+  --freshness-window-minutes 240 \
+  --zscore-window "PT12H" \
+  --dedupe-ttl "PT24H" \
+  --max-workers 8
+```
+
+Flags mirror the module defaults:
+
+- `--adapters`: Comma-separated adapter slugs from
+  [`content/adapters`](src/ragtrader_pipelines/content/adapters).
+- `--lookback-minutes`: Backfill horizon for the adapters.
+- `--freshness-window-minutes`: Guard-rail to skip stale items.
+- `--dedupe-ttl`: ISO-8601 duration for the Redis cache TTL.
+- `--zscore-window`: ISO-8601 duration used by the z-score calculator.
+- `--max-workers`: Thread pool size for concurrent adapter fetches.
+
+The following environment variables are respected when present:
+
+- `DATABASE_URL`: SQLAlchemy URL for Postgres.
+- Source credentials (prefixed `CONTENT_`).
+- `CONTENT_DEDUPE_URL`: Redis URL used to persist the dedupe cache.
+- `CONTENT_SENTIMENT_MODEL`: Override classifier alias.
+- `CONTENT_ZSCORE_WINDOW`: Default z-score window when no CLI flag is provided.
+- `CONTENT_FRESHNESS_WINDOW_MINUTES`: Default freshness guard.
+
+### Scheduler guidance
+
+- **Cloud Scheduler / Cloud Run**: mirror the Coinbase job by targeting
+  the registry entry point `ragtrader_pipelines.registry:content_ingest`
+  and invoking it every 10 minutes. Use a Cloud Run job or service with
+  `--max-workers 8`, `--dedupe-ttl PT24H`, and `--freshness-window-minutes 240`.
+  Retry 3 times with exponential backoff (starting at 60 seconds) so
+  transient API hiccups are absorbed.
+- **Cron (self-hosted)**: run `python -m ragtrader_pipelines.content
+  --lookback-minutes 90 --dedupe-ttl PT18H --freshness-window-minutes 180` on a
+  15-minute cadence. Keep the Redis-backed dedupe cache reachable so
+  concurrent workers can safely share fingerprints.
+- **Concurrency**: limit parallel adapters to <=10 to avoid API rate
+  limits. When orchestrating via Airflow/Prefect, configure task
+  concurrency to 1 per adapter and set retries to 2–3 with jitter.
+- **Runtime expectations**: A 90-minute lookback across Reddit + major
+  RSS feeds completes in ~2–3 minutes on a 2 vCPU machine. Longer
+  backfills scale linearly with the lookback window and adapter count.

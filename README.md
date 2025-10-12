@@ -13,12 +13,46 @@ backtest via a safe Strategy DSL.
 - [Requirements Specifications](project_docs/RequirementsSpecifications.md)
 - [Project Plan](project_docs/ProjectPlan.md)
 
+## Content Ingestion & Sentiment
+
+The sentiment pipelines pair modular content adapters (RSS, social, and long-form
+sources) with a deduplication cache, a lightweight sentiment classifier, and a
+rolling z-score calculator. Jobs run via the
+`ragtrader_pipelines.content` entry point so ingestion, labeling, and
+aggregation share configuration and telemetry.
+
+```bash
+# Run a 2-hour window locally against Postgres while fetching Reddit + CoinDesk
+export DATABASE_URL="postgresql+psycopg://user:pass@localhost:5432/ragtrader"
+export CONTENT_REDDIT_CLIENT_ID=...
+export CONTENT_REDDIT_CLIENT_SECRET=...
+export CONTENT_RSS_COINDESK_API_KEY=...
+python -m ragtrader_pipelines.content \
+  --adapters reddit,coindesk \
+  --lookback-minutes 120 \
+  --freshness-window-minutes 180 \
+  --zscore-window "PT6H" \
+  --dedupe-ttl "PT12H"
+```
+
+The CLI supports additional sources (see `pipelines/src/ragtrader_pipelines/content/adapters`)
+and honors the following environment variables:
+
+- `DATABASE_URL`: SQLAlchemy URL for the ingestion target database.
+- Source API keys and secrets (prefixed `CONTENT_…`).
+- `CONTENT_DEDUPE_URL`: Optional Redis instance to persist the deduplication cache.
+- `CONTENT_SENTIMENT_MODEL`: Override the default classifier alias.
+- `CONTENT_FRESHNESS_WINDOW_MINUTES`: Default freshness guard for adapters if no flag is provided.
+- `CONTENT_ZSCORE_WINDOW`: ISO-8601 duration string for the rolling z-score computation.
+
+Pass `--help` to explore more knobs (batch size, retry/backoff tuning, dry-run mode).
+
 ## Monorepo Layout
 
 | Path | Purpose |
 | --- | --- |
 | `api/` | FastAPI service (Python 3.11). Contains settings scaffolding and pytest-based unit tests. |
-| `pipelines/` | Batch & streaming jobs (Python 3.11). Hosts the Coinbase OHLCV ingestion job and registry primitives. |
+| `pipelines/` | Batch & streaming jobs (Python 3.11). Hosts Coinbase OHLCV + content sentiment ingestion jobs and registry primitives. |
 | `web/` | Next.js 14 frontend (TypeScript). Includes layout shell, styling entry point, and Vitest smoke test. |
 
 Each package owns its dependencies (`pyproject.toml` / `package.json`) and test suite so we can
