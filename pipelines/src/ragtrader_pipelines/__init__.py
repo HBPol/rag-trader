@@ -21,6 +21,7 @@ _COINBASE_EXPORTS = {
 _CONTENT_EXPORTS = {
     "ArticleCandidate",
     "BaseContentAdapter",
+    "ContentAggregator",
     "CoinDeskAdapter",
     "CoinTelegraphAdapter",
     "RedditAdapter",
@@ -40,6 +41,7 @@ if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
         BaseContentAdapter,
         CoinDeskAdapter,
         CoinTelegraphAdapter,
+        ContentAggregator,
         RedditAdapter,
         UnsupportedLanguageError,
     )

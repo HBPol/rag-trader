@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from html import unescape
 from urllib.parse import SplitResult, urlsplit, urlunsplit
@@ -12,6 +12,7 @@ from urllib.parse import SplitResult, urlsplit, urlunsplit
 __all__ = [
     "ArticleCandidate",
     "BaseContentAdapter",
+    "ContentAggregator",
     "CoinDeskAdapter",
     "CoinTelegraphAdapter",
     "RedditAdapter",
@@ -288,4 +289,66 @@ class RedditAdapter(BaseContentAdapter):
             coins=coins,
             published_ts=published_ts,
             cache_key=cache_key or normalized_url,
+        )
+
+
+class ContentAggregator:
+    """Deduplicate :class:`ArticleCandidate` objects across sources."""
+
+    def __init__(
+        self,
+        *,
+        freshness_window: dt.timedelta,
+        clock: Callable[[], dt.datetime] | None = None,
+    ) -> None:
+        self._freshness_window = freshness_window
+        self._clock = clock or (lambda: dt.datetime.now(tz=dt.UTC))
+        self._cache: dict[str, dt.datetime] = {}
+
+    def emit(
+        self, source: str, candidates: Iterable[ArticleCandidate]
+    ) -> Iterator[ArticleCandidate]:
+        """Yield deduplicated candidates for the given source."""
+
+        _ = source  # placeholder for future per-source policies
+
+        now = self._clock()
+        self._prune(now)
+
+        for candidate in candidates:
+            normalized_url = self._normalise_candidate_url(candidate)
+            normalized_title = candidate.title.strip().lower()
+            cache_key = f"{normalized_url}::{normalized_title}"
+
+            now = self._clock()
+            expiry = self._cache.get(cache_key)
+            if expiry and expiry >= now:
+                continue
+
+            expiry = now + self._freshness_window
+            self._cache[cache_key] = expiry
+
+            if not candidate.cache_key:
+                candidate.cache_key = cache_key
+            candidate.cache_expires_at = expiry
+
+            yield candidate
+
+        self._prune(self._clock())
+
+    def _prune(self, now: dt.datetime) -> None:
+        if not self._cache:
+            return
+        expired = [key for key, expiry in self._cache.items() if expiry <= now]
+        for key in expired:
+            self._cache.pop(key, None)
+
+    def _normalise_candidate_url(self, candidate: ArticleCandidate) -> str:
+        parsed = urlsplit(candidate.url)
+        canonical_host = parsed.netloc.lower()
+        if not canonical_host:
+            return candidate.url
+        return BaseContentAdapter._normalize_url(
+            candidate.url,
+            canonical_host=canonical_host,
         )
