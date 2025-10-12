@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
@@ -28,6 +30,22 @@ def create_fastapi_app() -> FastAPI:
     @fastapi_app.get("/readyz")
     async def readyz() -> JSONResponse:  # pragma: no cover - via integration tests
         return _adapt_response(mini_app.dispatch("GET", "/readyz"))
+
+    @fastapi_app.get("/sentiment")
+    async def sentiment(
+        symbol: str | None = None,
+        window: str | None = None,
+    ) -> JSONResponse:  # pragma: no cover - via integration tests
+        query: dict[str, str] = {}
+        if symbol is not None:
+            query["symbol"] = symbol
+        if window is not None:
+            query["window"] = window
+
+        path = "/sentiment"
+        if query:
+            path = f"{path}?{urlencode(query)}"
+        return _adapt_response(mini_app.dispatch("GET", path))
 
     return fastapi_app
 
