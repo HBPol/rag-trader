@@ -43,10 +43,8 @@ class BaseContentAdapter:
     source_name: str
     canonical_host: str
 
-    def parse(
-        self, payload: Mapping[str, object]
-    ) -> ArticleCandidate | None:  # pragma: no cover - interface only
-        raise NotImplementedError
+    def parse(self, payload: Mapping[str, object]) -> ArticleCandidate | None:
+        raise NotImplementedError  # pragma: no cover - interface only
 
     # -- helpers -----------------------------------------------------------------
     @staticmethod
@@ -88,7 +86,7 @@ class BaseContentAdapter:
             return None
         if isinstance(value, dt.datetime):
             timestamp = value
-        elif isinstance(value, (int, float)):
+        elif isinstance(value, int | float):
             timestamp = dt.datetime.fromtimestamp(float(value), tz=dt.UTC)
         elif isinstance(value, str) and value:
             try:
@@ -167,7 +165,7 @@ class CoinDeskAdapter(BaseContentAdapter):
         tickers = payload.get("tickers")
         coins = self._normalize_coins(
             tickers
-            if isinstance(tickers, Iterable) and not isinstance(tickers, (str, bytes))
+            if isinstance(tickers, Iterable) and not isinstance(tickers, str | bytes)
             else None
         )
 
@@ -221,7 +219,7 @@ class CoinTelegraphAdapter(BaseContentAdapter):
         tags = payload.get("tags")
         coins = self._normalize_coins(
             tags
-            if isinstance(tags, Iterable) and not isinstance(tags, (str, bytes))
+            if isinstance(tags, Iterable) and not isinstance(tags, str | bytes)
             else None
         )
 
@@ -273,7 +271,7 @@ class RedditAdapter(BaseContentAdapter):
         tickers = payload.get("tickers")
         coins = self._normalize_coins(
             tickers
-            if isinstance(tickers, Iterable) and not isinstance(tickers, (str, bytes))
+            if isinstance(tickers, Iterable) and not isinstance(tickers, str | bytes)
             else None
         )
 
