@@ -191,16 +191,16 @@ class SentimentClassifier:
 
     def _extract_languages(self, value: object) -> set[str]:
         if isinstance(value, str):
-            tokens = self._tokenise_language_string(value)
-        elif isinstance(value, Iterable) and not isinstance(value, (bytes, bytearray)):
-            tokens: set[str] = set()
+            return self._tokenise_language_string(value)
+
+        if isinstance(value, Iterable) and not isinstance(value, bytes | bytearray):
+            languages: set[str] = set()
             for item in value:
                 if isinstance(item, str):
-                    tokens.update(self._tokenise_language_string(item))
-            return tokens
-        else:
-            return set()
-        return tokens
+                    languages.update(self._tokenise_language_string(item))
+            return languages
+
+        return set()
 
     @staticmethod
     def _tokenise_language_string(value: str) -> set[str]:
@@ -216,7 +216,7 @@ class SentimentClassifier:
             return ()
         if isinstance(coins, str):
             iterable: Iterable[object] = [coins]
-        elif isinstance(coins, Iterable) and not isinstance(coins, (bytes, bytearray)):
+        elif isinstance(coins, Iterable) and not isinstance(coins, bytes | bytearray):
             iterable = coins
         else:
             return ()
@@ -232,7 +232,7 @@ class SentimentClassifier:
     def _metadata_positive_boost(self, metadata: Mapping[str, object]) -> int:
         boost = 0
         hype = metadata.get("hype_signals")
-        if isinstance(hype, Iterable) and not isinstance(hype, (str, bytes, bytearray)):
+        if isinstance(hype, Iterable) and not isinstance(hype, str | bytes | bytearray):
             boost += sum(1 for item in hype if str(item).strip())
         return boost
 
@@ -241,7 +241,7 @@ class SentimentClassifier:
         for key in ("regulatory_cues", "security_incidents"):
             value = metadata.get(key)
             if isinstance(value, Iterable) and not isinstance(
-                value, (str, bytes, bytearray)
+                value, str | bytes | bytearray
             ):
                 boost += sum(1 for item in value if str(item).strip())
         return boost
@@ -271,7 +271,7 @@ class SentimentClassifier:
     @staticmethod
     def _has_values(container: object) -> bool:
         if isinstance(container, Iterable) and not isinstance(
-            container, (str, bytes, bytearray)
+            container, str | bytes | bytearray
         ):
             return any(str(item).strip() for item in container)
         return False
