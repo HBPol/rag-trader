@@ -33,7 +33,10 @@ _SENTIMENT_EXPORTS = {
     "SentimentClassifier",
     "SentimentLabel",
     "SentimentResult",
+    "SentimentSeriesPoint",
+    "SentimentZScore",
     "SentimentUnsupportedLanguageError",
+    "ZScoreCalculator",
 }
 
 if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
@@ -58,7 +61,10 @@ if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
         SentimentClassifier,
         SentimentLabel,
         SentimentResult,
+        SentimentSeriesPoint,
         SentimentUnsupportedLanguageError,
+        SentimentZScore,
+        ZScoreCalculator,
     )
 
 

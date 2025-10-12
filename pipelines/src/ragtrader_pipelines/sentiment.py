@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+import math
+from collections import deque
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 
@@ -36,6 +38,93 @@ class SentimentResult:
     confidence: float
     aspects: Sequence[SentimentAspect]
     coins: Sequence[str]
+
+
+@dataclass(frozen=True)
+class SentimentSeriesPoint:
+    """Historical sentiment score for a single coin."""
+
+    coin: str
+    timestamp: int
+    score: float
+
+
+@dataclass(frozen=True)
+class SentimentZScore:
+    """Rolling z-score derived from sentiment history."""
+
+    coin: str
+    timestamp: int
+    window: int
+    z_score: float
+
+
+@dataclass(slots=True)
+class _RollingWindowState:
+    """Mutable state for a coin's rolling window."""
+
+    scores: deque[float]
+    total: float
+    total_sq: float
+
+
+class ZScoreCalculator:
+    """Compute rolling population z-scores for sentiment series."""
+
+    def __init__(self, window: int) -> None:
+        if window <= 0:
+            raise ValueError("window must be a positive integer")
+        self._window = window
+
+    @property
+    def window(self) -> int:
+        return self._window
+
+    def calculate(
+        self, points: Iterable[SentimentSeriesPoint]
+    ) -> Iterator[SentimentZScore]:
+        """Yield rolling population z-scores for the provided series."""
+
+        history: dict[str, _RollingWindowState] = {}
+
+        for point in points:
+            state = history.get(point.coin)
+            if state is None:
+                state = _RollingWindowState(
+                    scores=deque(maxlen=self._window), total=0.0, total_sq=0.0
+                )
+                history[point.coin] = state
+
+            if len(state.scores) == state.scores.maxlen:
+                # Remove the oldest observation before appending the new one.
+                oldest = state.scores.popleft()
+                state.total -= oldest
+                state.total_sq -= oldest * oldest
+
+            state.scores.append(point.score)
+            state.total += point.score
+            state.total_sq += point.score * point.score
+
+            if len(state.scores) < self._window:
+                continue
+
+            mean = state.total / self._window
+            variance = (
+                state.total_sq - (state.total * state.total) / self._window
+            ) / self._window
+            variance = max(variance, 0.0)
+            stddev = math.sqrt(variance)
+            if stddev == 0.0:
+                z_score = 0.0
+            else:
+                z_score = (point.score - mean) / stddev
+
+            yield SentimentZScore(
+                coin=point.coin,
+                timestamp=point.timestamp,
+                window=self._window,
+                z_score=z_score,
+            )
 
 
 class SentimentClassifier:
@@ -290,5 +379,8 @@ __all__ = [
     "UnsupportedLanguageError",
     "SentimentUnsupportedLanguageError",
     "SentimentResult",
+    "SentimentSeriesPoint",
+    "SentimentZScore",
+    "ZScoreCalculator",
     "SentimentClassifier",
 ]
