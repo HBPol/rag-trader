@@ -5,9 +5,16 @@ from __future__ import annotations
 import datetime as dt
 import re
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from decimal import Decimal
 from html import unescape
+from typing import cast
 from urllib.parse import SplitResult, urlsplit, urlunsplit
+
+from sqlalchemy import MetaData, Table, delete, tuple_
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 
 __all__ = [
     "ArticleCandidate",
@@ -15,7 +22,10 @@ __all__ = [
     "ContentAggregator",
     "CoinDeskAdapter",
     "CoinTelegraphAdapter",
+    "NormalizedArticleRecord",
     "RedditAdapter",
+    "SentimentRecord",
+    "SqlAlchemyContentRepository",
     "UnsupportedLanguageError",
 ]
 
@@ -32,6 +42,31 @@ class ArticleCandidate:
     published_ts: dt.datetime
     cache_key: str | None = None
     cache_expires_at: dt.datetime | None = None
+
+
+@dataclass(slots=True)
+class NormalizedArticleRecord:
+    """Serializable record representing a normalized content article."""
+
+    source: str
+    url: str
+    title: str
+    excerpt: str
+    coins: list[str] = field(default_factory=list)
+    published_ts: dt.datetime | None = None
+
+
+@dataclass(slots=True)
+class SentimentRecord:
+    """Serializable record for a sentiment analysis observation."""
+
+    coin: str
+    polarity: Decimal
+    confidence: Decimal
+    zscore_window: int
+    aspects: list[str] = field(default_factory=list)
+    ts: dt.datetime | None = None
+    zscore: Decimal | None = None
 
 
 class UnsupportedLanguageError(ValueError):
@@ -352,3 +387,96 @@ class ContentAggregator:
             candidate.url,
             canonical_host=canonical_host,
         )
+
+
+class SqlAlchemyContentRepository:
+    """Persist normalized content and related sentiments using SQLAlchemy."""
+
+    def __init__(self, engine: Engine) -> None:
+        self._engine = engine
+        metadata = MetaData()
+        self._articles = Table("articles", metadata, autoload_with=engine)
+        self._sentiments = Table("sentiments", metadata, autoload_with=engine)
+
+    def upsert_article_with_sentiments(
+        self,
+        *,
+        article: NormalizedArticleRecord,
+        sentiments: Iterable[SentimentRecord],
+    ) -> int:
+        """Persist an article and associated sentiments, returning the article id."""
+
+        sentiment_records = list(sentiments)
+
+        with Session(self._engine) as session:
+            try:
+                article_id = self._upsert_article(session, article)
+                if sentiment_records:
+                    self._replace_sentiments(session, article_id, sentiment_records)
+                session.commit()
+            except Exception:  # pragma: no cover - defensive cleanup
+                session.rollback()
+                raise
+
+        return article_id
+
+    def _upsert_article(
+        self, session: Session, article: NormalizedArticleRecord
+    ) -> int:
+        values = {
+            "source": article.source,
+            "url": article.url,
+            "title": article.title,
+            "body_excerpt": article.excerpt,
+            "coins": list(article.coins),
+            "published_ts": article.published_ts,
+        }
+
+        stmt = (
+            pg_insert(self._articles)
+            .values(**values)
+            .on_conflict_do_update(
+                index_elements=[self._articles.c.url],
+                set_=values,
+            )
+            .returning(self._articles.c.id)
+        )
+
+        result = session.execute(stmt)
+        return cast(int, result.scalar_one())
+
+    def _replace_sentiments(
+        self,
+        session: Session,
+        article_id: int,
+        sentiments: list[SentimentRecord],
+    ) -> None:
+        combos = {(record.coin, record.zscore_window) for record in sentiments}
+        if combos:
+            delete_stmt = (
+                delete(self._sentiments)
+                .where(self._sentiments.c.article_id == article_id)
+                .where(
+                    tuple_(
+                        self._sentiments.c.coin, self._sentiments.c.zscore_window
+                    ).in_(list(combos))
+                )
+            )
+            session.execute(delete_stmt)
+
+        insert_payload = [
+            {
+                "article_id": article_id,
+                "coin": record.coin,
+                "polarity": record.polarity,
+                "aspects": list(record.aspects),
+                "confidence": record.confidence,
+                "ts": record.ts,
+                "zscore_window": record.zscore_window,
+                "zscore": record.zscore,
+            }
+            for record in sentiments
+        ]
+
+        if insert_payload:
+            session.execute(self._sentiments.insert(), insert_payload)
