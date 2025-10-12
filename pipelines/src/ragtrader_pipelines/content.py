@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import argparse
 import datetime as dt
+import os
 import re
-from collections.abc import Callable, Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from html import unescape
-from typing import cast
+from importlib import import_module
+from typing import Any, Protocol, cast
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
-from sqlalchemy import MetaData, Table, delete, tuple_
+from sqlalchemy import MetaData, Table, create_engine, delete, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
@@ -20,14 +23,56 @@ __all__ = [
     "ArticleCandidate",
     "BaseContentAdapter",
     "ContentAggregator",
+    "ContentIngestionJob",
     "CoinDeskAdapter",
     "CoinTelegraphAdapter",
     "NormalizedArticleRecord",
+    "build_arg_parser",
     "RedditAdapter",
     "SentimentRecord",
     "SqlAlchemyContentRepository",
     "UnsupportedLanguageError",
+    "main",
+    "register_content_ingestion_job",
 ]
+
+from .registry import PipelineRegistry
+from .sentiment import (
+    SentimentAspect,
+    SentimentClassifier,
+    SentimentLabel,
+    SentimentResult,
+    SentimentSeriesPoint,
+    ZScoreCalculator,
+)
+
+
+class ContentSource(Protocol):
+    """Protocol describing the content source dependency."""
+
+    def fetch(self, start: dt.datetime, end: dt.datetime) -> Iterable[ArticleCandidate]:
+        """Return candidate articles within the requested window."""
+
+
+class SentimentClassifierProtocol(Protocol):
+    """Protocol describing the sentiment classifier dependency."""
+
+    def classify(
+        self, text: str, metadata: Mapping[str, Any] | None
+    ) -> SentimentResult:  # pragma: no cover - interface only
+        ...
+
+
+class ContentRepository(Protocol):
+    """Protocol for the content repository dependency."""
+
+    def upsert_article_with_sentiments(
+        self,
+        *,
+        article: NormalizedArticleRecord,
+        sentiments: Iterable[SentimentRecord],
+    ) -> int:  # pragma: no cover - interface only
+        ...
 
 
 @dataclass(slots=True)
@@ -389,6 +434,148 @@ class ContentAggregator:
         )
 
 
+class ContentIngestionJob:
+    """Coordinate content ingestion, classification, and persistence."""
+
+    def __init__(
+        self,
+        *,
+        sources: Mapping[str, ContentSource],
+        aggregator: ContentAggregator,
+        classifier: SentimentClassifierProtocol,
+        repository: ContentRepository,
+        zscore_calculator: ZScoreCalculator,
+        clock: Callable[[], dt.datetime] | None = None,
+    ) -> None:
+        self._sources = dict(sources)
+        self._aggregator = aggregator
+        self._classifier = classifier
+        self._repository = repository
+        self._zscore_calculator = zscore_calculator
+        self._clock = clock or (lambda: dt.datetime.now(tz=dt.UTC))
+
+    def run(self, *, lookback: dt.timedelta) -> None:
+        if lookback <= dt.timedelta(0):  # pragma: no cover - sanity check
+            msg = "lookback must be greater than zero"
+            raise ValueError(msg)
+
+        end = self._ensure_aware(self._clock())
+        start = end - lookback
+
+        candidates: list[ArticleCandidate] = []
+        for name, source in self._sources.items():
+            batch = list(source.fetch(start, end))
+            deduped = list(self._aggregator.emit(name, batch))
+            candidates.extend(deduped)
+
+        candidates.sort(key=self._candidate_sort_key)
+
+        article_payloads: list[
+            tuple[NormalizedArticleRecord, list[SentimentRecord]]
+        ] = []
+        zscore_points: list[SentimentSeriesPoint] = []
+        zscore_index: dict[tuple[str, int], list[SentimentRecord]] = {}
+
+        for candidate in candidates:
+            article = NormalizedArticleRecord(
+                source=candidate.source,
+                url=candidate.url,
+                title=candidate.title,
+                excerpt=candidate.excerpt,
+                coins=list(candidate.coins),
+                published_ts=candidate.published_ts,
+            )
+
+            text = self._compose_text(candidate)
+            metadata = {"coins": list(candidate.coins)}
+            result = self._classifier.classify(text, metadata)
+
+            sentiments: list[SentimentRecord] = []
+            polarity = self._polarity_for_label(result.label)
+            confidence = Decimal(str(result.confidence))
+            aspects = self._normalize_aspects(result.aspects)
+
+            for coin in result.coins:
+                record = SentimentRecord(
+                    coin=str(coin),
+                    polarity=polarity,
+                    confidence=confidence,
+                    zscore_window=self._zscore_calculator.window,
+                    aspects=list(aspects),
+                    ts=candidate.published_ts,
+                )
+                sentiments.append(record)
+
+                timestamp = int(candidate.published_ts.timestamp())
+                point = SentimentSeriesPoint(
+                    coin=str(coin),
+                    timestamp=timestamp,
+                    score=float(record.polarity),
+                )
+                zscore_points.append(point)
+                index_key = (point.coin, point.timestamp)
+                zscore_index.setdefault(index_key, []).append(record)
+
+            article_payloads.append((article, sentiments))
+
+        if zscore_points:
+            for zscore in self._zscore_calculator.calculate(zscore_points):
+                key = (zscore.coin, zscore.timestamp)
+                records = zscore_index.get(key)
+                if not records:
+                    continue
+                record = records.pop(0)
+                record.zscore = Decimal(str(zscore.z_score))
+
+        for article, sentiments in article_payloads:
+            self._repository.upsert_article_with_sentiments(
+                article=article, sentiments=sentiments
+            )
+
+    @staticmethod
+    def _compose_text(candidate: ArticleCandidate) -> str:
+        parts = [candidate.title.strip()]
+        excerpt = candidate.excerpt.strip()
+        if excerpt:
+            parts.append(excerpt)
+        return "\n\n".join(parts)
+
+    @staticmethod
+    def _candidate_sort_key(
+        candidate: ArticleCandidate,
+    ) -> tuple[dt.datetime, str, str, str]:
+        return (
+            candidate.published_ts,
+            candidate.source,
+            candidate.url,
+            candidate.title,
+        )
+
+    @staticmethod
+    def _ensure_aware(value: dt.datetime) -> dt.datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=dt.UTC)
+        return value.astimezone(dt.UTC)
+
+    @staticmethod
+    def _normalize_aspects(values: Sequence[SentimentAspect | str]) -> list[str]:
+        normalized: list[str] = []
+        for aspect in values:
+            if isinstance(aspect, SentimentAspect):
+                normalized.append(aspect.value.lower())
+            else:
+                normalized.append(str(aspect).lower())
+        return normalized
+
+    @staticmethod
+    def _polarity_for_label(label: SentimentLabel) -> Decimal:
+        mapping = {
+            SentimentLabel.BULLISH: Decimal("1"),
+            SentimentLabel.BEARISH: Decimal("-1"),
+        }
+        return mapping.get(label, Decimal("0"))
+
+
 class SqlAlchemyContentRepository:
     """Persist normalized content and related sentiments using SQLAlchemy."""
 
@@ -480,3 +667,138 @@ class SqlAlchemyContentRepository:
 
         if insert_payload:
             session.execute(self._sentiments.insert(), insert_payload)
+
+
+def build_arg_parser() -> argparse.ArgumentParser:
+    """Construct an argument parser for the content ingestion CLI."""
+
+    parser = argparse.ArgumentParser(
+        description="Run the content ingestion pipeline and persist results"
+    )
+    parser.add_argument(
+        "--lookback-minutes",
+        type=int,
+        default=240,
+        help="Number of minutes to look back when fetching content",
+    )
+    parser.add_argument(
+        "--freshness-minutes",
+        type=int,
+        default=15,
+        help="Deduplication freshness window in minutes",
+    )
+    parser.add_argument(
+        "--zscore-window",
+        type=int,
+        default=6,
+        help="Number of observations for the rolling z-score window",
+    )
+    parser.add_argument(
+        "--database-url",
+        default=os.environ.get("DATABASE_URL", ""),
+        help="Database DSN for persisting content and sentiments",
+    )
+    parser.add_argument(
+        "--source-factory",
+        required=True,
+        help=(
+            "Dotted path to a callable returning a mapping of source name to "
+            "content source instances"
+        ),
+    )
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI wiring
+    args = build_arg_parser().parse_args(argv)
+
+    lookback = dt.timedelta(minutes=args.lookback_minutes)
+    freshness = dt.timedelta(minutes=args.freshness_minutes)
+    zscore_window = int(args.zscore_window)
+
+    database_url = args.database_url or os.environ.get("DATABASE_URL", "")
+    if not database_url:
+        msg = "DATABASE_URL must be provided to persist content"
+        raise SystemExit(msg)
+
+    factory = _load_factory(args.source_factory)
+    sources = factory()
+    if not isinstance(sources, Mapping):
+        msg = "Source factory must return a mapping of sources"
+        raise SystemExit(msg)
+    sources = dict(sources)
+
+    engine = create_engine(database_url, future=True)
+    repository = SqlAlchemyContentRepository(engine)
+    aggregator = ContentAggregator(
+        freshness_window=freshness, clock=lambda: dt.datetime.now(tz=dt.UTC)
+    )
+    classifier = SentimentClassifier()
+    zscore_calculator = ZScoreCalculator(window=zscore_window)
+    job = ContentIngestionJob(
+        sources=sources,
+        aggregator=aggregator,
+        classifier=classifier,
+        repository=repository,
+        zscore_calculator=zscore_calculator,
+        clock=lambda: dt.datetime.now(tz=dt.UTC),
+    )
+    job.run(lookback=lookback)
+    return 0
+
+
+def register_content_ingestion_job(
+    registry: PipelineRegistry,
+    *,
+    database_url: str,
+    lookback: dt.timedelta,
+    freshness: dt.timedelta,
+    source_factory: Callable[[], Mapping[str, ContentSource]],
+    zscore_window: int = 6,
+) -> None:
+    """Register the content ingestion job with the provided registry."""
+
+    engine = create_engine(database_url, future=True)
+    repository = SqlAlchemyContentRepository(engine)
+
+    def _pipeline() -> None:
+        sources = dict(source_factory())
+
+        def _clock() -> dt.datetime:
+            return dt.datetime.now(tz=dt.UTC)
+
+        aggregator = ContentAggregator(freshness_window=freshness, clock=_clock)
+        classifier = SentimentClassifier()
+        zscore_calculator = ZScoreCalculator(window=zscore_window)
+        job = ContentIngestionJob(
+            sources=sources,
+            aggregator=aggregator,
+            classifier=classifier,
+            repository=repository,
+            zscore_calculator=zscore_calculator,
+            clock=_clock,
+        )
+        job.run(lookback=lookback)
+
+    registry.register("content.ingestion", _pipeline)
+
+
+def _load_factory(path: str) -> Callable[[], Mapping[str, ContentSource]]:
+    """Load a factory callable from a dotted path string."""
+
+    module_name: str
+    attr_name: str
+    if ":" in path:
+        module_name, attr_name = path.split(":", 1)
+    else:
+        module_name, attr_name = path.rsplit(".", 1)
+    module = import_module(module_name)
+    factory = getattr(module, attr_name)
+    if not callable(factory):  # pragma: no cover - defensive branch
+        msg = f"Factory '{path}' is not callable"
+        raise TypeError(msg)
+    return cast(Callable[[], Mapping[str, ContentSource]], factory)
+
+
+if __name__ == "__main__":  # pragma: no cover - module CLI entrypoint
+    raise SystemExit(main())

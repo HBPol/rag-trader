@@ -22,6 +22,7 @@ _CONTENT_EXPORTS = {
     "ArticleCandidate",
     "BaseContentAdapter",
     "ContentAggregator",
+    "ContentIngestionJob",
     "CoinDeskAdapter",
     "CoinTelegraphAdapter",
     "NormalizedArticleRecord",
@@ -29,6 +30,9 @@ _CONTENT_EXPORTS = {
     "SentimentRecord",
     "SqlAlchemyContentRepository",
     "UnsupportedLanguageError",
+    "build_arg_parser",
+    "main",
+    "register_content_ingestion_job",
 }
 
 _SENTIMENT_EXPORTS = {
@@ -56,11 +60,15 @@ if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
         CoinDeskAdapter,
         CoinTelegraphAdapter,
         ContentAggregator,
+        ContentIngestionJob,
         NormalizedArticleRecord,
         RedditAdapter,
         SentimentRecord,
         SqlAlchemyContentRepository,
         UnsupportedLanguageError,
+        build_arg_parser,
+        main,
+        register_content_ingestion_job,
     )
     from .sentiment import (  # noqa: F401
         SentimentAspect,
