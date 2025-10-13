@@ -194,7 +194,10 @@ class RedditContentSource(ContentSource):
         user_agent: str = "ragtrader-pipelines/0.1",
     ) -> None:
         if not client_id or not client_secret:
-            msg = "CONTENT_REDDIT_CLIENT_ID and CONTENT_REDDIT_CLIENT_SECRET must be configured"
+            msg = (
+                "CONTENT_REDDIT_CLIENT_ID and CONTENT_REDDIT_CLIENT_SECRET must be "
+                "configured"
+            )
             raise SourceFactoryError(msg)
 
         self._client_id = client_id
