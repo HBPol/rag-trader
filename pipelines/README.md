@@ -64,41 +64,37 @@ export CONTENT_RSS_COINDESK_API_KEY=...
 python -m ragtrader_pipelines.content \
   --adapters reddit,coindesk \
   --lookback-minutes 180 \
-  --freshness-window-minutes 240 \
-  --zscore-window "PT12H" \
-  --dedupe-ttl "PT24H" \
-  --max-workers 8
+  --freshness-minutes 240 \
+  --zscore-window 6
 ```
 
 Flags mirror the module defaults:
 
-- `--adapters`: Comma-separated adapter slugs from
-  [`content/adapters`](src/ragtrader_pipelines/content/adapters).
+- `--adapters`: Comma-separated adapter slugs (see
+  [`content/sources.py`](src/ragtrader_pipelines/content/sources.py)).
 - `--lookback-minutes`: Backfill horizon for the adapters.
-- `--freshness-window-minutes`: Guard-rail to skip stale items.
-- `--dedupe-ttl`: ISO-8601 duration for the Redis cache TTL.
-- `--zscore-window`: ISO-8601 duration used by the z-score calculator.
-- `--max-workers`: Thread pool size for concurrent adapter fetches.
+- `--freshness-minutes`: Guard-rail to skip stale items.
+- `--zscore-window`: Rolling window length for the z-score calculator.
+- `--source-factory`: Optional dotted path override for advanced setups.
 
 The following environment variables are respected when present:
 
 - `DATABASE_URL`: SQLAlchemy URL for Postgres.
-- Source credentials (prefixed `CONTENT_`).
+- `CONTENT_RSS_COINDESK_API_KEY`: CoinDesk RSS JSON bridge token.
+- `CONTENT_REDDIT_CLIENT_ID` / `CONTENT_REDDIT_CLIENT_SECRET`: Reddit API credentials.
 - `CONTENT_DEDUPE_URL`: Redis URL used to persist the dedupe cache.
 - `CONTENT_SENTIMENT_MODEL`: Override classifier alias.
-- `CONTENT_ZSCORE_WINDOW`: Default z-score window when no CLI flag is provided.
-- `CONTENT_FRESHNESS_WINDOW_MINUTES`: Default freshness guard.
 
 ### Scheduler guidance
 
 - **Cloud Scheduler / Cloud Run**: mirror the Coinbase job by targeting
   the registry entry point `ragtrader_pipelines.registry:content_ingest`
   and invoking it every 10 minutes. Use a Cloud Run job or service with
-  `--max-workers 8`, `--dedupe-ttl PT24H`, and `--freshness-window-minutes 240`.
-  Retry 3 times with exponential backoff (starting at 60 seconds) so
-  transient API hiccups are absorbed.
+  `--freshness-minutes 240` and point `CONTENT_DEDUPE_URL` at a shared
+  Redis instance. Retry 3 times with exponential backoff (starting at
+  60 seconds) so transient API hiccups are absorbed.
 - **Cron (self-hosted)**: run `python -m ragtrader_pipelines.content
-  --lookback-minutes 90 --dedupe-ttl PT18H --freshness-window-minutes 180` on a
+  --lookback-minutes 90 --freshness-minutes 180 --zscore-window 6` on a
   15-minute cadence. Keep the Redis-backed dedupe cache reachable so
   concurrent workers can safely share fingerprints.
 - **Concurrency**: limit parallel adapters to <=10 to avoid API rate

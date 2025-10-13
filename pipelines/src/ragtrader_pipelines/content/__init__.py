@@ -14,6 +14,7 @@ from importlib import import_module
 from typing import Any, Protocol, cast
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
+import httpx
 from sqlalchemy import MetaData, Table, create_engine, delete, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Engine
@@ -25,19 +26,27 @@ __all__ = [
     "ContentAggregator",
     "ContentIngestionJob",
     "CoinDeskAdapter",
+    "CoinDeskContentSource",
     "CoinTelegraphAdapter",
+    "CoinTelegraphContentSource",
+    "InMemoryDedupeCache",
     "NormalizedArticleRecord",
+    "RedditContentSource",
+    "RedisDedupeCache",
     "build_arg_parser",
+    "build_sources_from_env",
+    "default_content_sources",
     "RedditAdapter",
     "SentimentRecord",
     "SqlAlchemyContentRepository",
+    "SourceFactoryError",
     "UnsupportedLanguageError",
     "main",
     "register_content_ingestion_job",
 ]
 
-from .registry import PipelineRegistry
-from .sentiment import (
+from ..registry import PipelineRegistry
+from ..sentiment import (
     SentimentAspect,
     SentimentClassifier,
     SentimentLabel,
@@ -372,6 +381,80 @@ class RedditAdapter(BaseContentAdapter):
         )
 
 
+class RedisClient(Protocol):
+    """Subset of the Redis client interface used for deduplication."""
+
+    def get(self, key: str) -> str | bytes | None:  # pragma: no cover - interface only
+        ...
+
+    def setex(
+        self, key: str, time: int, value: str
+    ) -> bool:  # pragma: no cover - interface only
+        ...
+
+
+class DedupeCache(Protocol):
+    """Protocol describing the persistence for deduplication state."""
+
+    def get(self, key: str) -> dt.datetime | None:  # pragma: no cover - interface only
+        ...
+
+    def set(
+        self, key: str, expiry: dt.datetime, now: dt.datetime
+    ) -> None:  # pragma: no cover - interface only
+        ...
+
+    def prune(self, now: dt.datetime) -> None:  # pragma: no cover - interface only
+        ...
+
+
+class InMemoryDedupeCache:
+    """In-memory implementation of :class:`DedupeCache`."""
+
+    def __init__(self) -> None:
+        self._entries: dict[str, dt.datetime] = {}
+
+    def get(self, key: str) -> dt.datetime | None:
+        return self._entries.get(key)
+
+    def set(self, key: str, expiry: dt.datetime, now: dt.datetime) -> None:
+        _ = now
+        self._entries[key] = expiry
+
+    def prune(self, now: dt.datetime) -> None:
+        expired = [key for key, expiry in self._entries.items() if expiry <= now]
+        for key in expired:
+            self._entries.pop(key, None)
+
+
+class RedisDedupeCache:
+    """Redis-backed implementation of :class:`DedupeCache`."""
+
+    def __init__(self, client: RedisClient) -> None:
+        self._client = client
+
+    def get(self, key: str) -> dt.datetime | None:
+        value = self._client.get(key)
+        if value is None:
+            return None
+        if isinstance(value, bytes):
+            value = value.decode("utf-8")
+        try:
+            timestamp = dt.datetime.fromisoformat(value)
+        except ValueError:  # pragma: no cover - defensive
+            return None
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=dt.UTC)
+        return timestamp
+
+    def set(self, key: str, expiry: dt.datetime, now: dt.datetime) -> None:
+        ttl = int(max((expiry - now).total_seconds(), 1))
+        self._client.setex(key, ttl, expiry.isoformat())
+
+    def prune(self, now: dt.datetime) -> None:
+        _ = now
+
+
 class ContentAggregator:
     """Deduplicate :class:`ArticleCandidate` objects across sources."""
 
@@ -380,10 +463,11 @@ class ContentAggregator:
         *,
         freshness_window: dt.timedelta,
         clock: Callable[[], dt.datetime] | None = None,
+        cache: DedupeCache | None = None,
     ) -> None:
         self._freshness_window = freshness_window
         self._clock = clock or (lambda: dt.datetime.now(tz=dt.UTC))
-        self._cache: dict[str, dt.datetime] = {}
+        self._cache = cache or InMemoryDedupeCache()
 
     def emit(
         self, source: str, candidates: Iterable[ArticleCandidate]
@@ -393,7 +477,7 @@ class ContentAggregator:
         _ = source  # placeholder for future per-source policies
 
         now = self._clock()
-        self._prune(now)
+        self._cache.prune(now)
 
         for candidate in candidates:
             normalized_url = self._normalise_candidate_url(candidate)
@@ -406,7 +490,7 @@ class ContentAggregator:
                 continue
 
             expiry = now + self._freshness_window
-            self._cache[cache_key] = expiry
+            self._cache.set(cache_key, expiry, now)
 
             if not candidate.cache_key:
                 candidate.cache_key = cache_key
@@ -414,14 +498,7 @@ class ContentAggregator:
 
             yield candidate
 
-        self._prune(self._clock())
-
-    def _prune(self, now: dt.datetime) -> None:
-        if not self._cache:
-            return
-        expired = [key for key, expiry in self._cache.items() if expiry <= now]
-        for key in expired:
-            self._cache.pop(key, None)
+        self._cache.prune(self._clock())
 
     def _normalise_candidate_url(self, candidate: ArticleCandidate) -> str:
         parsed = urlsplit(candidate.url)
@@ -432,6 +509,100 @@ class ContentAggregator:
             candidate.url,
             canonical_host=canonical_host,
         )
+
+
+from . import sources as _content_sources
+
+CoinDeskContentSource = _content_sources.CoinDeskContentSource
+CoinTelegraphContentSource = _content_sources.CoinTelegraphContentSource
+RedditContentSource = _content_sources.RedditContentSource
+SourceFactoryError = _content_sources.SourceFactoryError
+build_sources_from_env = _content_sources.build_sources_from_env
+
+
+_DEFAULT_ADAPTER_SLUGS: tuple[str, ...] = (
+    "coindesk",
+    "cointelegraph",
+    "reddit",
+)
+
+
+def _normalize_adapter_slugs(values: Sequence[str]) -> list[str]:
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for value in values:
+        slug = value.strip().lower()
+        if not slug or slug in seen:
+            continue
+        seen.add(slug)
+        normalized.append(slug)
+    return normalized
+
+
+def default_content_sources(
+    adapters: Sequence[str] | None = None,
+    *,
+    env: Mapping[str, str] | None = None,
+    coindesk_client: httpx.Client | None = None,
+    cointelegraph_client: httpx.Client | None = None,
+    reddit_token_client: httpx.Client | None = None,
+    reddit_api_client: httpx.Client | None = None,
+    reddit_subreddits: Sequence[str] | None = None,
+    clock: Callable[[], dt.datetime] | None = None,
+) -> Mapping[str, ContentSource]:
+    """Instantiate content sources from environment configuration."""
+
+    selected = _normalize_adapter_slugs(adapters or _DEFAULT_ADAPTER_SLUGS)
+    factories = build_sources_from_env(
+        env=env,
+        coindesk_client=coindesk_client,
+        cointelegraph_client=cointelegraph_client,
+        reddit_token_client=reddit_token_client,
+        reddit_api_client=reddit_api_client,
+        reddit_subreddits=reddit_subreddits,
+        clock=clock,
+    )
+
+    sources: dict[str, ContentSource] = {}
+    for slug in selected:
+        factory = factories.get(slug)
+        if factory is None:
+            msg = f"Unknown content adapter '{slug}'"
+            raise SourceFactoryError(msg)
+        try:
+            source = factory()
+        except SourceFactoryError:
+            raise
+        except Exception as exc:  # pragma: no cover - defensive
+            msg = f"Failed to instantiate adapter '{slug}'"
+            raise SourceFactoryError(msg) from exc
+        sources[slug] = source
+    return sources
+
+
+def _parse_adapter_argument(
+    value: str | Sequence[str] | None,
+) -> list[str]:
+    if value is None:
+        return list(_DEFAULT_ADAPTER_SLUGS)
+    if isinstance(value, str):
+        tokens = value.split(",")
+    else:
+        tokens = list(value)
+    return _normalize_adapter_slugs(tokens)
+
+
+def _maybe_build_dedupe_cache(url: str | None) -> DedupeCache | None:
+    if not url:
+        return None
+    try:
+        import redis
+    except ModuleNotFoundError as exc:  # pragma: no cover - optional dep
+        msg = "redis package is required when CONTENT_DEDUPE_URL is set"
+        raise RuntimeError(msg) from exc
+
+    client = redis.Redis.from_url(url, decode_responses=True)
+    return RedisDedupeCache(client)
 
 
 class ContentIngestionJob:
@@ -699,11 +870,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Database DSN for persisting content and sentiments",
     )
     parser.add_argument(
+        "--adapters",
+        default=",".join(_DEFAULT_ADAPTER_SLUGS),
+        help=(
+            "Comma-separated list of content adapters to enable. Default: %(default)s"
+        ),
+    )
+    parser.add_argument(
         "--source-factory",
-        required=True,
         help=(
             "Dotted path to a callable returning a mapping of source name to "
-            "content source instances"
+            "content source instances (overrides --adapters)"
         ),
     )
     return parser
@@ -721,17 +898,37 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI wi
         msg = "DATABASE_URL must be provided to persist content"
         raise SystemExit(msg)
 
-    factory = _load_factory(args.source_factory)
-    sources = factory()
-    if not isinstance(sources, Mapping):
-        msg = "Source factory must return a mapping of sources"
-        raise SystemExit(msg)
-    sources = dict(sources)
+    adapter_slugs = _parse_adapter_argument(args.adapters)
+
+    if args.source_factory:
+        factory = _load_factory(args.source_factory)
+        sources = factory()
+        if not isinstance(sources, Mapping):
+            msg = "Source factory must return a mapping of sources"
+            raise SystemExit(msg)
+        sources = dict(sources)
+    else:
+        try:
+            sources = dict(
+                default_content_sources(
+                    adapters=adapter_slugs,
+                    env=os.environ,
+                    clock=lambda: dt.datetime.now(tz=dt.UTC),
+                )
+            )
+        except SourceFactoryError as exc:
+            raise SystemExit(str(exc)) from exc
 
     engine = create_engine(database_url, future=True)
     repository = SqlAlchemyContentRepository(engine)
+    try:
+        dedupe_cache = _maybe_build_dedupe_cache(os.environ.get("CONTENT_DEDUPE_URL"))
+    except RuntimeError as exc:
+        raise SystemExit(str(exc)) from exc
     aggregator = ContentAggregator(
-        freshness_window=freshness, clock=lambda: dt.datetime.now(tz=dt.UTC)
+        freshness_window=freshness,
+        clock=lambda: dt.datetime.now(tz=dt.UTC),
+        cache=dedupe_cache,
     )
     classifier = SentimentClassifier()
     zscore_calculator = ZScoreCalculator(window=zscore_window)
@@ -755,11 +952,18 @@ def register_content_ingestion_job(
     freshness: dt.timedelta,
     source_factory: Callable[[], Mapping[str, ContentSource]],
     zscore_window: int = 6,
+    dedupe_cache: DedupeCache | None = None,
 ) -> None:
     """Register the content ingestion job with the provided registry."""
 
     engine = create_engine(database_url, future=True)
     repository = SqlAlchemyContentRepository(engine)
+
+    configured_cache = dedupe_cache
+    if configured_cache is None:
+        dedupe_url = os.environ.get("CONTENT_DEDUPE_URL")
+        if dedupe_url:
+            configured_cache = _maybe_build_dedupe_cache(dedupe_url)
 
     def _pipeline() -> None:
         sources = dict(source_factory())
@@ -767,7 +971,11 @@ def register_content_ingestion_job(
         def _clock() -> dt.datetime:
             return dt.datetime.now(tz=dt.UTC)
 
-        aggregator = ContentAggregator(freshness_window=freshness, clock=_clock)
+        aggregator = ContentAggregator(
+            freshness_window=freshness,
+            clock=_clock,
+            cache=configured_cache,
+        )
         classifier = SentimentClassifier()
         zscore_calculator = ZScoreCalculator(window=zscore_window)
         job = ContentIngestionJob(

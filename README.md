@@ -30,20 +30,18 @@ export CONTENT_RSS_COINDESK_API_KEY=...
 python -m ragtrader_pipelines.content \
   --adapters reddit,coindesk \
   --lookback-minutes 120 \
-  --freshness-window-minutes 180 \
-  --zscore-window "PT6H" \
-  --dedupe-ttl "PT12H"
+  --freshness-minutes 180 \
+  --zscore-window 6
 ```
 
-The CLI supports additional sources (see `pipelines/src/ragtrader_pipelines/content/adapters`)
+The CLI supports additional sources (see `pipelines/src/ragtrader_pipelines/content/sources.py`)
 and honors the following environment variables:
 
 - `DATABASE_URL`: SQLAlchemy URL for the ingestion target database.
-- Source API keys and secrets (prefixed `CONTENT_…`).
+- `CONTENT_RSS_COINDESK_API_KEY`: CoinDesk RSS JSON bridge token.
+- `CONTENT_REDDIT_CLIENT_ID` / `CONTENT_REDDIT_CLIENT_SECRET`: Reddit API credentials.
 - `CONTENT_DEDUPE_URL`: Optional Redis instance to persist the deduplication cache.
 - `CONTENT_SENTIMENT_MODEL`: Override the default classifier alias.
-- `CONTENT_FRESHNESS_WINDOW_MINUTES`: Default freshness guard for adapters if no flag is provided.
-- `CONTENT_ZSCORE_WINDOW`: ISO-8601 duration string for the rolling z-score computation.
 
 Pass `--help` to explore more knobs (batch size, retry/backoff tuning, dry-run mode).
 
