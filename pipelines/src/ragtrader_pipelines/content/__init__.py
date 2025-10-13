@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from html import unescape
 from importlib import import_module
+from types import ModuleType
 from typing import Any, Protocol, cast
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
@@ -511,13 +512,39 @@ class ContentAggregator:
         )
 
 
-from . import sources as _content_sources
+_CONTENT_SOURCE_EXPORTS = (
+    "CoinDeskContentSource",
+    "CoinTelegraphContentSource",
+    "RedditContentSource",
+    "SourceFactoryError",
+    "build_sources_from_env",
+)
 
-CoinDeskContentSource = _content_sources.CoinDeskContentSource
-CoinTelegraphContentSource = _content_sources.CoinTelegraphContentSource
-RedditContentSource = _content_sources.RedditContentSource
-SourceFactoryError = _content_sources.SourceFactoryError
-build_sources_from_env = _content_sources.build_sources_from_env
+_content_sources_module: ModuleType | None = None
+
+
+def _load_content_sources() -> ModuleType:
+    """Import the content sources module on demand and cache the result."""
+
+    global _content_sources_module
+    if _content_sources_module is None:
+        module = import_module(".sources", __name__)
+        globals().update(
+            {name: getattr(module, name) for name in _CONTENT_SOURCE_EXPORTS}
+        )
+        _content_sources_module = module
+    return _content_sources_module
+
+
+def __getattr__(name: str) -> Any:
+    if name in _CONTENT_SOURCE_EXPORTS:
+        module = _load_content_sources()
+        return getattr(module, name)
+    raise AttributeError(name)
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(_CONTENT_SOURCE_EXPORTS))
 
 
 _DEFAULT_ADAPTER_SLUGS: tuple[str, ...] = (
@@ -552,8 +579,9 @@ def default_content_sources(
 ) -> Mapping[str, ContentSource]:
     """Instantiate content sources from environment configuration."""
 
+    sources_module = _load_content_sources()
     selected = _normalize_adapter_slugs(adapters or _DEFAULT_ADAPTER_SLUGS)
-    factories = build_sources_from_env(
+    factories = sources_module.build_sources_from_env(
         env=env,
         coindesk_client=coindesk_client,
         cointelegraph_client=cointelegraph_client,
@@ -568,14 +596,14 @@ def default_content_sources(
         factory = factories.get(slug)
         if factory is None:
             msg = f"Unknown content adapter '{slug}'"
-            raise SourceFactoryError(msg)
+            raise sources_module.SourceFactoryError(msg)
         try:
             source = factory()
-        except SourceFactoryError:
+        except sources_module.SourceFactoryError:
             raise
         except Exception as exc:  # pragma: no cover - defensive
             msg = f"Failed to instantiate adapter '{slug}'"
-            raise SourceFactoryError(msg) from exc
+            raise sources_module.SourceFactoryError(msg) from exc
         sources[slug] = source
     return sources
 
@@ -908,6 +936,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI wi
             raise SystemExit(msg)
         sources = dict(sources)
     else:
+        sources_module = _load_content_sources()
         try:
             sources = dict(
                 default_content_sources(
@@ -916,7 +945,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI wi
                     clock=lambda: dt.datetime.now(tz=dt.UTC),
                 )
             )
-        except SourceFactoryError as exc:
+        except sources_module.SourceFactoryError as exc:
             raise SystemExit(str(exc)) from exc
 
     engine = create_engine(database_url, future=True)
