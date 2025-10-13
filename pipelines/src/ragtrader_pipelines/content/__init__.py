@@ -385,12 +385,12 @@ class RedditAdapter(BaseContentAdapter):
 class RedisClient(Protocol):
     """Subset of the Redis client interface used for deduplication."""
 
-    def get(self, key: str) -> str | bytes | None:  # pragma: no cover - interface only
+    def get(self, key: str) -> Any:  # pragma: no cover - interface only
         ...
 
     def setex(
         self, key: str, time: int, value: str
-    ) -> bool:  # pragma: no cover - interface only
+    ) -> Any:  # pragma: no cover - interface only
         ...
 
 
@@ -624,12 +624,12 @@ def _maybe_build_dedupe_cache(url: str | None) -> DedupeCache | None:
     if not url:
         return None
     try:
-        import redis
+        redis_mod = import_module("redis")
     except ModuleNotFoundError as exc:  # pragma: no cover - optional dep
         msg = "redis package is required when CONTENT_DEDUPE_URL is set"
         raise RuntimeError(msg) from exc
 
-    client = redis.Redis.from_url(url, decode_responses=True)
+    client = cast(RedisClient, redis_mod.Redis.from_url(url, decode_responses=True))
     return RedisDedupeCache(client)
 
 
