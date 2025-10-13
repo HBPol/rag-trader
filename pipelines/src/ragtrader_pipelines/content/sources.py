@@ -126,10 +126,10 @@ class CoinDeskContentSource(_BaseHttpSource):
         self._headers = {"accept": "application/json", "x-api-key": api_key}
 
     def fetch(self, start: dt.datetime, end: dt.datetime) -> Iterable[ArticleCandidate]:
-        params = {
+        params: dict[str, str] = {
             "start_date": start.isoformat(),
             "end_date": end.isoformat(),
-            "limit": self._limit,
+            "limit": str(self._limit),
         }
         response = self._client.get(
             self._endpoint,
@@ -165,10 +165,10 @@ class CoinTelegraphContentSource(_BaseHttpSource):
         )
 
     def fetch(self, start: dt.datetime, end: dt.datetime) -> Iterable[ArticleCandidate]:
-        params = {
+        params: dict[str, str] = {
             "from": start.isoformat(),
             "to": end.isoformat(),
-            "limit": self._limit,
+            "limit": str(self._limit),
         }
         response = self._client.get(self._endpoint, params=params)
         response.raise_for_status()
