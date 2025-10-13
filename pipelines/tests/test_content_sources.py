@@ -1,4 +1,5 @@
 import datetime as dt
+import secrets
 
 import httpx
 import pytest
@@ -121,7 +122,7 @@ def test_reddit_source_fetches_using_oauth_token() -> None:
 
     source = RedditContentSource(
         client_id="client",
-        client_secret="secret",
+        client_secret=secrets.token_hex(),
         token_client=token_client,
         api_client=api_client,
         subreddits=["ethfinance"],
