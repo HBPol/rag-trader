@@ -22,12 +22,11 @@ from ragtrader_pipelines.content import (
 @pytest.fixture
 def coindesk_payload() -> dict:
     return {
-        "guid": "coindesk-abc123",
+        "id": "coindesk-abc123",
         "title": "Bitcoin Rally Charges Ahead",
-        "link": "HTTPS://CoinDesk.com/Markets/Bitcoin-Rally/?utm_source=rss&utm_medium=feed#section",
-        "summary": "<p>  Bitcoin pushes <strong>above</strong> $60K again. </p>",
-        "published": "2024-05-01T12:34:56-04:00",
-        "source": "CoinDesk",
+        "canonical_url": "HTTPS://CoinDesk.com/Markets/Bitcoin-Rally/?utm_source=rss&utm_medium=feed#section",
+        "excerpt": "<p>  Bitcoin pushes <strong>above</strong> $60K again. </p>",
+        "published_time": "2024-05-01T12:34:56-04:00",
         "language": "En-US",
         "tickers": ["btc", "Eth"],
     }
