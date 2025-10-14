@@ -27,6 +27,8 @@ export DATABASE_URL="postgresql+psycopg://user:pass@localhost:5432/ragtrader"
 export CONTENT_REDDIT_CLIENT_ID=...
 export CONTENT_REDDIT_CLIENT_SECRET=...
 export CONTENT_RSS_COINDESK_API_KEY=...
+# Optionally override the CoinDesk host if your account uses a regional endpoint
+# export CONTENT_RSS_COINDESK_BASE_URL="https://regional.api.coindesk.com"
 python -m ragtrader_pipelines.content \
   --adapters reddit,coindesk \
   --lookback-minutes 120 \
@@ -39,6 +41,7 @@ and honors the following environment variables:
 
 - `DATABASE_URL`: SQLAlchemy URL for the ingestion target database.
 - `CONTENT_RSS_COINDESK_API_KEY`: CoinDesk RSS JSON bridge token.
+- `CONTENT_RSS_COINDESK_BASE_URL`: Optional CoinDesk RSS host override for region-specific tenants.
 - `CONTENT_REDDIT_CLIENT_ID` / `CONTENT_REDDIT_CLIENT_SECRET`: Reddit API credentials.
 - `CONTENT_DEDUPE_URL`: Optional Redis instance to persist the deduplication cache.
 - `CONTENT_SENTIMENT_MODEL`: Override the default classifier alias.

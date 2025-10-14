@@ -29,6 +29,7 @@ __all__ = [
 ]
 
 _DEFAULT_REDDIT_SUBREDDITS = ("cryptocurrency", "bitcoin", "ethereum")
+_COINDESK_DEFAULT_BASE_URL = "https://production.api.coindesk.com"
 
 
 class SourceFactoryError(RuntimeError):
@@ -118,6 +119,7 @@ class CoinDeskContentSource(_BaseHttpSource):
         api_key: str,
         client: httpx.Client | None = None,
         adapter: CoinDeskAdapter | None = None,
+        base_url: str = _COINDESK_DEFAULT_BASE_URL,
         endpoint: str = "/content/v2/headlines",
         limit: int = 100,
     ) -> None:
@@ -126,7 +128,7 @@ class CoinDeskContentSource(_BaseHttpSource):
             raise SourceFactoryError(msg)
 
         client = client or httpx.Client(
-            base_url="https://production.api.coindesk.com",
+            base_url=base_url,
             timeout=httpx.Timeout(10.0, connect=5.0),
         )
         super().__init__(
@@ -310,7 +312,13 @@ def build_sources_from_env(
 
     def _coindesk_factory() -> ContentSource:
         api_key = env_map.get("CONTENT_RSS_COINDESK_API_KEY", "")
-        return CoinDeskContentSource(api_key=api_key, client=coindesk_client)
+        base_url = env_map.get("CONTENT_RSS_COINDESK_BASE_URL", "").strip()
+        kwargs: dict[str, Any] = {"api_key": api_key}
+        if coindesk_client is not None:
+            kwargs["client"] = coindesk_client
+        if base_url:
+            kwargs["base_url"] = base_url
+        return CoinDeskContentSource(**kwargs)
 
     def _cointelegraph_factory() -> ContentSource:
         return CoinTelegraphContentSource(client=cointelegraph_client)

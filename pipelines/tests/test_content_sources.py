@@ -9,6 +9,7 @@ from ragtrader_pipelines.content import (
     CoinTelegraphContentSource,
     RedditContentSource,
     SourceFactoryError,
+    build_sources_from_env,
     default_content_sources,
 )
 
@@ -72,6 +73,105 @@ def test_coindesk_source_filters_out_of_window_articles() -> None:
     assert len(articles) == 1
     assert articles[0].source == "coindesk"
     assert articles[0].url == "https://www.coindesk.com/markets/bitcoin-rally/"
+
+
+def test_coindesk_source_accepts_custom_base_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    override_url = "https://regional.api.coindesk.com"
+    observed_hosts: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        observed_hosts.append(request.url.host or "")
+        return httpx.Response(200, json={"data": {"items": []}})
+
+    transport = httpx.MockTransport(handler)
+    real_client = httpx.Client
+
+    def fake_client(*args, **kwargs):
+        if kwargs.get("base_url") == override_url:
+            kwargs.setdefault("transport", transport)
+        return real_client(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "Client", fake_client)
+
+    source = CoinDeskContentSource(api_key="token", base_url=override_url)
+    start = dt.datetime(2024, 5, 1, 16, 0, tzinfo=dt.UTC)
+    end = dt.datetime(2024, 5, 1, 18, 0, tzinfo=dt.UTC)
+
+    try:
+        list(source.fetch(start, end))
+    finally:
+        source._client.close()
+
+    assert observed_hosts == ["regional.api.coindesk.com"]
+
+
+def test_build_sources_from_env_supports_coindesk_base_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    override_url = "https://regional.api.coindesk.com"
+    observed_hosts: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        observed_hosts.append(request.url.host or "")
+        return httpx.Response(200, json={"data": {"items": []}})
+
+    transport = httpx.MockTransport(handler)
+    real_client = httpx.Client
+
+    def fake_client(*args, **kwargs):
+        if kwargs.get("base_url") == override_url:
+            kwargs.setdefault("transport", transport)
+        return real_client(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "Client", fake_client)
+
+    factories = build_sources_from_env(
+        env={
+            "CONTENT_RSS_COINDESK_API_KEY": "token",
+            "CONTENT_RSS_COINDESK_BASE_URL": override_url,
+        }
+    )
+
+    source = factories["coindesk"]()
+    start = dt.datetime(2024, 5, 1, 16, 0, tzinfo=dt.UTC)
+    end = dt.datetime(2024, 5, 1, 18, 0, tzinfo=dt.UTC)
+
+    try:
+        list(source.fetch(start, end))
+    finally:
+        source._client.close()
+
+    assert observed_hosts == ["regional.api.coindesk.com"]
+
+
+def test_build_sources_from_env_ignores_blank_coindesk_base_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_base_urls: list[str | None] = []
+    real_client = httpx.Client
+
+    def fake_client(*args, **kwargs):
+        captured_base_urls.append(kwargs.get("base_url"))
+        return real_client(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "Client", fake_client)
+
+    factories = build_sources_from_env(
+        env={
+            "CONTENT_RSS_COINDESK_API_KEY": "token",
+            "CONTENT_RSS_COINDESK_BASE_URL": "   ",
+        }
+    )
+
+    source = factories["coindesk"]()
+
+    try:
+        assert captured_base_urls
+        assert captured_base_urls[0] == "https://production.api.coindesk.com"
+    finally:
+        source._client.close()
 
 
 def test_cointelegraph_source_returns_recent_articles() -> None:
