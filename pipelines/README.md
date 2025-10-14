@@ -52,7 +52,10 @@ Granularity flags map one-to-one with Coinbase’s candle endpoints.
 The [`ragtrader_pipelines.content`](src/ragtrader_pipelines/content/__init__.py)
 module orchestrates scraping/polling adapters, a Redis-backed dedupe
 cache, and the classifier/z-score pipeline. The job can be invoked via
-CLI or imported by the scheduler registry.
+CLI or imported by the scheduler registry. A lightweight
+[`__main__` runner](src/ragtrader_pipelines/content/__main__.py) ensures
+`python -m ragtrader_pipelines.content` dispatches to the same `main`
+function as the registry wiring.
 
 ### CLI usage
 
