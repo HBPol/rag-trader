@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Updated the CoinDesk content source to use the Data API endpoint and accept the
   `CONTENT_COINDESK_API_KEY` environment variable (falling back to the legacy
   RSS keys) for authentication.
+- Aligned documentation and reachability tooling with the CoinDesk Data API
+  integration, replacing RSS-focused environment variables while preserving
+  backward-compatible aliases.
 
 ## [0.1.0] - 2025-10-??
 
