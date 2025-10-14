@@ -374,3 +374,97 @@ def test_content_ingestion_job_skips_sources_that_fail_to_fetch(
     persisted_article, _ = repository.upserts[0]
     assert persisted_article.source == healthy_article.source
     assert persisted_article.title == healthy_article.title
+
+
+def test_content_ingestion_job_persists_documented_coindesk_payload(
+    coindesk_documented_payload,
+) -> None:
+    """Adapter output from the documented schema should persist to storage."""
+
+    pytest.importorskip("sqlalchemy")
+    pytest.importorskip("psycopg")
+    pytest.importorskip("alembic")
+    pytest.importorskip("testcontainers")
+
+    from api.tests.utils import PostgresTestContainer
+    from sqlalchemy import create_engine, text
+
+    from ragtrader_api.db.migrations import apply_migrations
+    from ragtrader_pipelines.content import CoinDeskAdapter, SqlAlchemyContentRepository
+
+    adapter = CoinDeskAdapter()
+    payload = dict(coindesk_documented_payload)
+    article = adapter.parse(payload)
+
+    assert isinstance(article, ArticleCandidate)
+
+    now = dt.datetime(2024, 5, 20, 12, 0, tzinfo=dt.UTC)
+    aggregator = ContentAggregator(
+        freshness_window=dt.timedelta(minutes=30),
+        clock=lambda: now,
+    )
+    zscores = ZScoreCalculator(window=3)
+    classifier = StubClassifier(
+        results=[
+            SentimentResult(
+                label=SentimentLabel.BULLISH,
+                confidence=0.91,
+                aspects=(SentimentAspect.HYPE,),
+                coins=tuple(article.coins),
+            )
+        ]
+    )
+    source = StubSource(batches=[(article,)])
+
+    with PostgresTestContainer() as container:
+        raw_url = container.get_connection_url()
+        dsn = raw_url.replace("postgresql://", "postgresql+psycopg://", 1)
+        engine = create_engine(dsn, future=True)
+        try:
+            apply_migrations(engine)
+            repository = SqlAlchemyContentRepository(engine)
+            job = ContentIngestionJob(
+                sources={"coindesk": source},
+                aggregator=aggregator,
+                classifier=classifier,
+                repository=repository,
+                zscore_calculator=zscores,
+                clock=lambda: now,
+            )
+
+            job.run(lookback=dt.timedelta(hours=4))
+
+            with engine.connect() as conn:
+                article_rows = (
+                    conn.execute(
+                        text(
+                            "SELECT id, source, url, coins, published_ts "
+                            "FROM articles"
+                        )
+                    )
+                    .mappings()
+                    .all()
+                )
+                sentiment_rows = (
+                    conn.execute(
+                        text(
+                            "SELECT article_id, coin, polarity, confidence "
+                            "FROM sentiments"
+                        )
+                    )
+                    .mappings()
+                    .all()
+                )
+        finally:
+            engine.dispose()
+
+    assert len(article_rows) == 1
+    stored_article = article_rows[0]
+    assert stored_article["source"] == "coindesk"
+    assert stored_article["url"] == article.url
+    assert stored_article["coins"] == article.coins
+    assert stored_article["published_ts"] == article.published_ts
+
+    assert len(sentiment_rows) == len(article.coins)
+    assert {row["coin"] for row in sentiment_rows} == set(article.coins)
+    assert all(row["article_id"] == stored_article["id"] for row in sentiment_rows)

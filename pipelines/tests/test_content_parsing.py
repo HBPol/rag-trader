@@ -142,3 +142,20 @@ def test_adapter_language_filter(adapter_cls, payload_fixture, request):
         assert exc.__class__.__name__.lower().startswith("unsupported")
     else:
         assert result is None
+
+
+def test_coindesk_adapter_parses_documented_schema(coindesk_documented_payload):
+    adapter = CoinDeskAdapter()
+
+    article = adapter.parse(coindesk_documented_payload)
+
+    assert isinstance(article, ArticleCandidate)
+    assert article.url == "https://www.coindesk.com/markets/halving-preview/"
+    assert article.title == "Bitcoin, Ether, and Solana Rally Ahead of Halving"
+    assert (
+        article.excerpt
+        == "Bitcoin (BTC) and Ether (ETH) extend gains while SOL follows suit."
+    )
+    assert article.coins == ["BTC", "ETH", "SOL"]
+    assert article.published_ts == dt.datetime(2024, 5, 20, 10, 45, tzinfo=dt.UTC)
+    assert article.cache_key == "doc-asset-123"

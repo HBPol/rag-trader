@@ -236,16 +236,22 @@ class CoinDeskAdapter(BaseContentAdapter):
         if not self._is_english(payload):
             raise UnsupportedLanguageError("CoinDesk payload not in English")
 
-        url = payload.get("canonical_url") or payload.get("url")
-        title = payload.get("title") or payload.get("headline")
-        excerpt_value = (
-            payload.get("excerpt") or payload.get("dek") or payload.get("body")
-        )
-        published = (
-            payload.get("published_time")
-            or payload.get("publish_time")
-            or payload.get("published_at")
-            or payload.get("publish_date")
+        def _first_value(*keys: str) -> object | None:
+            for key in keys:
+                value = payload.get(key)
+                if value not in (None, ""):
+                    return value
+            return None
+
+        url = _first_value("canonical_url", "url", "URL")
+        title = _first_value("title", "headline", "TITLE")
+        excerpt_value = _first_value("excerpt", "dek", "body", "EXCERPT", "DEK", "BODY")
+        published = _first_value(
+            "published_time",
+            "publish_time",
+            "published_at",
+            "publish_date",
+            "PUBLISHED_ON",
         )
 
         if not (
@@ -266,8 +272,32 @@ class CoinDeskAdapter(BaseContentAdapter):
         if not published_ts:
             return None
 
+        def _string_tokens(value: object) -> list[str]:
+            tokens: list[str] = []
+            stack: list[object] = [value]
+            while stack:
+                current = stack.pop()
+                if isinstance(current, str):
+                    tokens.append(current)
+                elif isinstance(current, Mapping):
+                    stack.extend(current.values())
+                elif isinstance(current, Iterable) and not isinstance(
+                    current, (str | bytes)
+                ):
+                    stack.extend(list(current))
+            return tokens
+
         tickers = payload.get("tickers")
         coins_field = payload.get("coins")
+        uppercase_collections: list[list[str]] = []
+        for key, value in payload.items():
+            if not isinstance(key, str) or not key.isupper():
+                continue
+            if isinstance(value, Iterable) and not isinstance(value, (str | bytes)):
+                tokens = _string_tokens(value)
+                if tokens:
+                    uppercase_collections.append(tokens)
+
         coins = self._normalize_coins(
             (
                 tickers
@@ -281,10 +311,11 @@ class CoinDeskAdapter(BaseContentAdapter):
                 and not isinstance(coins_field, (str | bytes))
                 else None
             ),
+            *uppercase_collections,
         )
 
         cache_key = None
-        identifier = payload.get("id") or payload.get("slug")
+        identifier = _first_value("id", "slug", "guid", "GUID")
         if isinstance(identifier, str) and identifier:
             cache_key = identifier
 
