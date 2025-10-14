@@ -54,15 +54,22 @@ def _normalize_payload_items(payload: Any) -> list[Mapping[str, object]]:
 
     if isinstance(payload, Mapping):
         # Common keys exposed by the upstream feeds we integrate with.
+        normalized_keys: dict[str, object] = {}
+        for raw_key, value in payload.items():
+            if isinstance(raw_key, str):
+                normalized_keys.setdefault(raw_key.lower(), value)
+
         for key in ("items", "results", "data", "articles", "stories"):
-            value = payload.get(key)
+            value = normalized_keys.get(key)
             items = _normalize_payload_items(value)
             if items:
                 return items
-        if isinstance(payload.get("children"), list):
+
+        children = normalized_keys.get("children")
+        if isinstance(children, list):
             return [
                 child.get("data", {})
-                for child in payload["children"]
+                for child in children
                 if isinstance(child, Mapping)
             ]
     return []

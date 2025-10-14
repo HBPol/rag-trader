@@ -77,6 +77,38 @@ def test_coindesk_source_filters_out_of_window_articles() -> None:
     assert articles[0].coins == ["BTC", "ETH"]
 
 
+def test_coindesk_source_handles_uppercase_container_keys() -> None:
+    payload = {
+        "GUID": "coindesk-upper-1",
+        "TITLE": "Bitcoin Breaks Through Resistance",
+        "URL": "HTTPS://www.coindesk.com/markets/bitcoin-breaks-through-resistance?utm_source=rss",
+        "EXCERPT": "<p>BTC surges past key resistance.</p>",
+        "PUBLISHED_ON": "2024-05-01T16:34:56+00:00",
+        "LANGUAGE": "EN",
+        "TICKERS": ["btc"],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers.get("x-api-key") == "token"
+        return httpx.Response(200, json={"Data": {"Articles": [payload]}})
+
+    transport = httpx.MockTransport(handler)
+    client = httpx.Client(transport=transport, base_url="https://data-api.coindesk.com")
+
+    source = CoinDeskContentSource(api_key="token", client=client)
+    start = dt.datetime(2024, 5, 1, 16, 0, tzinfo=dt.UTC)
+    end = dt.datetime(2024, 5, 1, 18, 0, tzinfo=dt.UTC)
+
+    articles = list(source.fetch(start, end))
+
+    assert len(articles) == 1
+    assert articles[0].title == "Bitcoin Breaks Through Resistance"
+    assert (
+        articles[0].url
+        == "https://www.coindesk.com/markets/bitcoin-breaks-through-resistance"
+    )
+
+
 def test_coindesk_source_accepts_custom_base_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
