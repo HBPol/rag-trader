@@ -63,8 +63,8 @@ function as the registry wiring.
 export DATABASE_URL="postgresql+psycopg://user:pass@localhost:5432/ragtrader"
 export CONTENT_REDDIT_CLIENT_ID=...
 export CONTENT_REDDIT_CLIENT_SECRET=...
-export CONTENT_RSS_COINDESK_API_KEY=...
-# export CONTENT_RSS_COINDESK_BASE_URL="https://regional.api.coindesk.com"  # optional regional host override
+export CONTENT_COINDESK_API_KEY=...
+# export CONTENT_COINDESK_BASE_URL="https://regional.data-api.coindesk.com"  # optional regional host override
 python -m ragtrader_pipelines.content \
   --adapters reddit,coindesk \
   --lookback-minutes 180 \
@@ -84,8 +84,10 @@ Flags mirror the module defaults:
 The following environment variables are respected when present:
 
 - `DATABASE_URL`: SQLAlchemy URL for Postgres.
-- `CONTENT_RSS_COINDESK_API_KEY`: CoinDesk RSS JSON bridge token.
-- `CONTENT_RSS_COINDESK_BASE_URL`: Optional CoinDesk RSS host override for operators with regional endpoints.
+- `CONTENT_COINDESK_API_KEY`: CoinDesk Data API key (legacy
+  `CONTENT_RSS_COINDESK_API_KEY` is also honoured).
+- `CONTENT_COINDESK_BASE_URL`: Optional CoinDesk Data API host override for
+  operators with regional endpoints (aliases `CONTENT_RSS_COINDESK_BASE_URL`).
 - `CONTENT_REDDIT_CLIENT_ID` / `CONTENT_REDDIT_CLIENT_SECRET`: Reddit API credentials.
 - `CONTENT_DEDUPE_URL`: Redis URL used to persist the dedupe cache.
 - `CONTENT_SENTIMENT_MODEL`: Override classifier alias.
@@ -105,6 +107,6 @@ The following environment variables are respected when present:
 - **Concurrency**: limit parallel adapters to <=10 to avoid API rate
   limits. When orchestrating via Airflow/Prefect, configure task
   concurrency to 1 per adapter and set retries to 2–3 with jitter.
-- **Runtime expectations**: A 90-minute lookback across Reddit + major
-  RSS feeds completes in ~2–3 minutes on a 2 vCPU machine. Longer
+- **Runtime expectations**: A 90-minute lookback across Reddit + CoinDesk
+  Data API content completes in ~2–3 minutes on a 2 vCPU machine. Longer
   backfills scale linearly with the lookback window and adapter count.
