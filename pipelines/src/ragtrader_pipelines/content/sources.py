@@ -29,7 +29,7 @@ __all__ = [
 ]
 
 _DEFAULT_REDDIT_SUBREDDITS = ("cryptocurrency", "bitcoin", "ethereum")
-_COINDESK_DEFAULT_BASE_URL = "https://production.api.coindesk.com"
+_COINDESK_DEFAULT_BASE_URL = "https://data-api.coindesk.com"
 
 
 class SourceFactoryError(RuntimeError):
@@ -111,7 +111,7 @@ class _BaseHttpSource(ContentSource):
 
 
 class CoinDeskContentSource(_BaseHttpSource):
-    """Fetch latest CoinDesk articles via their RSS JSON bridge."""
+    """Fetch latest CoinDesk articles via the CoinDesk Data API."""
 
     def __init__(
         self,
@@ -120,11 +120,14 @@ class CoinDeskContentSource(_BaseHttpSource):
         client: httpx.Client | None = None,
         adapter: CoinDeskAdapter | None = None,
         base_url: str = _COINDESK_DEFAULT_BASE_URL,
-        endpoint: str = "/content/v2/headlines",
+        endpoint: str = "/news/v1/article/list",
         limit: int = 100,
     ) -> None:
         if not api_key:
-            msg = "CONTENT_RSS_COINDESK_API_KEY must be configured"
+            msg = (
+                "CONTENT_COINDESK_API_KEY (or CONTENT_RSS_COINDESK_API_KEY) "
+                "must be configured"
+            )
             raise SourceFactoryError(msg)
 
         client = client or httpx.Client(
@@ -137,12 +140,15 @@ class CoinDeskContentSource(_BaseHttpSource):
             endpoint=endpoint,
             limit=limit,
         )
-        self._headers = {"accept": "application/json", "x-api-key": api_key}
+        self._headers = {
+            "accept": "application/json",
+            "x-api-key": api_key,
+        }
 
     def fetch(self, start: dt.datetime, end: dt.datetime) -> Iterable[ArticleCandidate]:
         params: dict[str, str] = {
-            "start_date": start.isoformat(),
-            "end_date": end.isoformat(),
+            "published_time_start": start.astimezone(dt.UTC).isoformat(),
+            "published_time_end": end.astimezone(dt.UTC).isoformat(),
             "limit": str(self._limit),
         }
         try:
@@ -311,8 +317,15 @@ def build_sources_from_env(
     env_map = dict(os.environ if env is None else env)
 
     def _coindesk_factory() -> ContentSource:
-        api_key = env_map.get("CONTENT_RSS_COINDESK_API_KEY", "")
-        base_url = env_map.get("CONTENT_RSS_COINDESK_BASE_URL", "").strip()
+        api_key = (
+            env_map.get("CONTENT_COINDESK_API_KEY")
+            or env_map.get("CONTENT_RSS_COINDESK_API_KEY")
+            or ""
+        ).strip()
+        base_url = (
+            env_map.get("CONTENT_COINDESK_BASE_URL", "").strip()
+            or env_map.get("CONTENT_RSS_COINDESK_BASE_URL", "").strip()
+        )
         kwargs: dict[str, Any] = {"api_key": api_key}
         if coindesk_client is not None:
             kwargs["client"] = coindesk_client

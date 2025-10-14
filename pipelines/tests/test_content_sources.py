@@ -16,11 +16,11 @@ from ragtrader_pipelines.content import (
 
 def _coindesk_payload(published: str) -> dict[str, object]:
     return {
-        "guid": "coindesk-abc123",
+        "id": "coindesk-abc123",
         "title": "Bitcoin Rally Charges Ahead",
-        "link": "HTTPS://CoinDesk.com/Markets/Bitcoin-Rally/?utm_source=rss#section",
-        "summary": "<p>Bitcoin pushes <strong>above</strong> $60K again.</p>",
-        "published": published,
+        "canonical_url": "HTTPS://CoinDesk.com/Markets/Bitcoin-Rally/?utm_source=rss#section",
+        "excerpt": "<p>Bitcoin pushes <strong>above</strong> $60K again.</p>",
+        "published_time": published,
         "tickers": ["btc", "Eth"],
         "language": "en",
     }
@@ -55,14 +55,15 @@ def test_coindesk_source_filters_out_of_window_articles() -> None:
     outside = _coindesk_payload("2024-05-01T12:00:00+00:00")
 
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/content/v2/headlines"
+        assert request.url.path == "/news/v1/article/list"
         assert request.headers.get("x-api-key") == "token"
-        return httpx.Response(200, json={"data": {"items": [inside, outside]}})
+        assert request.url.params["published_time_start"].startswith("2024-05-01T16:00")
+        assert request.url.params["published_time_end"].startswith("2024-05-01T18:00")
+        assert request.url.params["limit"] == "100"
+        return httpx.Response(200, json={"data": {"articles": [inside, outside]}})
 
     transport = httpx.MockTransport(handler)
-    client = httpx.Client(
-        transport=transport, base_url="https://production.api.coindesk.com"
-    )
+    client = httpx.Client(transport=transport, base_url="https://data-api.coindesk.com")
 
     source = CoinDeskContentSource(api_key="token", client=client)
     start = dt.datetime(2024, 5, 1, 16, 0, tzinfo=dt.UTC)
@@ -73,6 +74,7 @@ def test_coindesk_source_filters_out_of_window_articles() -> None:
     assert len(articles) == 1
     assert articles[0].source == "coindesk"
     assert articles[0].url == "https://www.coindesk.com/markets/bitcoin-rally/"
+    assert articles[0].coins == ["BTC", "ETH"]
 
 
 def test_coindesk_source_accepts_custom_base_url(
@@ -83,7 +85,7 @@ def test_coindesk_source_accepts_custom_base_url(
 
     def handler(request: httpx.Request) -> httpx.Response:
         observed_hosts.append(request.url.host or "")
-        return httpx.Response(200, json={"data": {"items": []}})
+        return httpx.Response(200, json={"data": {"articles": []}})
 
     transport = httpx.MockTransport(handler)
     real_client = httpx.Client
@@ -115,7 +117,7 @@ def test_build_sources_from_env_supports_coindesk_base_url(
 
     def handler(request: httpx.Request) -> httpx.Response:
         observed_hosts.append(request.url.host or "")
-        return httpx.Response(200, json={"data": {"items": []}})
+        return httpx.Response(200, json={"data": {"articles": []}})
 
     transport = httpx.MockTransport(handler)
     real_client = httpx.Client
@@ -129,8 +131,8 @@ def test_build_sources_from_env_supports_coindesk_base_url(
 
     factories = build_sources_from_env(
         env={
-            "CONTENT_RSS_COINDESK_API_KEY": "token",
-            "CONTENT_RSS_COINDESK_BASE_URL": override_url,
+            "CONTENT_COINDESK_API_KEY": "token",
+            "CONTENT_COINDESK_BASE_URL": override_url,
         }
     )
 
@@ -160,8 +162,8 @@ def test_build_sources_from_env_ignores_blank_coindesk_base_url(
 
     factories = build_sources_from_env(
         env={
-            "CONTENT_RSS_COINDESK_API_KEY": "token",
-            "CONTENT_RSS_COINDESK_BASE_URL": "   ",
+            "CONTENT_COINDESK_API_KEY": "token",
+            "CONTENT_COINDESK_BASE_URL": "   ",
         }
     )
 
@@ -169,9 +171,46 @@ def test_build_sources_from_env_ignores_blank_coindesk_base_url(
 
     try:
         assert captured_base_urls
-        assert captured_base_urls[0] == "https://production.api.coindesk.com"
+        assert captured_base_urls[0] == "https://data-api.coindesk.com"
     finally:
         source._client.close()
+
+
+def test_build_sources_from_env_falls_back_to_rss_env_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed_headers: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        observed_headers.append(request.headers.get("x-api-key"))
+        return httpx.Response(200, json={"data": {"articles": []}})
+
+    transport = httpx.MockTransport(handler)
+    real_client = httpx.Client
+
+    def fake_client(*args, **kwargs):
+        if kwargs.get("base_url") == "https://data-api.coindesk.com":
+            kwargs.setdefault("transport", transport)
+        return real_client(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "Client", fake_client)
+
+    factories = build_sources_from_env(
+        env={
+            "CONTENT_RSS_COINDESK_API_KEY": "legacy-token",
+        }
+    )
+
+    source = factories["coindesk"]()
+    start = dt.datetime.now(tz=dt.UTC)
+    end = start + dt.timedelta(minutes=5)
+
+    try:
+        list(source.fetch(start, end))
+    finally:
+        source._client.close()
+
+    assert observed_headers == ["legacy-token"]
 
 
 def test_cointelegraph_source_returns_recent_articles() -> None:

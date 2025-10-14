@@ -236,10 +236,17 @@ class CoinDeskAdapter(BaseContentAdapter):
         if not self._is_english(payload):
             raise UnsupportedLanguageError("CoinDesk payload not in English")
 
-        url = payload.get("link")
-        title = payload.get("title")
-        summary = payload.get("summary")
-        published = payload.get("published")
+        url = payload.get("canonical_url") or payload.get("url")
+        title = payload.get("title") or payload.get("headline")
+        excerpt_value = (
+            payload.get("excerpt") or payload.get("dek") or payload.get("body")
+        )
+        published = (
+            payload.get("published_time")
+            or payload.get("publish_time")
+            or payload.get("published_at")
+            or payload.get("publish_date")
+        )
 
         if not (
             isinstance(url, str)
@@ -252,22 +259,34 @@ class CoinDeskAdapter(BaseContentAdapter):
 
         normalized_url = self._normalize_url(url, canonical_host=self.canonical_host)
         normalized_title = self._normalize_text(title)
-        excerpt = self._normalize_text(summary if isinstance(summary, str) else "")
+        excerpt = self._normalize_text(
+            excerpt_value if isinstance(excerpt_value, str) else ""
+        )
         published_ts = self._parse_datetime(published)
         if not published_ts:
             return None
 
         tickers = payload.get("tickers")
+        coins_field = payload.get("coins")
         coins = self._normalize_coins(
-            tickers
-            if isinstance(tickers, Iterable) and not isinstance(tickers, str | bytes)
-            else None
+            (
+                tickers
+                if isinstance(tickers, Iterable)
+                and not isinstance(tickers, (str, bytes))
+                else None
+            ),
+            (
+                coins_field
+                if isinstance(coins_field, Iterable)
+                and not isinstance(coins_field, (str, bytes))
+                else None
+            ),
         )
 
         cache_key = None
-        guid = payload.get("guid")
-        if isinstance(guid, str) and guid:
-            cache_key = guid
+        identifier = payload.get("id") or payload.get("slug")
+        if isinstance(identifier, str) and identifier:
+            cache_key = identifier
 
         return ArticleCandidate(
             source=self.source_name,
