@@ -4,7 +4,7 @@
 **RAGTrader** — *Retrieve. Reason. Trade.*
 
 ### Elevator Pitch
-RAGTrader is a crypto analytics and prototyping platform that fuses price data from Coinbase with crowd/news sentiment gathered via scrapers and RSS. In a live, interactive dashboard, users see how sentiment leads or lags price across coins, explore causal relationships, and spin up backtestable strategies using a safe strategy DSL. A lightweight RAG explorer answers "why did this move happen?" with cited snippets.
+RAGTrader is a crypto analytics and prototyping platform that fuses price data from Coinbase with crowd/news sentiment gathered via scrapers and the CoinDesk Data API. In a live, interactive dashboard, users see how sentiment leads or lags price across coins, explore causal relationships, and spin up backtestable strategies using a safe strategy DSL. A lightweight RAG explorer answers "why did this move happen?" with cited snippets.
 
 ### Target Users
 - **Discretionary crypto traders** who want quick, visual conviction from sentiment vs price.
@@ -13,7 +13,7 @@ RAGTrader is a crypto analytics and prototyping platform that fuses price data f
 
 ### MVP Goals (7–10 days)
 - Ingest OHLCV for top coins from Coinbase.
-- Scrape/RSS ingest recent crypto news & forum content.
+- Scrape/API ingest recent crypto news & forum content.
 - Classify sentiment + compute rolling z-scores.
 - Visualize price vs sentiment; compute rolling correlations & lead/lag cross-correlations.
 - Show cross-asset effects (influence graph) and report simple Granger causality tests.
@@ -27,7 +27,7 @@ RAGTrader is a crypto analytics and prototyping platform that fuses price data f
 
 ### Data Sources
 - **Prices:** Coinbase REST API (OHLCV).
-- **Sentiment content (no/low-API):** CoinDesk/ CoinTelegraph RSS, Reddit RSS (r/CryptoCurrency, r/Bitcoin, r/ethfinance), exchange blogs, selected forums where ToS allows. Respect robots.txt and rate limits.
+- **Sentiment content:** CoinDesk Data API, CoinTelegraph JSON feed, Reddit (r/CryptoCurrency, r/Bitcoin, r/ethfinance), exchange blogs, selected forums where ToS allows. Respect robots.txt and rate limits.
 
 ### Core Features
 1. **Dashboard**
@@ -54,11 +54,11 @@ RAGTrader is a crypto analytics and prototyping platform that fuses price data f
 
 ### Demo Narrative (Portfolio)
 1. Select BTC & ETH → dashboard highlights a 60–90m sentiment lead over last 24h.
-2. Click an Event Card → RAG Explorer shows snippets (CoinDesk/Reddit) and a 2-sentence LLM rationale.
+2. Click an Event Card → RAG Explorer shows snippets (CoinDesk Data API/Reddit) and a 2-sentence LLM rationale.
 3. In Strategy Studio, type: *“Long ETH when BTC sentiment z-score > 1 and BTC leads ETH under 2h; ATR stop 2x.”* → DSL renders → backtest shows equity curve & stats.
 
 ### Risks & Mitigations
-- **Scraper fragility:** Prefer RSS; modular adapters; caching; source toggles in UI.
+- **Scraper fragility:** Prefer first-party APIs; modular adapters; caching; source toggles in UI.
 - **LLM latency/cost:** Cache, batch, allow local/zero-shot fallback.
 - **Look-ahead bias:** Strict timestamping; unit tests to prevent leakage; walk-forward where feasible.
 - **Overfitting:** Out-of-sample splits; report both IS/OOS; keep parameters few.
@@ -72,7 +72,7 @@ RAGTrader is a crypto analytics and prototyping platform that fuses price data f
 ### Engineering Workflow
 - **Monorepo** layout (`/web`, `/api`, `/pipelines`).
 - **GitFlow** branching: `main`, `develop`, feature branches (`feature/*`), and `hotfix/*` when needed.
-- CI runs lint, type checks, tests, coverage gates, Docker build, and **external reachability smoke tests** (Coinbase/RSS/Qdrant).
+- CI runs lint, type checks, tests, coverage gates, Docker build, and **external reachability smoke tests** (Coinbase/CoinDesk Data API/Qdrant).
 - Dev/Prod parity: compose files mirror production; secrets in dev via `.env`.
 
 ### Runbook: Dev vs Prod

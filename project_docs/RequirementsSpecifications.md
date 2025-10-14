@@ -4,7 +4,7 @@
 
 #### 1.1 Data Ingestion
 - **FR-1:** System shall fetch OHLCV data for at least BTC, ETH, SOL, ADA, BNB, XRP from Coinbase at configurable intervals (default 1–5 min) and store time-aligned series.
-- **FR-2:** System shall ingest crypto-related articles/posts from RSS/HTML sources (CoinDesk, CoinTelegraph, Reddit RSS, exchange blogs) at configurable intervals (default 5–10 min), respecting robots.txt and ToS.
+- **FR-2:** System shall ingest crypto-related articles/posts from first-party APIs or HTML sources (CoinDesk Data API, CoinTelegraph JSON feed, Reddit, exchange blogs) at configurable intervals (default 5–10 min), respecting robots.txt and ToS.
 - **FR-3:** System shall deduplicate content by URL + normalized title hash + timestamp window.
 
 #### 1.2 NLP & Sentiment
@@ -45,7 +45,7 @@
 #### 1.8 DevEx & CI/CD
 - **FR-21:** GitHub Actions shall run lint, type-check, tests, coverage gates, and build Docker images on PRs; main merges trigger deploy to Cloud Run.
 - **FR-22:** Pre-commit hooks shall enforce formatters/linters.
-- **FR-25:** CI must run **external service reachability smoke tests** (Coinbase API, RSS endpoints, vector DB) with graceful skips on rate limits.
+- **FR-25:** CI must run **external service reachability smoke tests** (Coinbase API, CoinDesk Data API endpoints, vector DB) with graceful skips on rate limits.
 
 ### 2. Non-Functional Requirements
 - **NFR-13:** **12‑Factor** alignment: immutable containers where possible; configuration strictly via environment variables; logs as streams; disposability for fast startup/shutdown.
