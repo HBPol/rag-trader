@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import datetime as dt
+import logging
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+import httpx
 import pytest
 
 from ragtrader_pipelines.content import (
     ArticleCandidate,
+    CoinDeskContentSource,
     ContentAggregator,
     ContentIngestionJob,
     NormalizedArticleRecord,
@@ -291,3 +294,83 @@ def test_content_ingestion_job_applies_rolling_zscores() -> None:
     assert second_record.coin == "BTC"
     assert second_record.zscore_window == 2
     assert pytest.approx(float(second_record.zscore)) == -1.0
+
+
+def test_content_ingestion_job_skips_sources_that_fail_to_fetch(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A failing content source should be logged / skipped without aborting the job."""
+
+    now = dt.datetime(2024, 5, 20, 18, 45, tzinfo=dt.UTC)
+    clock = FakeClock(now)
+    aggregator = ContentAggregator(
+        freshness_window=dt.timedelta(minutes=15),
+        clock=clock,
+    )
+    zscores = ZScoreCalculator(window=1)
+
+    class FailingClient:
+        def __init__(self) -> None:
+            self._request = httpx.Request(
+                "GET",
+                "https://production.api.coindesk.com/content/v2/headlines",
+            )
+
+        def get(
+            self, *args: Any, **kwargs: Any
+        ) -> Any:  # pragma: no cover - no return path
+            raise httpx.ConnectError("network unreachable", request=self._request)
+
+    failing_source = CoinDeskContentSource(api_key="test-key", client=FailingClient())
+
+    healthy_article = ArticleCandidate(
+        source="static",
+        url="https://example.com/eth-update",
+        title="Ethereum Upgrade Launches Smoothly",
+        excerpt="Developers celebrate the successful roll-out of the latest upgrade.",
+        coins=["ETH"],
+        published_ts=now - dt.timedelta(minutes=5),
+    )
+
+    class HealthySource:
+        def fetch(
+            self, start: dt.datetime, end: dt.datetime
+        ) -> Iterable[ArticleCandidate]:
+            return [healthy_article]
+
+    classifier = StubClassifier(
+        results=[
+            SentimentResult(
+                label=SentimentLabel.BULLISH,
+                confidence=0.9,
+                aspects=(SentimentAspect.HYPE,),
+                coins=("ETH",),
+            )
+        ]
+    )
+    repository = StubRepository()
+
+    job = ContentIngestionJob(
+        sources={"coindesk": failing_source, "static": HealthySource()},
+        aggregator=aggregator,
+        classifier=classifier,
+        repository=repository,
+        zscore_calculator=zscores,
+        clock=clock,
+    )
+
+    lookback = dt.timedelta(hours=1)
+    with caplog.at_level(logging.WARNING):
+        job.run(lookback=lookback)
+
+    warning_messages = [
+        record.message for record in caplog.records if record.levelno == logging.WARNING
+    ]
+    assert any(
+        "Skipping content source 'coindesk'" in message for message in warning_messages
+    )
+
+    assert len(repository.upserts) == 1
+    persisted_article, _ = repository.upserts[0]
+    assert persisted_article.source == healthy_article.source
+    assert persisted_article.title == healthy_article.title

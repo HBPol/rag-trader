@@ -24,6 +24,7 @@ __all__ = [
     "CoinTelegraphContentSource",
     "RedditContentSource",
     "SourceFactoryError",
+    "SourceFetchError",
     "build_sources_from_env",
 ]
 
@@ -32,6 +33,16 @@ _DEFAULT_REDDIT_SUBREDDITS = ("cryptocurrency", "bitcoin", "ethereum")
 
 class SourceFactoryError(RuntimeError):
     """Raised when a content source cannot be instantiated from the environment."""
+
+
+class SourceFetchError(RuntimeError):
+    """Raised when a content source fails to fetch upstream content."""
+
+    def __init__(self, *, slug: str, exc: Exception) -> None:
+        message = f"Failed to fetch content from source '{slug}'"
+        super().__init__(message)
+        self.slug = slug
+        self.original_exc = exc
 
 
 def _normalize_payload_items(payload: Any) -> list[Mapping[str, object]]:
@@ -71,6 +82,7 @@ class _BaseHttpSource(ContentSource):
         self._client = client
         self._endpoint = endpoint
         self._limit = limit
+        self._slug = getattr(adapter, "source_name", adapter.__class__.__name__.lower())
 
     def _filter_window(
         self,
@@ -131,12 +143,15 @@ class CoinDeskContentSource(_BaseHttpSource):
             "end_date": end.isoformat(),
             "limit": str(self._limit),
         }
-        response = self._client.get(
-            self._endpoint,
-            params=params,
-            headers=self._headers,
-        )
-        response.raise_for_status()
+        try:
+            response = self._client.get(
+                self._endpoint,
+                params=params,
+                headers=self._headers,
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise SourceFetchError(slug=self._slug, exc=exc) from exc
         payload = response.json()
         candidates = self._parse_items(payload)
         return list(self._filter_window(candidates, start=start, end=end))
@@ -170,8 +185,11 @@ class CoinTelegraphContentSource(_BaseHttpSource):
             "to": end.isoformat(),
             "limit": str(self._limit),
         }
-        response = self._client.get(self._endpoint, params=params)
-        response.raise_for_status()
+        try:
+            response = self._client.get(self._endpoint, params=params)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise SourceFetchError(slug=self._slug, exc=exc) from exc
         payload = response.json()
         candidates = self._parse_items(payload)
         return list(self._filter_window(candidates, start=start, end=end))
@@ -213,6 +231,7 @@ class RedditContentSource(ContentSource):
             headers={"User-Agent": user_agent},
         )
         self._adapter = adapter or RedditAdapter()
+        self._slug = getattr(self._adapter, "source_name", "reddit")
         self._subreddits = tuple(subreddits or _DEFAULT_REDDIT_SUBREDDITS)
         self._limit = limit
         self._clock = clock or (lambda: dt.datetime.now(tz=dt.UTC))
@@ -227,8 +246,11 @@ class RedditContentSource(ContentSource):
         for subreddit in self._subreddits:
             path = f"/r/{subreddit}/new"
             params = {"limit": self._limit}
-            response = self._api_client.get(path, params=params, headers=headers)
-            response.raise_for_status()
+            try:
+                response = self._api_client.get(path, params=params, headers=headers)
+                response.raise_for_status()
+            except httpx.HTTPError as exc:
+                raise SourceFetchError(slug=self._slug, exc=exc) from exc
             payload = response.json()
             items = _normalize_payload_items(payload)
             for item in items:
@@ -248,12 +270,15 @@ class RedditContentSource(ContentSource):
         if self._token and self._token_expiry and now < self._token_expiry:
             return self._token
 
-        response = self._token_client.post(
-            "/api/v1/access_token",
-            data={"grant_type": "client_credentials"},
-            auth=(self._client_id, self._client_secret),
-        )
-        response.raise_for_status()
+        try:
+            response = self._token_client.post(
+                "/api/v1/access_token",
+                data={"grant_type": "client_credentials"},
+                auth=(self._client_id, self._client_secret),
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise SourceFetchError(slug=self._slug, exc=exc) from exc
         payload = response.json()
         token = payload.get("access_token")
         if not isinstance(token, str) or not token:

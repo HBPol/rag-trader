@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import logging
 import os
 import re
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
@@ -20,6 +21,18 @@ from sqlalchemy import MetaData, Table, create_engine, delete, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
+
+from ..registry import PipelineRegistry
+from ..sentiment import (
+    SentimentAspect,
+    SentimentClassifier,
+    SentimentLabel,
+    SentimentResult,
+    SentimentSeriesPoint,
+    ZScoreCalculator,
+)
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "ArticleCandidate",
@@ -41,20 +54,11 @@ __all__ = [
     "SentimentRecord",
     "SqlAlchemyContentRepository",
     "SourceFactoryError",
+    "SourceFetchError",
     "UnsupportedLanguageError",
     "main",
     "register_content_ingestion_job",
 ]
-
-from ..registry import PipelineRegistry
-from ..sentiment import (
-    SentimentAspect,
-    SentimentClassifier,
-    SentimentLabel,
-    SentimentResult,
-    SentimentSeriesPoint,
-    ZScoreCalculator,
-)
 
 
 class ContentSource(Protocol):
@@ -517,6 +521,7 @@ _CONTENT_SOURCE_EXPORTS = (
     "CoinTelegraphContentSource",
     "RedditContentSource",
     "SourceFactoryError",
+    "SourceFetchError",
     "build_sources_from_env",
 )
 
@@ -662,8 +667,27 @@ class ContentIngestionJob:
         start = end - lookback
 
         candidates: list[ArticleCandidate] = []
+        sources_module = _load_content_sources()
+        source_fetch_error_cls = sources_module.SourceFetchError
         for name, source in self._sources.items():
-            batch = list(source.fetch(start, end))
+            try:
+                batch = list(source.fetch(start, end))
+            except source_fetch_error_cls as exc:
+                slug = getattr(exc, "slug", name)
+                detail = getattr(exc, "original_exc", exc)
+                logger.warning(
+                    "Skipping content source '%s' due to fetch failure: %s",
+                    slug,
+                    detail,
+                )
+                continue
+            except httpx.HTTPError as exc:
+                logger.warning(
+                    "Skipping content source '%s' due to HTTP error: %s",
+                    name,
+                    exc,
+                )
+                continue
             deduped = list(self._aggregator.emit(name, batch))
             candidates.extend(deduped)
 
