@@ -272,13 +272,13 @@ class CoinDeskAdapter(BaseContentAdapter):
             (
                 tickers
                 if isinstance(tickers, Iterable)
-                and not isinstance(tickers, (str, bytes))
+                and not isinstance(tickers, (str | bytes))
                 else None
             ),
             (
                 coins_field
                 if isinstance(coins_field, Iterable)
-                and not isinstance(coins_field, (str, bytes))
+                and not isinstance(coins_field, (str | bytes))
                 else None
             ),
         )
