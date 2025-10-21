@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import os
 import sys
 from collections.abc import Iterable, Mapping, Sequence
@@ -17,11 +16,8 @@ except ModuleNotFoundError:  # pragma: no cover - our tests rely on the shim ins
 
     Response = requests.Response  # type: ignore[assignment]
 
-DEFAULT_RSS_FEEDS: tuple[str, ...] = (
-    "https://www.coindesk.com/arc/outboundfeeds/rss/",
-    "https://cointelegraph.com/rss",
-    "https://www.reddit.com/r/CryptoCurrency/.rss",
-)
+DEFAULT_COINDESK_BASE_URL = "https://data-api.coindesk.com"
+DEFAULT_COINDESK_ENDPOINT_PATH = "/news/v1/article/list?limit=1"
 RATE_LIMIT_STATUS = 429
 DEFAULT_TIMEOUT_SECONDS = 10.0
 
@@ -53,17 +49,55 @@ def should_skip(flag: str, env: Mapping[str, str]) -> bool:
     return parse_bool(env.get(flag))
 
 
-def build_rss_feeds(env: Mapping[str, str]) -> Sequence[str]:
-    raw = env.get("REACHABILITY_RSS_FEEDS")
-    if not raw:
-        return DEFAULT_RSS_FEEDS
+def should_skip_any(flags: Sequence[str], env: Mapping[str, str]) -> bool:
+    return any(parse_bool(env.get(flag)) for flag in flags)
 
-    feeds: list[str] = []
-    for candidate in raw.replace("\n", ",").split(","):
-        url = candidate.strip()
-        if url:
-            feeds.append(url)
-    return feeds
+
+def first_non_empty(env: Mapping[str, str], *keys: str) -> str | None:
+    for key in keys:
+        value = env.get(key)
+        if value and value.strip():
+            return value.strip()
+    return None
+
+
+def build_coindesk_endpoints(env: Mapping[str, str]) -> Sequence[str]:
+    raw = first_non_empty(
+        env, "REACHABILITY_COINDESK_ENDPOINTS", "REACHABILITY_RSS_FEEDS"
+    )
+    if raw:
+        endpoints: list[str] = []
+        for candidate in raw.replace("\n", ",").split(","):
+            url = candidate.strip()
+            if url:
+                endpoints.append(url)
+        if endpoints:
+            return endpoints
+
+    base_url = (
+        first_non_empty(
+            env,
+            "REACHABILITY_COINDESK_BASE_URL",
+            "CONTENT_COINDESK_BASE_URL",
+            "CONTENT_RSS_COINDESK_BASE_URL",
+        )
+        or DEFAULT_COINDESK_BASE_URL
+    ).rstrip("/")
+
+    endpoint_path = env.get(
+        "REACHABILITY_COINDESK_ENDPOINT_PATH", DEFAULT_COINDESK_ENDPOINT_PATH
+    )
+    endpoint_path = endpoint_path.strip()
+    if not endpoint_path:
+        endpoint_path = DEFAULT_COINDESK_ENDPOINT_PATH
+
+    if endpoint_path.startswith("http"):
+        return [endpoint_path]
+
+    if not endpoint_path.startswith("/"):
+        endpoint_path = f"/{endpoint_path}"
+
+    return [f"{base_url}{endpoint_path}"]
 
 
 def probe_url(
@@ -140,33 +174,52 @@ def probe_qdrant(env: Mapping[str, str], timeout: float) -> ProbeResult:
     return probe_url("qdrant", url, headers=headers, timeout=timeout)
 
 
-def probe_rss_feeds(env: Mapping[str, str], timeout: float) -> Iterable[ProbeResult]:
-    feeds = build_rss_feeds(env)
-    if should_skip("REACHABILITY_SKIP_RSS", env):
-        for feed in feeds:
+def probe_coindesk_api(env: Mapping[str, str], timeout: float) -> Iterable[ProbeResult]:
+    endpoints = build_coindesk_endpoints(env)
+    if should_skip_any(("REACHABILITY_SKIP_COINDESK", "REACHABILITY_SKIP_RSS"), env):
+        for endpoint in endpoints:
             yield ProbeResult(
-                name=f"rss:{feed}",
+                name=f"coindesk:{endpoint}",
                 status=ProbeStatus.SKIPPED,
-                detail="REACHABILITY_SKIP_RSS is set",
+                detail="CoinDesk reachability probe is disabled",
             )
         return
 
-    if not feeds:
+    if not endpoints:
         yield ProbeResult(
-            name="rss",
+            name="coindesk",
             status=ProbeStatus.SKIPPED,
-            detail="No RSS feeds configured",
+            detail="No CoinDesk endpoints configured",
         )
         return
 
-    headers: Mapping[str, str] | None = None
-    credentials = env.get("RSS_BASIC_AUTH")
-    if credentials:
-        token = base64.b64encode(credentials.encode()).decode()
-        headers = {"Authorization": f"Basic {token}"}
+    api_key = first_non_empty(
+        env,
+        "REACHABILITY_COINDESK_API_KEY",
+        "CONTENT_COINDESK_API_KEY",
+        "CONTENT_RSS_COINDESK_API_KEY",
+    )
+    if not api_key:
+        for endpoint in endpoints:
+            yield ProbeResult(
+                name=f"coindesk:{endpoint}",
+                status=ProbeStatus.SKIPPED,
+                detail="CoinDesk API key is not configured",
+            )
+        return
 
-    for feed in feeds:
-        yield probe_url(name=f"rss:{feed}", url=feed, timeout=timeout, headers=headers)
+    headers = {
+        "accept": "application/json",
+        "x-api-key": api_key,
+    }
+
+    for endpoint in endpoints:
+        yield probe_url(
+            name=f"coindesk:{endpoint}",
+            url=endpoint,
+            timeout=timeout,
+            headers=headers,
+        )
 
 
 def run_probes(env: Mapping[str, str] | None = None) -> list[ProbeResult]:
@@ -186,7 +239,7 @@ def run_probes(env: Mapping[str, str] | None = None) -> list[ProbeResult]:
     )
     results: list[ProbeResult] = []
     results.append(probe_coinbase(env_map, timeout=timeout))
-    results.extend(probe_rss_feeds(env_map, timeout=timeout))
+    results.extend(probe_coindesk_api(env_map, timeout=timeout))
     results.append(probe_qdrant(env_map, timeout=timeout))
     return results
 

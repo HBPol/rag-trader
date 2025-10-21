@@ -13,12 +13,51 @@ backtest via a safe Strategy DSL.
 - [Requirements Specifications](project_docs/RequirementsSpecifications.md)
 - [Project Plan](project_docs/ProjectPlan.md)
 
+## Content Ingestion & Sentiment
+
+The sentiment pipelines pair modular content adapters (CoinDesk Data API,
+social, and long-form sources) with a deduplication cache, a lightweight
+sentiment classifier, and a
+rolling z-score calculator. Jobs run via the
+`ragtrader_pipelines.content` entry point so ingestion, labeling, and
+aggregation share configuration and telemetry.
+
+```bash
+# Run a 2-hour window locally against Postgres while fetching Reddit + CoinDesk
+export DATABASE_URL="postgresql+psycopg://user:pass@localhost:5432/ragtrader"
+export CONTENT_REDDIT_CLIENT_ID=...
+export CONTENT_REDDIT_CLIENT_SECRET=...
+export CONTENT_COINDESK_API_KEY=...
+# Optionally override the CoinDesk Data API host if your account uses a regional endpoint
+# export CONTENT_COINDESK_BASE_URL="https://regional.data-api.coindesk.com"
+python -m ragtrader_pipelines.content \
+  --adapters reddit,coindesk \
+  --lookback-minutes 120 \
+  --freshness-minutes 180 \
+  --zscore-window 6
+```
+
+The CLI supports additional sources (see `pipelines/src/ragtrader_pipelines/content/sources.py`)
+and honors the following environment variables:
+
+- `DATABASE_URL`: SQLAlchemy URL for the ingestion target database.
+- `CONTENT_COINDESK_API_KEY`: CoinDesk Data API key (the legacy
+  `CONTENT_RSS_COINDESK_API_KEY` name is still accepted for backward
+  compatibility).
+- `CONTENT_COINDESK_BASE_URL`: Optional CoinDesk Data API host override for
+  region-specific tenants (aliases the legacy `CONTENT_RSS_COINDESK_BASE_URL`).
+- `CONTENT_REDDIT_CLIENT_ID` / `CONTENT_REDDIT_CLIENT_SECRET`: Reddit API credentials.
+- `CONTENT_DEDUPE_URL`: Optional Redis instance to persist the deduplication cache.
+- `CONTENT_SENTIMENT_MODEL`: Override the default classifier alias.
+
+Pass `--help` to explore more knobs (batch size, retry/backoff tuning, dry-run mode).
+
 ## Monorepo Layout
 
 | Path | Purpose |
 | --- | --- |
 | `api/` | FastAPI service (Python 3.11). Contains settings scaffolding and pytest-based unit tests. |
-| `pipelines/` | Batch & streaming jobs (Python 3.11). Hosts the Coinbase OHLCV ingestion job and registry primitives. |
+| `pipelines/` | Batch & streaming jobs (Python 3.11). Hosts Coinbase OHLCV + content sentiment ingestion jobs and registry primitives. |
 | `web/` | Next.js 14 frontend (TypeScript). Includes layout shell, styling entry point, and Vitest smoke test. |
 
 Each package owns its dependencies (`pyproject.toml` / `package.json`) and test suite so we can
@@ -119,7 +158,7 @@ installs remain reproducible.
   `pytest tests/test_compose.py` before relying on the stack locally or in CI. See [Compose Smoke
   Tests](#compose-smoke-tests) for details on the scenarios covered.
 - **External reachability probes** live in [`tools/reachability.py`](tools/reachability.py). They
-  verify Coinbase, RSS feeds, and Qdrant respond before we run heavier jobs. Execute
+  verify Coinbase, CoinDesk Data API endpoints, and Qdrant respond before we run heavier jobs. Execute
   `python tools/reachability.py` locally or rely on the "External Reachability" CI job to exercise
   them on every push.
 - **PyCharm + Docker**: add a Docker Compose interpreter pointed at the `api` service so
@@ -279,7 +318,7 @@ The tests boot the stack defined in [`docker-compose.yml`](docker-compose.yml) (
 ## External reachability probes
 
 [`tools/reachability.py`](tools/reachability.py) provides lightweight HTTP checks for Coinbase,
-required RSS feeds, and Qdrant. The script powers the "External Reachability" GitHub Actions job and
+CoinDesk Data API endpoints, and Qdrant. The script powers the "External Reachability" GitHub Actions job and
 can be run manually via:
 
 ```bash
@@ -292,13 +331,15 @@ defaults):
 | Variable | Purpose |
 | --- | --- |
 | `REACHABILITY_SKIP_ALL` | Skip every probe (useful when running CI in a fully offline environment). |
-| `REACHABILITY_SKIP_COINBASE` | Skip the Coinbase probe while keeping RSS/Qdrant. |
-| `REACHABILITY_SKIP_RSS` | Skip RSS feed checks. |
+| `REACHABILITY_SKIP_COINBASE` | Skip the Coinbase probe while keeping CoinDesk/Qdrant. |
+| `REACHABILITY_SKIP_COINDESK` (alias: `REACHABILITY_SKIP_RSS`) | Skip CoinDesk Data API checks. |
 | `REACHABILITY_SKIP_QDRANT` | Skip the Qdrant health check. |
-| `REACHABILITY_RSS_FEEDS` | Comma-separated list of RSS feed URLs to probe. |
+| `REACHABILITY_COINDESK_ENDPOINTS` (alias: `REACHABILITY_RSS_FEEDS`) | Comma-separated list of CoinDesk Data API URLs to probe. |
+| `REACHABILITY_COINDESK_BASE_URL` | Override the CoinDesk Data API host used to construct the default probe. |
+| `REACHABILITY_COINDESK_ENDPOINT_PATH` | Override the default endpoint path appended to the base URL. |
 | `REACHABILITY_QDRANT_URL` | Overrides `QDRANT_URL` for the Qdrant health check, if needed. |
 | `REACHABILITY_TIMEOUT_SECONDS` | HTTP timeout applied to each request (defaults to 10 seconds). |
-| `RSS_BASIC_AUTH` | `username:password` pair for RSS feeds that require HTTP Basic authentication. |
+| `REACHABILITY_COINDESK_API_KEY` (aliases: `CONTENT_COINDESK_API_KEY`, `CONTENT_RSS_COINDESK_API_KEY`) | API key forwarded via the `x-api-key` header. |
 | `QDRANT_API_KEY` | Optional API key forwarded via the `api-key` header when hitting Qdrant. |
 
 Rate limits (HTTP `429`) are treated as skipped probes so the job reports a neutral result instead of

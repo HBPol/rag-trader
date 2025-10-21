@@ -1,0 +1,386 @@
+"""Rule-based sentiment classification utilities."""
+
+from __future__ import annotations
+
+import math
+from collections import deque
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from dataclasses import dataclass
+from enum import Enum
+
+
+class SentimentLabel(str, Enum):
+    """High-level polarity labels emitted by the classifier."""
+
+    BULLISH = "bullish"
+    BEARISH = "bearish"
+    NEUTRAL = "neutral"
+    UNKNOWN = "unknown"
+
+
+class SentimentAspect(str, Enum):
+    """Aspect tags describing why a snippet scored a given way."""
+
+    HYPE = "hype"
+    REGULATORY = "regulatory"
+    SECURITY = "security"
+
+
+class UnsupportedLanguageError(ValueError):
+    """Raised when the classifier encounters non-English content."""
+
+
+@dataclass(frozen=True)
+class SentimentResult:
+    """Container describing the classifier output."""
+
+    label: SentimentLabel
+    confidence: float
+    aspects: Sequence[SentimentAspect]
+    coins: Sequence[str]
+
+
+@dataclass(frozen=True)
+class SentimentSeriesPoint:
+    """Historical sentiment score for a single coin."""
+
+    coin: str
+    timestamp: int
+    score: float
+
+
+@dataclass(frozen=True)
+class SentimentZScore:
+    """Rolling z-score derived from sentiment history."""
+
+    coin: str
+    timestamp: int
+    window: int
+    z_score: float
+
+
+@dataclass(slots=True)
+class _RollingWindowState:
+    """Mutable state for a coin's rolling window."""
+
+    scores: deque[float]
+    total: float
+    total_sq: float
+
+
+class ZScoreCalculator:
+    """Compute rolling population z-scores for sentiment series."""
+
+    def __init__(self, window: int) -> None:
+        if window <= 0:
+            raise ValueError("window must be a positive integer")
+        self._window = window
+
+    @property
+    def window(self) -> int:
+        return self._window
+
+    def calculate(
+        self, points: Iterable[SentimentSeriesPoint]
+    ) -> Iterator[SentimentZScore]:
+        """Yield rolling population z-scores for the provided series."""
+
+        history: dict[str, _RollingWindowState] = {}
+
+        for point in points:
+            state = history.get(point.coin)
+            if state is None:
+                state = _RollingWindowState(
+                    scores=deque(maxlen=self._window), total=0.0, total_sq=0.0
+                )
+                history[point.coin] = state
+
+            if len(state.scores) == state.scores.maxlen:
+                # Remove the oldest observation before appending the new one.
+                oldest = state.scores.popleft()
+                state.total -= oldest
+                state.total_sq -= oldest * oldest
+
+            state.scores.append(point.score)
+            state.total += point.score
+            state.total_sq += point.score * point.score
+
+            if len(state.scores) < self._window:
+                continue
+
+            mean = state.total / self._window
+            variance = (
+                state.total_sq - (state.total * state.total) / self._window
+            ) / self._window
+            variance = max(variance, 0.0)
+            stddev = math.sqrt(variance)
+            if stddev == 0.0:
+                z_score = 0.0
+            else:
+                z_score = (point.score - mean) / stddev
+
+            yield SentimentZScore(
+                coin=point.coin,
+                timestamp=point.timestamp,
+                window=self._window,
+                z_score=z_score,
+            )
+
+
+class SentimentClassifier:
+    """Very small rule-based classifier used for guardrail tests."""
+
+    _POSITIVE_KEYWORDS = {
+        "surge",
+        "surges",
+        "breakout",
+        "breakouts",
+        "bullish",
+        "rally",
+        "rallies",
+        "record",
+        "records",
+        "optimism",
+        "optimistic",
+        "upgrade",
+        "upgrades",
+        "sustained",
+        "inflow",
+        "inflows",
+        "greenlight",
+        "climb",
+        "climbs",
+        "gain",
+        "gains",
+        "strength",
+    }
+
+    _NEGATIVE_KEYWORDS = {
+        "slump",
+        "slumps",
+        "slumping",
+        "selloff",
+        "decline",
+        "declines",
+        "drop",
+        "drops",
+        "warning",
+        "warn",
+        "warns",
+        "volatile",
+        "volatility",
+        "investigation",
+        "investigators",
+        "wells notice",
+        "lawsuit",
+        "crackdown",
+        "risk",
+        "risks",
+        "unresolved",
+        "disclosure",
+    }
+
+    _HYPE_KEYWORDS = {
+        "to the moon",
+        "moonshot",
+        "hype",
+        "breakout",
+        "record",
+        "surge",
+        "rally",
+    }
+
+    _REGULATORY_KEYWORDS = {
+        "sec",
+        "regulator",
+        "regulators",
+        "regulatory",
+        "compliance",
+        "investigation",
+        "lawsuit",
+        "wells notice",
+    }
+
+    _SECURITY_KEYWORDS = {
+        "hack",
+        "hacked",
+        "exploit",
+        "breach",
+        "vulnerability",
+        "incident",
+        "security",
+        "disclosure",
+    }
+
+    _LANGUAGE_KEYS = ("language", "lang", "locale")
+    _ALLOWED_REGION_TOKENS = {"us", "gb", "uk", "au", "ca", "nz", "sg", "in"}
+
+    def classify(
+        self, text: str, metadata: Mapping[str, object] | None
+    ) -> SentimentResult:
+        """Classify sentiment using simple keyword heuristics."""
+
+        cleaned_text = (text or "").strip()
+        if not cleaned_text:
+            return SentimentResult(
+                label=SentimentLabel.UNKNOWN,
+                confidence=0.0,
+                aspects=(),
+                coins=(),
+            )
+
+        metadata = metadata or {}
+        self._enforce_english(metadata)
+
+        normalised_coins = self._normalise_coins(metadata.get("coins"))
+
+        lowercase_text = cleaned_text.lower()
+        pos_hits = self._count_matches(lowercase_text, self._POSITIVE_KEYWORDS)
+        neg_hits = self._count_matches(lowercase_text, self._NEGATIVE_KEYWORDS)
+
+        pos_hits += self._metadata_positive_boost(metadata)
+        neg_hits += self._metadata_negative_boost(metadata)
+
+        score = pos_hits - neg_hits
+        if score > 0:
+            label = SentimentLabel.BULLISH
+            confidence = min(0.6 + 0.08 * pos_hits, 0.95)
+        elif score < 0:
+            label = SentimentLabel.BEARISH
+            confidence = min(0.55 + 0.08 * neg_hits, 0.9)
+        else:
+            label = SentimentLabel.NEUTRAL
+            confidence = min(0.4 + 0.05 * (pos_hits + neg_hits), 0.6)
+
+        aspects = self._derive_aspects(lowercase_text, metadata)
+
+        return SentimentResult(
+            label=label,
+            confidence=round(confidence, 3),
+            aspects=tuple(sorted(aspects, key=lambda a: a.value)),
+            coins=normalised_coins,
+        )
+
+    def _enforce_english(self, metadata: Mapping[str, object]) -> None:
+        for key in self._LANGUAGE_KEYS:
+            value = metadata.get(key)
+            if value is None:
+                continue
+            languages = self._extract_languages(value)
+            if not languages:
+                continue
+            english_tokens = {
+                lang for lang in languages if lang in {"en", "eng", "english"}
+            }
+            residual = languages - english_tokens - self._ALLOWED_REGION_TOKENS
+            if not english_tokens or residual:
+                raise UnsupportedLanguageError(
+                    "Sentiment classifier only supports English-language inputs."
+                )
+
+    def _extract_languages(self, value: object) -> set[str]:
+        if isinstance(value, str):
+            return self._tokenise_language_string(value)
+
+        if isinstance(value, Iterable) and not isinstance(value, bytes | bytearray):
+            languages: set[str] = set()
+            for item in value:
+                if isinstance(item, str):
+                    languages.update(self._tokenise_language_string(item))
+            return languages
+
+        return set()
+
+    @staticmethod
+    def _tokenise_language_string(value: str) -> set[str]:
+        lowered = value.strip().lower()
+        separators = {"-", "_", "/", ",", "|"}
+        for sep in separators:
+            lowered = lowered.replace(sep, " ")
+        return {token for token in lowered.split() if token}
+
+    @staticmethod
+    def _normalise_coins(coins: object) -> tuple[str, ...]:
+        if coins is None:
+            return ()
+        if isinstance(coins, str):
+            iterable: Iterable[object] = [coins]
+        elif isinstance(coins, Iterable) and not isinstance(coins, bytes | bytearray):
+            iterable = coins
+        else:
+            return ()
+        uppercased = {
+            str(token).strip().upper() for token in iterable if str(token).strip()
+        }
+        return tuple(sorted(uppercased))
+
+    @staticmethod
+    def _count_matches(text: str, keywords: set[str]) -> int:
+        return sum(1 for keyword in keywords if keyword in text)
+
+    def _metadata_positive_boost(self, metadata: Mapping[str, object]) -> int:
+        boost = 0
+        hype = metadata.get("hype_signals")
+        if isinstance(hype, Iterable) and not isinstance(hype, str | bytes | bytearray):
+            boost += sum(1 for item in hype if str(item).strip())
+        return boost
+
+    def _metadata_negative_boost(self, metadata: Mapping[str, object]) -> int:
+        boost = 0
+        for key in ("regulatory_cues", "security_incidents"):
+            value = metadata.get(key)
+            if isinstance(value, Iterable) and not isinstance(
+                value, str | bytes | bytearray
+            ):
+                boost += sum(1 for item in value if str(item).strip())
+        return boost
+
+    def _derive_aspects(
+        self, text: str, metadata: Mapping[str, object]
+    ) -> set[SentimentAspect]:
+        aspects: set[SentimentAspect] = set()
+        hype_values = metadata.get("hype_signals")
+        if self._has_values(hype_values) or self._has_keyword(
+            text, self._HYPE_KEYWORDS
+        ):
+            aspects.add(SentimentAspect.HYPE)
+
+        if self._has_values(metadata.get("regulatory_cues")) or self._has_keyword(
+            text, self._REGULATORY_KEYWORDS
+        ):
+            aspects.add(SentimentAspect.REGULATORY)
+
+        if self._has_values(metadata.get("security_incidents")) or self._has_keyword(
+            text, self._SECURITY_KEYWORDS
+        ):
+            aspects.add(SentimentAspect.SECURITY)
+
+        return aspects
+
+    @staticmethod
+    def _has_values(container: object) -> bool:
+        if isinstance(container, Iterable) and not isinstance(
+            container, str | bytes | bytearray
+        ):
+            return any(str(item).strip() for item in container)
+        return False
+
+    @staticmethod
+    def _has_keyword(text: str, keywords: set[str]) -> bool:
+        return any(keyword in text for keyword in keywords)
+
+
+SentimentUnsupportedLanguageError = UnsupportedLanguageError
+
+
+__all__ = [
+    "SentimentLabel",
+    "SentimentAspect",
+    "UnsupportedLanguageError",
+    "SentimentUnsupportedLanguageError",
+    "SentimentResult",
+    "SentimentSeriesPoint",
+    "SentimentZScore",
+    "ZScoreCalculator",
+    "SentimentClassifier",
+]

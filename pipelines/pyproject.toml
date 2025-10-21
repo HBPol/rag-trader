@@ -13,6 +13,7 @@ requires-python = ">=3.11"
 dependencies = [
   "pandas>=2.2",
   "httpx>=0.26",
+  "redis>=5.0",
   "sqlalchemy>=2.0",
 ]
 
@@ -24,6 +25,7 @@ dev = [
   "black>=24.2",
   "isort>=5.13",
   "mypy>=1.8",
+  "types-redis>=4.6.0.4",
 ]
 
 [tool.pytest.ini_options]

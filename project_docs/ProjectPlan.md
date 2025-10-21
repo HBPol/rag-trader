@@ -22,7 +22,7 @@
 - Pre-commit: ruff, black, isort, mypy; ESLint, Prettier, TypeScript strict.
 - Vector store wired to **Qdrant Cloud (Free Tier)** (or self‑hosted Qdrant as a docker service for offline dev). Add thin repository interface to allow swapping providers.
 - **Dev/Prod parity**: compose files align with Cloud Run deploys; development secrets via `.env`.
-- CI smoke **reachability tests** for Coinbase, RSS endpoints, and Qdrant (with graceful skip on rate limits).
+- CI smoke **reachability tests** for Coinbase, CoinDesk Data API endpoints, and Qdrant (with graceful skip on rate limits).
 
 
 **Deliverables**
@@ -33,7 +33,7 @@
 **Acceptance Criteria**
 - `make test` passes with ≥80% backend coverage.
 - Scheduled job (local + Cloud Scheduler) writes fresh OHLCV.
-- CI logs show successful external **reachability** checks (Coinbase/RSS/Qdrant) in the pipeline.
+- CI logs show successful external **reachability** checks (Coinbase/CoinDesk Data API/Qdrant) in the pipeline.
 
 ---
 
@@ -41,7 +41,7 @@
 **Goal:** Gather news/forum items; compute sentiment & z-scores.
 
 **Tasks**
-- RSS/HTML adapters (CoinDesk, CoinTelegraph, Reddit RSS). Caching + dedupe.
+- API/HTML adapters (CoinDesk Data API, CoinTelegraph, Reddit). Caching + dedupe.
 - Text cleaning, language detection, timestamp normalization.
 - Sentiment classifier: zero/weak-shot (rule-based + small model) with confidence; multi-label: bullish/bearish, hype, regulatory, security.
 - Rolling z-score computation per coin & window.

@@ -4,7 +4,7 @@
 **RAGTrader** — *Retrieve. Reason. Trade.*
 
 ### Elevator Pitch
-RAGTrader is a crypto analytics and prototyping platform that fuses price data from Coinbase with crowd/news sentiment gathered via scrapers and RSS. In a live, interactive dashboard, users see how sentiment leads or lags price across coins, explore causal relationships, and spin up backtestable strategies using a safe strategy DSL. A lightweight RAG explorer answers "why did this move happen?" with cited snippets.
+RAGTrader is a crypto analytics and prototyping platform that fuses price data from Coinbase with crowd/news sentiment gathered via scrapers and the CoinDesk Data API. In a live, interactive dashboard, users see how sentiment leads or lags price across coins, explore causal relationships, and spin up backtestable strategies using a safe strategy DSL. A lightweight RAG explorer answers "why did this move happen?" with cited snippets.
 
 ### Target Users
 - **Discretionary crypto traders** who want quick, visual conviction from sentiment vs price.
@@ -13,7 +13,7 @@ RAGTrader is a crypto analytics and prototyping platform that fuses price data f
 
 ### MVP Goals (7–10 days)
 - Ingest OHLCV for top coins from Coinbase.
-- Scrape/RSS ingest recent crypto news & forum content.
+- Scrape/API ingest recent crypto news & forum content.
 - Classify sentiment + compute rolling z-scores.
 - Visualize price vs sentiment; compute rolling correlations & lead/lag cross-correlations.
 - Show cross-asset effects (influence graph) and report simple Granger causality tests.
@@ -27,7 +27,7 @@ RAGTrader is a crypto analytics and prototyping platform that fuses price data f
 
 ### Data Sources
 - **Prices:** Coinbase REST API (OHLCV).
-- **Sentiment content (no/low-API):** CoinDesk/ CoinTelegraph RSS, Reddit RSS (r/CryptoCurrency, r/Bitcoin, r/ethfinance), exchange blogs, selected forums where ToS allows. Respect robots.txt and rate limits.
+- **Sentiment content:** CoinDesk Data API, CoinTelegraph JSON feed, Reddit (r/CryptoCurrency, r/Bitcoin, r/ethfinance), exchange blogs, selected forums where ToS allows. Respect robots.txt and rate limits.
 
 ### Core Features
 1. **Dashboard**
@@ -54,11 +54,11 @@ RAGTrader is a crypto analytics and prototyping platform that fuses price data f
 
 ### Demo Narrative (Portfolio)
 1. Select BTC & ETH → dashboard highlights a 60–90m sentiment lead over last 24h.
-2. Click an Event Card → RAG Explorer shows snippets (CoinDesk/Reddit) and a 2-sentence LLM rationale.
+2. Click an Event Card → RAG Explorer shows snippets (CoinDesk Data API/Reddit) and a 2-sentence LLM rationale.
 3. In Strategy Studio, type: *“Long ETH when BTC sentiment z-score > 1 and BTC leads ETH under 2h; ATR stop 2x.”* → DSL renders → backtest shows equity curve & stats.
 
 ### Risks & Mitigations
-- **Scraper fragility:** Prefer RSS; modular adapters; caching; source toggles in UI.
+- **Scraper fragility:** Prefer first-party APIs; modular adapters; caching; source toggles in UI.
 - **LLM latency/cost:** Cache, batch, allow local/zero-shot fallback.
 - **Look-ahead bias:** Strict timestamping; unit tests to prevent leakage; walk-forward where feasible.
 - **Overfitting:** Out-of-sample splits; report both IS/OOS; keep parameters few.
@@ -72,7 +72,7 @@ RAGTrader is a crypto analytics and prototyping platform that fuses price data f
 ### Engineering Workflow
 - **Monorepo** layout (`/web`, `/api`, `/pipelines`).
 - **GitFlow** branching: `main`, `develop`, feature branches (`feature/*`), and `hotfix/*` when needed.
-- CI runs lint, type checks, tests, coverage gates, Docker build, and **external reachability smoke tests** (Coinbase/RSS/Qdrant).
+- CI runs lint, type checks, tests, coverage gates, Docker build, and **external reachability smoke tests** (Coinbase/CoinDesk Data API/Qdrant).
 - Dev/Prod parity: compose files mirror production; secrets in dev via `.env`.
 
 ### Runbook: Dev vs Prod
@@ -155,6 +155,54 @@ gcloud run revisions list --service=ragtrader-api --region $REGION
 gcloud run services update-traffic ragtrader-api --region $REGION --to-revisions <prev>=100
 ```
 
-**Observability**  
-- Local: `docker compose logs -f` for `api`, `web`, `postgres`.  
+**Observability**
+- Local: `docker compose logs -f` for `api`, `web`, `postgres`.
 - Prod: Cloud Run logs & metrics; add uptime checks for `/healthz`.
+
+### Operational Runbook — Content & Sentiment Pipelines
+
+- **3–7 day backfill**: run the content pipeline with an extended lookback
+  and conservative concurrency to avoid rate limits.
+
+  ```bash
+  # Backfill the prior 5 days with staggered windows to reduce load
+  export DATABASE_URL=...
+  export CONTENT_DEDUPE_URL=redis://redis:6379/0
+  for window_start in 120 240 360 480 600 720; do
+    python -m ragtrader_pipelines.content \
+      --adapters reddit,coindesk,coindesk_pro \
+      --lookback-minutes $window_start \
+      --freshness-window-minutes 1440 \
+      --dedupe-ttl "P3D" \
+      --zscore-window "P1D" \
+      --max-workers 4
+  done
+  ```
+
+  Monitor adapter logs and throttle if upstream rate limits trigger.
+
+- **API freshness guard**: the `/sentiment` endpoint enforces the
+  freshness window configured above. After each run, query the endpoint
+  and confirm `data_fresh_as_of` (or equivalent freshness metadata)
+  reflects timestamps within the expected guardrail.
+
+  ```bash
+  curl -fsSL "${API_BASE_URL}/sentiment?symbol=BTC-USD" | jq '.data_fresh_as_of'
+  ```
+
+  If the timestamp lags beyond the configured `--freshness-window-minutes`,
+  verify the scheduler logs and Redis dedupe cache before rerunning.
+
+- **Data validation**: run the Issue #2 regression tests after changes or
+  backfills to ensure adapters, dedupe logic, and z-score calculations
+  remain consistent.
+
+  ```bash
+  cd pipelines
+  PYTHONPATH=src pytest tests/test_content_ingestion.py \
+    tests/test_content_dedupe.py \
+    tests/test_content_zscore.py
+  ```
+
+  The suite checks for duplicate suppression, classifier range limits,
+  and correct z-score standardization across windows.
