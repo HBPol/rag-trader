@@ -26,6 +26,12 @@ dev = [
   "isort>=5.13",
   "mypy>=1.8",
   "types-redis>=4.6.0.4",
+  "great-expectations>=0.18,<0.19",
+]
+
+data-quality = [
+  "great-expectations>=0.18,<0.19",
+  "pyarrow>=14.0.1",
 ]
 
 [tool.pytest.ini_options]
@@ -39,7 +45,7 @@ target-version = ["py311"]
 
 [tool.isort]
 profile = "black"
-known_first_party = ["ragtrader_api", "ragtrader_pipelines"]
+known_first_party = ["ragtrader_api", "ragtrader_pipelines", "api"]
 
 [tool.ruff]
 line-length = 88
