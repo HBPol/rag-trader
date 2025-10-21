@@ -159,3 +159,24 @@ def test_coindesk_adapter_parses_documented_schema(coindesk_documented_payload):
     assert article.coins == ["BTC", "ETH", "SOL"]
     assert article.published_ts == dt.datetime(2024, 5, 20, 10, 45, tzinfo=dt.UTC)
     assert article.cache_key == "doc-asset-123"
+
+
+def test_coindesk_adapter_filters_metadata_tokens(coindesk_headlines_payload):
+    adapter = CoinDeskAdapter()
+
+    article = adapter.parse(coindesk_headlines_payload)
+
+    assert isinstance(article, ArticleCandidate)
+    assert article.coins == [
+        "AAVE",
+        "ARB",
+        "AVAX",
+        "BNB",
+        "COMP",
+        "CORE",
+        "ETH",
+        "FTM",
+        "MATIC",
+        "UNI",
+    ]
+    assert not {"ACTIVE", "EN", "RSS"} & set(article.coins)

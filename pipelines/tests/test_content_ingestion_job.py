@@ -13,6 +13,7 @@ import pytest
 
 from ragtrader_pipelines.content import (
     ArticleCandidate,
+    CoinDeskAdapter,
     CoinDeskContentSource,
     ContentAggregator,
     ContentIngestionJob,
@@ -386,9 +387,9 @@ def test_content_ingestion_job_persists_documented_coindesk_payload(
     pytest.importorskip("alembic")
     pytest.importorskip("testcontainers")
 
-    from api.tests.utils import PostgresTestContainer
     from sqlalchemy import create_engine, text
 
+    from api.tests.utils import PostgresTestContainer
     from ragtrader_api.db.migrations import apply_migrations
     from ragtrader_pipelines.content import CoinDeskAdapter, SqlAlchemyContentRepository
 
@@ -468,3 +469,62 @@ def test_content_ingestion_job_persists_documented_coindesk_payload(
     assert len(sentiment_rows) == len(article.coins)
     assert {row["coin"] for row in sentiment_rows} == set(article.coins)
     assert all(row["article_id"] == stored_article["id"] for row in sentiment_rows)
+
+
+def test_content_ingestion_job_persists_sample_coindesk_headlines(
+    coindesk_headlines_payload,
+) -> None:
+    """The ingestion job should persist coins parsed from sample headline data."""
+
+    adapter = CoinDeskAdapter()
+    article = adapter.parse(coindesk_headlines_payload)
+
+    assert isinstance(article, ArticleCandidate)
+    expected_coins = [
+        "AAVE",
+        "ARB",
+        "AVAX",
+        "BNB",
+        "COMP",
+        "CORE",
+        "ETH",
+        "FTM",
+        "MATIC",
+        "UNI",
+    ]
+    assert article.coins == expected_coins
+
+    now = dt.datetime(2024, 5, 20, 12, 0, tzinfo=dt.UTC)
+    aggregator = ContentAggregator(
+        freshness_window=dt.timedelta(minutes=30),
+        clock=lambda: now,
+    )
+    zscores = ZScoreCalculator(window=3)
+    classifier = StubClassifier(
+        results=[
+            SentimentResult(
+                label=SentimentLabel.BULLISH,
+                confidence=0.9,
+                aspects=(SentimentAspect.HYPE,),
+                coins=tuple(article.coins),
+            )
+        ]
+    )
+    source = StubSource(batches=[(article,)])
+    repository = StubRepository()
+
+    job = ContentIngestionJob(
+        sources={"coindesk": source},
+        aggregator=aggregator,
+        classifier=classifier,
+        repository=repository,
+        zscore_calculator=zscores,
+        clock=lambda: now,
+    )
+
+    job.run(lookback=dt.timedelta(hours=4))
+
+    assert len(repository.upserts) == 1
+    stored_article, sentiments = repository.upserts[0]
+    assert stored_article.coins == article.coins
+    assert {record.coin for record in sentiments} == set(article.coins)

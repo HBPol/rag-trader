@@ -200,7 +200,30 @@ class BaseContentAdapter:
         if not collections:
             return []
 
-        stopwords = {"NFT", "NFTS", "DEFI", "METAVERSE"}
+        stopwords = {
+            "NFT",
+            "NFTS",
+            "DEFI",
+            "METAVERSE",
+            "ACTIVE",
+            "BUSINESS",
+            "EN",
+            "FALSE",
+            "LANG",
+            "LANGUAGE",
+            "MARKET",
+            "MARKETS",
+            "NEGATIVE",
+            "NEWS",
+            "NONE",
+            "NULL",
+            "POSITIVE",
+            "RSS",
+            "SOURCE",
+            "STATUS",
+            "TRADING",
+            "TRUE",
+        }
         coins: set[str] = set()
         for collection in collections:
             if not collection:
@@ -209,6 +232,14 @@ class BaseContentAdapter:
                 if not token:
                     continue
                 normalized = re.sub(r"[^A-Za-z0-9]", "", str(token)).upper()
+                if not normalized:
+                    continue
+                if normalized.isdigit():
+                    continue
+                if not re.search(r"[A-Z]", normalized):
+                    continue
+                if normalized.endswith("NEWS"):
+                    continue
                 if 2 <= len(normalized) <= 10 and normalized not in stopwords:
                     coins.add(normalized)
         return sorted(coins)
@@ -272,47 +303,106 @@ class CoinDeskAdapter(BaseContentAdapter):
         if not published_ts:
             return None
 
-        def _string_tokens(value: object) -> list[str]:
-            tokens: list[str] = []
-            stack: list[object] = [value]
-            while stack:
-                current = stack.pop()
-                if isinstance(current, str):
-                    tokens.append(current)
-                elif isinstance(current, Mapping):
-                    stack.extend(current.values())
-                elif isinstance(current, Iterable) and not isinstance(
-                    current, (str | bytes)
-                ):
-                    stack.extend(list(current))
-            return tokens
+        label_stopwords = {
+            "artificial intelligence (ai)",
+            "blockchain",
+            "business",
+            "crypto news",
+            "cryptocurrency",
+            "cryptocurrency news",
+            "finance news",
+            "macroeconomics",
+            "market",
+            "markets",
+            "news",
+            "top news",
+            "trading",
+        }
+
+        def _flatten_strings(value: object) -> list[str]:
+            if isinstance(value, str):
+                return [value]
+            if isinstance(value, Mapping):
+                tokens: list[str] = []
+                for item in value.values():
+                    tokens.extend(_flatten_strings(item))
+                return tokens
+            if isinstance(value, Iterable) and not isinstance(value, (str | bytes)):
+                tokens: list[str] = []
+                for item in value:
+                    tokens.extend(_flatten_strings(item))
+                return tokens
+            return []
+
+        def _filter_tokens(tokens: Iterable[object]) -> list[str]:
+            filtered: list[str] = []
+            for token in tokens:
+                if not isinstance(token, str):
+                    continue
+                stripped = token.strip()
+                if not stripped:
+                    continue
+                if stripped.isdigit():
+                    continue
+                lowered = stripped.lower()
+                if lowered in label_stopwords:
+                    continue
+                if lowered.startswith("http"):
+                    continue
+                filtered.append(stripped)
+            return filtered
 
         tickers = payload.get("tickers")
         coins_field = payload.get("coins")
-        uppercase_collections: list[list[str]] = []
-        for key, value in payload.items():
-            if not isinstance(key, str) or not key.isupper():
-                continue
-            if isinstance(value, Iterable) and not isinstance(value, (str | bytes)):
-                tokens = _string_tokens(value)
-                if tokens:
-                    uppercase_collections.append(tokens)
 
-        coins = self._normalize_coins(
-            (
-                tickers
-                if isinstance(tickers, Iterable)
-                and not isinstance(tickers, (str | bytes))
-                else None
-            ),
-            (
-                coins_field
-                if isinstance(coins_field, Iterable)
-                and not isinstance(coins_field, (str | bytes))
-                else None
-            ),
-            *uppercase_collections,
-        )
+        token_collections: list[list[str]] = []
+        if isinstance(tickers, Iterable) and not isinstance(tickers, (str | bytes)):
+            ticker_tokens = _filter_tokens(tickers)
+            if ticker_tokens:
+                token_collections.append(ticker_tokens)
+
+        if isinstance(coins_field, Iterable) and not isinstance(
+            coins_field, (str | bytes)
+        ):
+            coin_tokens = _filter_tokens(coins_field)
+            if coin_tokens:
+                token_collections.append(coin_tokens)
+
+        keywords_value = payload.get("KEYWORDS")
+        keyword_tokens: list[str] = []
+        if isinstance(keywords_value, str):
+            keyword_tokens = _filter_tokens(re.split(r"[|,]", keywords_value))
+        elif isinstance(keywords_value, Iterable) and not isinstance(
+            keywords_value, (str | bytes)
+        ):
+            keyword_tokens = _filter_tokens(_flatten_strings(keywords_value))
+        if keyword_tokens:
+            token_collections.append(keyword_tokens)
+
+        category_data = payload.get("CATEGORY_DATA")
+        if isinstance(category_data, Iterable) and not isinstance(
+            category_data, (str | bytes)
+        ):
+            category_tokens: list[str] = []
+            for entry in category_data:
+                if isinstance(entry, Mapping):
+                    category_tokens.extend(_flatten_strings(entry))
+            category_tokens = _filter_tokens(category_tokens)
+            if category_tokens:
+                token_collections.append(category_tokens)
+
+        for key, value in payload.items():
+            if not isinstance(key, str):
+                continue
+            key_upper = key.upper()
+            if key_upper in {"TICKERS", "COINS", "KEYWORDS", "CATEGORY_DATA"}:
+                continue
+            if "TICKER" in key_upper or "SYMBOL" in key_upper:
+                extra_tokens = _filter_tokens(_flatten_strings(value))
+                if extra_tokens:
+                    token_collections.append(extra_tokens)
+
+        coins = self._normalize_coins(*token_collections)
 
         cache_key = None
         identifier = _first_value("id", "slug", "guid", "GUID")
