@@ -44,16 +44,25 @@ def coindesk_headlines_payload() -> dict[str, object]:
     return {
         "TYPE": "121",
         "ID": 53448094,
-        "GUID": "https://en.coinotag.com/screxs-scrx-token-presale-aims-to-address-defi-challenges-with-ai-integration/",
+        "GUID": (
+            "https://en.coinotag.com/screxs-scrx-token-presale-aims-to-address-"
+            "defi-challenges-with-ai-integration/"
+        ),
         "PUBLISHED_ON": 1_761_037_978,
         "IMAGE_URL": "https://resources.cryptocompare.com/news/77/53448094.jpeg",
-        "TITLE": "Screx’s SCRX Token Presale Aims to Address DeFi Challenges with AI Integration",
+        "TITLE": (
+            "Screx’s SCRX Token Presale Aims to Address DeFi Challenges with AI "
+            "Integration"
+        ),
         "AUTHORS": "Marisol Navaro",
-        "URL": "https://en.coinotag.com/screxs-scrx-token-presale-aims-to-address-defi-challenges-with-ai-integration/",
+        "URL": (
+            "https://en.coinotag.com/screxs-scrx-token-presale-aims-to-address-"
+            "defi-challenges-with-ai-integration/"
+        ),
         "BODY": (
-            "Screx is an innovative DeFi platform powered by AI that addresses key challenges like"
-            " liquidity fragmentation and complex interfaces. It integrates swaps, lending, staking,"
-            " and more into a unified ecosystem."
+            "Screx is an innovative DeFi platform powered by AI that addresses key "
+            "challenges like liquidity fragmentation and complex interfaces. "
+            "It integrates swaps, lending, staking, and more into a unified ecosystem."
         ),
         "KEYWORDS": "News|Aave|ARB|AVAX|BNB|COMP|Core|ETH|FTM|MATIC|UNI",
         "LANG": "EN",

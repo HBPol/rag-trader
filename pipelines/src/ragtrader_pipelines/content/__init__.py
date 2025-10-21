@@ -322,17 +322,14 @@ class CoinDeskAdapter(BaseContentAdapter):
         def _flatten_strings(value: object) -> list[str]:
             if isinstance(value, str):
                 return [value]
+            tokens: list[str] = []
             if isinstance(value, Mapping):
-                tokens: list[str] = []
                 for item in value.values():
                     tokens.extend(_flatten_strings(item))
-                return tokens
-            if isinstance(value, Iterable) and not isinstance(value, (str | bytes)):
-                tokens: list[str] = []
+            elif isinstance(value, Iterable) and not isinstance(value, (str | bytes)):
                 for item in value:
                     tokens.extend(_flatten_strings(item))
-                return tokens
-            return []
+            return tokens
 
         def _filter_tokens(tokens: Iterable[object]) -> list[str]:
             filtered: list[str] = []
