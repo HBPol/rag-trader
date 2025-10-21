@@ -26,6 +26,12 @@ dev = [
   "isort>=5.13",
   "mypy>=1.8",
   "types-redis>=4.6.0.4",
+  "great-expectations>=0.18,<0.19",
+]
+
+data-quality = [
+  "great-expectations>=0.18,<0.19",
+  "pyarrow>=14.0.1",
 ]
 
 [tool.pytest.ini_options]

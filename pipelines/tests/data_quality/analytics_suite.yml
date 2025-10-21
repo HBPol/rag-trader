@@ -1,0 +1,86 @@
+meta:
+  great_expectations_version: "0.18"
+expectation_suite_name: analytics_fixture_suite
+expectations:
+  - expectation_type: expect_column_values_to_not_be_null
+    kwargs:
+      column: timestamp
+  - expectation_type: expect_column_values_to_not_be_null
+    kwargs:
+      column: window_start
+  - expectation_type: expect_column_values_to_not_be_null
+    kwargs:
+      column: window_end
+  - expectation_type: expect_column_values_to_match_strftime_format
+    kwargs:
+      column: timestamp
+      strftime_format: "%Y-%m-%dT%H:%M:%S+00:00"
+  - expectation_type: expect_column_values_to_match_strftime_format
+    kwargs:
+      column: window_start
+      strftime_format: "%Y-%m-%dT%H:%M:%S+00:00"
+  - expectation_type: expect_column_values_to_match_strftime_format
+    kwargs:
+      column: window_end
+      strftime_format: "%Y-%m-%dT%H:%M:%S+00:00"
+  - expectation_type: expect_column_values_to_be_increasing
+    kwargs:
+      column: timestamp
+      strict: true
+  - expectation_type: expect_column_values_to_be_between
+    kwargs:
+      column: sampling_minutes
+      min_value: 60
+      max_value: 60
+  - expectation_type: expect_column_values_to_be_between
+    kwargs:
+      column: lag_hours
+      min_value: 1
+      max_value: 1
+  - expectation_type: expect_column_values_to_be_between
+    kwargs:
+      column: lead_hours
+      min_value: 1
+      max_value: 1
+  - expectation_type: expect_column_pair_values_A_to_equal_B
+    kwargs:
+      column_A: window_end
+      column_B: timestamp
+  - expectation_type: expect_column_values_to_be_in_set
+    kwargs:
+      column: price_window
+      value_set: ["ohlcv_hourly"]
+  - expectation_type: expect_column_values_to_be_in_set
+    kwargs:
+      column: sentiment_window
+      value_set: ["sentiment_zscore_6h"]
+  - expectation_type: expect_column_values_to_be_between
+    kwargs:
+      column: btc_sentiment_zscore
+      min_value: -3
+      max_value: 3
+  - expectation_type: expect_column_values_to_be_between
+    kwargs:
+      column: eth_sentiment_zscore
+      min_value: -3
+      max_value: 3
+  - expectation_type: expect_column_pair_values_A_to_be_greater_than_B
+    kwargs:
+      column_A: btc_high
+      column_B: btc_low
+  - expectation_type: expect_column_pair_values_A_to_be_greater_than_B
+    kwargs:
+      column_A: eth_high
+      column_B: eth_low
+  - expectation_type: expect_column_values_to_not_be_null
+    kwargs:
+      column: btc_close_lag_1h
+  - expectation_type: expect_column_values_to_not_be_null
+    kwargs:
+      column: btc_close_lead_1h
+  - expectation_type: expect_column_values_to_not_be_null
+    kwargs:
+      column: eth_close_lag_1h
+  - expectation_type: expect_column_values_to_not_be_null
+    kwargs:
+      column: eth_close_lead_1h
