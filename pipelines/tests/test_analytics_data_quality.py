@@ -4,22 +4,21 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+
+import great_expectations as gx
 from great_expectations.checkpoint import SimpleCheckpoint
 from great_expectations.core.batch import RuntimeBatchRequest
 from great_expectations.core.expectation_suite import ExpectationSuite
 from great_expectations.core.yaml_handler import YAMLHandler
-from great_expectations.data_context import BaseDataContext
+from great_expectations.data_context import AbstractDataContext
 from great_expectations.data_context.types.base import (
-    DataContextConfig,
-    FilesystemStoreBackendDefaults,
-)
-
+    DataContextConfig, FilesystemStoreBackendDefaults)
 from pipelines.tests import get_analytics_fixture_path
 
 pytest.importorskip("great_expectations")
 
 
-def _build_context(tmp_path: Path) -> BaseDataContext:
+def _build_context(tmp_path: Path) -> AbstractDataContext:
     store_defaults = FilesystemStoreBackendDefaults(root_directory=str(tmp_path))
     config = DataContextConfig(
         datasources={
@@ -42,7 +41,7 @@ def _build_context(tmp_path: Path) -> BaseDataContext:
         data_docs_sites={},
         anonymous_usage_statistics={"enabled": False},
     )
-    return BaseDataContext(project_config=config)
+    return gx.get_context(project_config=config, context_root_dir=str(tmp_path))
 
 
 def test_analytics_fixture_passes_great_expectations(tmp_path: Path) -> None:
@@ -72,15 +71,16 @@ def test_analytics_fixture_passes_great_expectations(tmp_path: Path) -> None:
     checkpoint = SimpleCheckpoint(
         name="analytics_fixture_checkpoint",
         data_context=context,
+    )
+
+    result = checkpoint.run(
         validations=[
             {
                 "batch_request": batch_request,
                 "expectation_suite_name": suite.expectation_suite_name,
             }
-        ],
+        ]
     )
-
-    result = checkpoint.run()
     assert result.success is True
     assert validator.active_batch_definition.batch_identifiers == {
         "default_identifier_name": "fixture"

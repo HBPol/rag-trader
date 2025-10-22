@@ -42,7 +42,7 @@ expectations:
       column: lead_hours
       min_value: 1
       max_value: 1
-  - expectation_type: expect_column_pair_values_A_to_equal_B
+  - expectation_type: expect_column_pair_values_to_be_equal
     kwargs:
       column_A: window_end
       column_B: timestamp
