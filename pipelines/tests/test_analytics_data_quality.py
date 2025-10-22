@@ -72,7 +72,6 @@ def test_analytics_fixture_passes_great_expectations(tmp_path: Path) -> None:
     checkpoint = SimpleCheckpoint(
         name="analytics_fixture_checkpoint",
         data_context=context,
-        validations=[{"expectation_suite_name": suite.expectation_suite_name}],
     )
 
     result = checkpoint.run(validator=validator)
