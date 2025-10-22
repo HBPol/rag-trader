@@ -69,12 +69,28 @@ def test_analytics_fixture_passes_great_expectations(tmp_path: Path) -> None:
         expectation_suite_name=suite.expectation_suite_name,
     )
 
+    checkpoint_batch_request = {
+        "datasource_name": batch_request.datasource_name,
+        "data_connector_name": batch_request.data_connector_name,
+        "data_asset_name": batch_request.data_asset_name,
+        "runtime_parameters": {"batch_data": df},
+        "batch_identifiers": batch_request.batch_identifiers,
+    }
+
+    batch_spec_passthrough = getattr(batch_request, "batch_spec_passthrough", None)
+    if batch_spec_passthrough:
+        checkpoint_batch_request["batch_spec_passthrough"] = batch_spec_passthrough
+
+    batch_filter_parameters = getattr(batch_request, "batch_filter_parameters", None)
+    if batch_filter_parameters:
+        checkpoint_batch_request["batch_filter_parameters"] = batch_filter_parameters
+
     checkpoint = SimpleCheckpoint(
         name="analytics_fixture_checkpoint",
         data_context=context,
         validations=[
             {
-                "batch_request": batch_request,
+                "batch_request": checkpoint_batch_request,
                 "expectation_suite_name": suite.expectation_suite_name,
             }
         ],
