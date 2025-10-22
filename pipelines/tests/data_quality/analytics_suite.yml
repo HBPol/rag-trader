@@ -64,11 +64,11 @@ expectations:
       column: eth_sentiment_zscore
       min_value: -3
       max_value: 3
-  - expectation_type: expect_column_pair_values_to_be_greater_than
+  - expectation_type: expect_column_pair_values_A_to_be_greater_than_B
     kwargs:
       column_A: btc_high
       column_B: btc_low
-  - expectation_type: expect_column_pair_values_to_be_greater_than
+  - expectation_type: expect_column_pair_values_A_to_be_greater_than_B
     kwargs:
       column_A: eth_high
       column_B: eth_low
