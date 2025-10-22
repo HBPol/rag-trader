@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 
 @dataclass
@@ -13,8 +13,8 @@ class RuntimeBatchRequest:
     datasource_name: str
     data_connector_name: str
     data_asset_name: str
-    runtime_parameters: Dict[str, Any]
-    batch_identifiers: Dict[str, Any]
+    runtime_parameters: dict[str, Any]
+    batch_identifiers: dict[str, Any]
 
 
 __all__ = ["RuntimeBatchRequest"]

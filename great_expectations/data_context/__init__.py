@@ -21,13 +21,19 @@ class AbstractDataContext:
 class BatchDefinition:
     """Capture metadata about a validated batch."""
 
-    batch_identifiers: Dict[str, Any]
+    batch_identifiers: dict[str, Any]
 
 
 class Validator:
     """Evaluate expectation suites against pandas data frames."""
 
-    def __init__(self, dataframe: pd.DataFrame, expectation_suite: ExpectationSuite, *, batch_definition: BatchDefinition) -> None:
+    def __init__(
+        self,
+        dataframe: pd.DataFrame,
+        expectation_suite: ExpectationSuite,
+        *,
+        batch_definition: BatchDefinition,
+    ) -> None:
         self._dataframe = dataframe
         self._expectation_suite = expectation_suite
         self.active_batch_definition = batch_definition

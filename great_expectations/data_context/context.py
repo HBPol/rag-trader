@@ -3,26 +3,32 @@
 from __future__ import annotations
 
 import operator
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Dict, Sequence
 
 import pandas as pd
 
+from ..core.expectation_suite import ExpectationConfiguration, ExpectationSuite
 from . import AbstractDataContext, BatchDefinition, Validator
 from .types.base import DataContextConfig
-from ..core.expectation_suite import ExpectationConfiguration, ExpectationSuite
 
 
 class InMemoryDataContext(AbstractDataContext):
     """Minimal data context capable of validating expectation suites."""
 
-    def __init__(self, project_config: DataContextConfig, context_root_dir: str) -> None:
+    def __init__(
+        self, project_config: DataContextConfig, context_root_dir: str
+    ) -> None:
         self.config = project_config
         self.context_root_dir = context_root_dir
-        self._expectation_suites: Dict[str, ExpectationSuite] = {}
+        self._expectation_suites: dict[str, ExpectationSuite] = {}
 
-    def add_or_update_expectation_suite(self, expectation_suite: ExpectationSuite) -> None:
-        self._expectation_suites[expectation_suite.expectation_suite_name] = expectation_suite
+    def add_or_update_expectation_suite(
+        self, expectation_suite: ExpectationSuite
+    ) -> None:
+        self._expectation_suites[expectation_suite.expectation_suite_name] = (
+            expectation_suite
+        )
 
     def get_validator(self, *, batch_request, expectation_suite_name: str) -> Validator:
         suite = self._get_expectation_suite(expectation_suite_name)
@@ -58,8 +64,13 @@ def _extract_dataframe(batch_request) -> pd.DataFrame:
     return dataframe
 
 
-def evaluate_expectation_suite(dataframe: pd.DataFrame, suite: ExpectationSuite) -> bool:
-    return all(_evaluate_expectation(dataframe, expectation) for expectation in suite.expectations)
+def evaluate_expectation_suite(
+    dataframe: pd.DataFrame, suite: ExpectationSuite
+) -> bool:
+    return all(
+        _evaluate_expectation(dataframe, expectation)
+        for expectation in suite.expectations
+    )
 
 
 def _evaluate_expectation(
@@ -134,7 +145,9 @@ def _is_increasing(series: pd.Series, *, strict: bool) -> bool:
     if len(values) < 2:
         return True
     comparator = operator.gt if strict else operator.ge
-    return all(comparator(values[index], values[index - 1]) for index in range(1, len(values)))
+    return all(
+        comparator(values[index], values[index - 1]) for index in range(1, len(values))
+    )
 
 
 def _coerce_orderable(series: pd.Series) -> Sequence:

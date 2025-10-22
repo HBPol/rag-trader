@@ -15,7 +15,9 @@ def get_context(*, project_config, context_root_dir: str) -> AbstractDataContext
     repository.
     """
 
-    return InMemoryDataContext(project_config=project_config, context_root_dir=context_root_dir)
+    return InMemoryDataContext(
+        project_config=project_config, context_root_dir=context_root_dir
+    )
 
 
 __all__ = [

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List
+from typing import Any
 
 
 @dataclass
@@ -11,7 +12,7 @@ class ExpectationConfiguration:
     """Represent a single expectation entry."""
 
     expectation_type: str
-    kwargs: Dict[str, Any]
+    kwargs: dict[str, Any]
 
 
 @dataclass
@@ -19,14 +20,14 @@ class ExpectationSuite:
     """Lightweight container for expectation configurations."""
 
     expectation_suite_name: str
-    expectations: List[ExpectationConfiguration] = field(default_factory=list)
-    meta: Dict[str, Any] = field(default_factory=dict)
+    expectations: list[ExpectationConfiguration] = field(default_factory=list)
+    meta: dict[str, Any] = field(default_factory=dict)
 
     def __init__(
         self,
         expectation_suite_name: str,
-        expectations: Iterable[Dict[str, Any]],
-        meta: Dict[str, Any] | None = None,
+        expectations: Iterable[dict[str, Any]],
+        meta: dict[str, Any] | None = None,
         **_: Any,
     ) -> None:
         self.expectation_suite_name = expectation_suite_name

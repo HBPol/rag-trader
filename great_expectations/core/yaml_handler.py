@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import ast
-from typing import Any, List, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 
 def _parse_scalar(value: str) -> Any:
@@ -18,7 +19,7 @@ def _parse_scalar(value: str) -> Any:
         return None
     if value.startswith("[") and value.endswith("]"):
         return ast.literal_eval(value)
-    if (value.startswith("\"") and value.endswith("\"")) or (
+    if (value.startswith('"') and value.endswith('"')) or (
         value.startswith("'") and value.endswith("'")
     ):
         return value[1:-1]
@@ -31,7 +32,7 @@ def _parse_scalar(value: str) -> Any:
             return value
 
 
-def _parse_meta(lines: List[str], start_index: int) -> tuple[Mapping[str, Any], int]:
+def _parse_meta(lines: list[str], start_index: int) -> tuple[Mapping[str, Any], int]:
     meta: dict[str, Any] = {}
     index = start_index
     while index < len(lines):
@@ -44,7 +45,7 @@ def _parse_meta(lines: List[str], start_index: int) -> tuple[Mapping[str, Any], 
     return meta, index
 
 
-def _parse_kwargs(lines: List[str], start_index: int) -> tuple[Mapping[str, Any], int]:
+def _parse_kwargs(lines: list[str], start_index: int) -> tuple[Mapping[str, Any], int]:
     kwargs: dict[str, Any] = {}
     index = start_index
     while index < len(lines):
@@ -57,7 +58,9 @@ def _parse_kwargs(lines: List[str], start_index: int) -> tuple[Mapping[str, Any]
     return kwargs, index
 
 
-def _parse_expectation(lines: List[str], start_index: int) -> tuple[Mapping[str, Any], int]:
+def _parse_expectation(
+    lines: list[str], start_index: int
+) -> tuple[Mapping[str, Any], int]:
     expectation: dict[str, Any] = {}
     index = start_index
     line = lines[index]
