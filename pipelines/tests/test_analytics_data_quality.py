@@ -75,7 +75,14 @@ def test_analytics_fixture_passes_great_expectations(tmp_path: Path) -> None:
         data_context=context,
     )
 
-    result = checkpoint.run(validator=validator)
+    result = checkpoint.run(
+        validations=[
+            {
+                "batch_request": batch_request,
+                "expectation_suite_name": suite.expectation_suite_name,
+            }
+        ]
+    )
     assert result.success is True
     assert validator.active_batch_definition.batch_identifiers == {
         "default_identifier_name": "fixture"
