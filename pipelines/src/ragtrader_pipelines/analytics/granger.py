@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from importlib import import_module
+from typing import Any, Literal, Protocol, Self, cast, overload
 
-import pandas as pd
+pd: Any = import_module("pandas")
 
 try:  # pragma: no cover - exercised when statsmodels is available
-    from statsmodels.tsa.stattools import (
+    from statsmodels.tsa.stattools import (  # type: ignore[import-untyped]
         adfuller,
         grangercausalitytests,
     )
@@ -19,6 +20,42 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for constrained envir
 MAX_AUTOREGRESSIVE_ORDER = 12
 
 Direction = Literal["leader_causes_follower", "follower_causes_leader"]
+
+
+class SeriesLike(Protocol):
+    """Subset of the pandas ``Series`` API required by this module."""
+
+    name: str | None
+
+    @property
+    def empty(self) -> bool: ...
+
+    def dropna(self) -> Self: ...
+
+    def to_numpy(self, dtype: type[float]) -> Any: ...
+
+    def rename(self, name: str) -> Self: ...
+
+
+class DataFrameLike(Protocol):
+    """Subset of the pandas ``DataFrame`` API required by this module."""
+
+    @property
+    def empty(self) -> bool: ...
+
+    def dropna(self) -> Self: ...
+
+    def astype(self, dtype: type[float]) -> Self: ...
+
+    @overload
+    def __getitem__(self, key: str) -> SeriesLike: ...
+
+    @overload
+    def __getitem__(self, key: list[str]) -> Self: ...
+
+    def to_numpy(self, dtype: type[float]) -> Any: ...
+
+    def __len__(self) -> int: ...
 
 
 class GrangerCausalityError(RuntimeError):
@@ -82,7 +119,7 @@ class GrangerCausalitySummary:
 
 
 def test_stationarity(
-    series: pd.Series, *, name: str | None = None, significance: float = 0.05
+    series: SeriesLike, *, name: str | None = None, significance: float = 0.05
 ) -> StationarityTestResult:
     """Run an Augmented Dickey-Fuller test and return its outcome."""
 
@@ -121,8 +158,8 @@ def test_stationarity(
 
 
 def run_granger_causality(
-    leader: pd.Series,
-    follower: pd.Series,
+    leader: SeriesLike,
+    follower: SeriesLike,
     *,
     max_lag: int | None = None,
     significance: float = 0.05,
@@ -180,12 +217,13 @@ def run_granger_causality(
     )
 
 
-def _prepare_aligned_data(leader: pd.Series, follower: pd.Series) -> pd.DataFrame:
+def _prepare_aligned_data(leader: SeriesLike, follower: SeriesLike) -> DataFrameLike:
     """Align the leader and follower series and validate the sample size."""
 
-    aligned = pd.concat(
+    concatenated = pd.concat(
         [leader.rename("leader"), follower.rename("follower")], axis=1, join="inner"
-    ).dropna()
+    )
+    aligned = cast(DataFrameLike, concatenated.dropna())
 
     if aligned.empty:
         raise InsufficientSamplesError(
@@ -224,7 +262,7 @@ def _select_max_lag(sample_size: int, requested: int | None) -> int:
 
 
 def _run_directional_test(
-    data: pd.DataFrame,
+    data: DataFrameLike,
     *,
     cause: str,
     effect: str,

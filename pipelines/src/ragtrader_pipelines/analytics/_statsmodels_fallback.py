@@ -7,15 +7,16 @@ from statistics import NormalDist
 
 import numpy as np
 from numpy.typing import NDArray
+from typing import Any
 
 GrangerTestResult = dict[str, tuple[float, float, int, int]]
 GrangerResultMap = dict[int, tuple[GrangerTestResult, dict[str, float]]]
 
-FloatArray = NDArray[np.float_]
+FloatArray = NDArray[np.floating[Any]]
 
 
 def adfuller(
-    values: NDArray[np.float_],
+    values: NDArray[np.floating[Any]],
     maxlag: int | None = None,
     regression: str = "c",
     autolag: str | None = "AIC",
@@ -67,7 +68,7 @@ def adfuller(
 
 
 def grangercausalitytests(
-    data: NDArray[np.float_],
+    data: NDArray[np.floating[Any]],
     maxlag: int,
     addconst: bool = True,
     verbose: bool = True,
