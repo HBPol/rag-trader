@@ -1,3 +1,3 @@
 """Minimal statsmodels shim for analytics dependency smoke tests."""
 
-__all__ = []
+__all__: list[str] = []
