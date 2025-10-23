@@ -5,6 +5,13 @@ RAGTrader platform. It currently bundles the database helpers, Alembic
 migration CLI, and the health/readiness endpoints that keep ingestion
 pipelines operational while the broader implementation evolves.
 
+## Analytics dependencies
+
+The API surfaces analytics derived from the pipelines package and now
+depends on the shared scientific stack. Installing the project pulls in
+`numpy`, `scipy`, `statsmodels`, and `networkx` so the service can load
+precomputed artefacts and perform lightweight on-demand calculations.
+
 ## Configuration Summary
 
 The settings model reads environment variables using the

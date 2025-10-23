@@ -19,6 +19,10 @@ dependencies = [
   "uvicorn>=0.29",
   "qdrant-client>=1.9",
   "tenacity>=8.2",
+  "networkx>=3.2",
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "statsmodels>=0.14",
 ]
 
 [project.optional-dependencies]
@@ -35,7 +39,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--strict-config --strict-markers"
+addopts = "--strict-config --strict-markers --cov=ragtrader_api --cov-fail-under=80"
 testpaths = ["tests"]
 pythonpath = ["src"]
 markers = [

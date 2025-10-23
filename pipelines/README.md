@@ -7,6 +7,15 @@ adapters, a deduplication cache, the shared sentiment classifier, and a
 rolling z-score calculator. Both jobs provide scheduler-friendly CLI
 entrypoints and registry wiring.
 
+## Analytics dependencies
+
+The analytics stack now leans on the broader scientific Python
+ecosystem for graph analytics, statistical modelling, and numerical
+helpers. Installing the package will pull in `numpy`, `scipy`,
+`statsmodels`, and `networkx`; a lightweight import smoke test in
+`tests/test_analytics_dependency_imports.py` asserts that those modules
+are importable so contributors spot missing wheels early.
+
 ## Development
 
 ```bash

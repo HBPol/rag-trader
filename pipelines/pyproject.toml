@@ -11,10 +11,14 @@ license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-  "pandas>=2.2",
   "httpx>=0.26",
+  "networkx>=3.2",
+  "numpy>=1.26",
+  "pandas>=2.2",
   "redis>=5.0",
+  "scipy>=1.11",
   "sqlalchemy>=2.0",
+  "statsmodels>=0.14",
 ]
 
 [project.optional-dependencies]
@@ -35,7 +39,7 @@ data-quality = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--strict-config --strict-markers"
+addopts = "--strict-config --strict-markers --cov=ragtrader_pipelines --cov-fail-under=80"
 testpaths = ["tests"]
 pythonpath = ["src"]
 
