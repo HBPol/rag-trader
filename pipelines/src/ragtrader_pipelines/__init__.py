@@ -54,7 +54,14 @@ _SENTIMENT_EXPORTS = {
     "ZScoreCalculator",
 }
 
+_ANALYTICS_EXPORTS = {
+    "JoinStrategy",
+    "rolling_pearson",
+    "rolling_spearman",
+}
+
 if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
+    from .analytics import JoinStrategy, rolling_pearson, rolling_spearman  # noqa: F401
     from .coinbase import (  # noqa: F401
         CoinbaseClient,
         CoinbaseOhlcvIngestion,
@@ -108,6 +115,9 @@ def __getattr__(name: str) -> Any:
     if name in _SENTIMENT_EXPORTS:
         module = import_module(".sentiment", __name__)
         return getattr(module, name)
+    if name in _ANALYTICS_EXPORTS:
+        module = import_module(".analytics", __name__)
+        return getattr(module, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -117,6 +127,7 @@ def __dir__() -> list[str]:
         + list(_COINBASE_EXPORTS)
         + list(_CONTENT_EXPORTS)
         + list(_SENTIMENT_EXPORTS)
+        + list(_ANALYTICS_EXPORTS)
     )
 
 
@@ -125,4 +136,5 @@ __all__ = [
     *_COINBASE_EXPORTS,
     *_CONTENT_EXPORTS,
     *_SENTIMENT_EXPORTS,
+    *_ANALYTICS_EXPORTS,
 ]

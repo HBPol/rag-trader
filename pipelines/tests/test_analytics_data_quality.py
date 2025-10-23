@@ -14,7 +14,6 @@ from great_expectations.data_context.types.base import (
     DataContextConfig,
     FilesystemStoreBackendDefaults,
 )
-
 from pipelines.tests import get_analytics_fixture_path
 
 pytest.importorskip("great_expectations")
