@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal
+from typing import Any, Literal, cast
 
 import numpy as np
 import pandas as pd  # type: ignore[import-untyped]
+from numpy.typing import NDArray
 
 JoinStrategy = Literal["inner", "outer", "left", "right"]
+
+FloatArray = NDArray[np.floating[Any]]
 
 
 def _align_series(
@@ -38,7 +41,7 @@ def rolling_pearson(
     return correlations
 
 
-def _average_tied_ranks(values: np.ndarray) -> np.ndarray:
+def _average_tied_ranks(values: FloatArray) -> FloatArray:
     """Return average ranks for a 1D array, handling ties via averaging."""
 
     sorter = np.argsort(values, kind="mergesort")
@@ -51,12 +54,12 @@ def _average_tied_ranks(values: np.ndarray) -> np.ndarray:
     for start, end in zip(start_indices, cumulative, strict=False):
         slice_ranks = np.arange(start + 1, end + 1, dtype=float)
         ranks[start:end] = slice_ranks.mean()
-    result = np.empty_like(ranks)
+    result = np.empty_like(ranks, dtype=float)
     result[sorter] = ranks
-    return result
+    return cast(FloatArray, result)
 
 
-def _pearsonr(x: np.ndarray, y: np.ndarray) -> float:
+def _pearsonr(x: FloatArray, y: FloatArray) -> float:
     """Compute the Pearson correlation for two equally-sized vectors."""
 
     if x.size == 0 or y.size == 0:
