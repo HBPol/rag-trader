@@ -5,10 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-import pandas as pd  # type: ignore[import-untyped]
+import pandas as pd
 
 try:  # pragma: no cover - exercised when statsmodels is available
-    from statsmodels.tsa.stattools import (  # type: ignore[import-not-found]
+    from statsmodels.tsa.stattools import (  # type: ignore[import-not-found,import-untyped]
         adfuller,
         grangercausalitytests,
     )
