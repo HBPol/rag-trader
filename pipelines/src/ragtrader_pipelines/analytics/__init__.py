@@ -6,12 +6,32 @@ from .cross_correlation import (
     cross_correlation_scores,
     normalize_aligned_series,
 )
+from .granger import (
+    Direction,
+    DirectionalGrangerResult,
+    GrangerCausalityError,
+    GrangerCausalitySummary,
+    InsufficientSamplesError,
+    NonStationarySeriesError,
+    StationarityTestResult,
+    run_granger_causality,
+    test_stationarity,
+)
 
 __all__ = [
     "JoinStrategy",
     "best_cross_correlation",
     "cross_correlation_scores",
+    "Direction",
+    "DirectionalGrangerResult",
+    "GrangerCausalityError",
+    "GrangerCausalitySummary",
+    "InsufficientSamplesError",
+    "NonStationarySeriesError",
     "normalize_aligned_series",
     "rolling_pearson",
     "rolling_spearman",
+    "StationarityTestResult",
+    "run_granger_causality",
+    "test_stationarity",
 ]
