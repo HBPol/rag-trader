@@ -11,6 +11,8 @@ from numpy.typing import NDArray
 GrangerTestResult = dict[str, tuple[float, float, int, int]]
 GrangerResultMap = dict[int, tuple[GrangerTestResult, dict[str, float]]]
 
+FloatArray = NDArray[np.float_]
+
 
 def adfuller(
     values: NDArray[np.float_],
@@ -25,7 +27,7 @@ def adfuller(
     if regression != "c":  # pragma: no cover - defensive guard
         raise NotImplementedError("Fallback ADF only supports constant regression")
 
-    series = np.asarray(values, dtype=float)
+    series: FloatArray = np.asarray(values, dtype=float)
     if series.ndim != 1:
         raise ValueError("ADF input must be one-dimensional")
     if series.size < 3:
@@ -75,7 +77,7 @@ def grangercausalitytests(
     if not addconst:  # pragma: no cover - defensive guard
         raise NotImplementedError("Fallback Granger tests always include a constant")
 
-    array = np.asarray(data, dtype=float)
+    array: FloatArray = np.asarray(data, dtype=float)
     if array.ndim != 2 or array.shape[1] != 2:
         raise ValueError("Granger causality data must be 2D with two columns")
 
