@@ -33,9 +33,9 @@ def adfuller(
     if series.size < 3:
         raise ValueError("ADF requires at least 3 observations")
 
-    deltas = np.diff(series)
-    lagged = series[:-1]
-    design = np.column_stack([np.ones_like(lagged), lagged])
+    deltas: FloatArray = np.diff(series)
+    lagged: FloatArray = series[:-1]
+    design: FloatArray = np.column_stack([np.ones_like(lagged), lagged])
     coefficients, _, _, _ = np.linalg.lstsq(design, deltas, rcond=None)
     residuals = deltas - design @ coefficients
 
@@ -81,8 +81,8 @@ def grangercausalitytests(
     if array.ndim != 2 or array.shape[1] != 2:
         raise ValueError("Granger causality data must be 2D with two columns")
 
-    effect = array[:, 0]
-    cause = array[:, 1]
+    effect: FloatArray = array[:, 0]
+    cause: FloatArray = array[:, 1]
     n_obs = array.shape[0]
     if n_obs <= maxlag:
         raise ValueError("Not enough observations for requested lag")
@@ -92,17 +92,21 @@ def grangercausalitytests(
         if n_obs <= lag:
             raise ValueError("Lag order exceeds available observations")
 
-        response = effect[lag:]
+        response: FloatArray = effect[lag:]
         end = len(effect)
-        effect_lags = np.column_stack(
+        effect_lags: FloatArray = np.column_stack(
             [effect[lag - offset - 1 : end - offset - 1] for offset in range(lag)]
         )
-        cause_lags = np.column_stack(
+        cause_lags: FloatArray = np.column_stack(
             [cause[lag - offset - 1 : end - offset - 1] for offset in range(lag)]
         )
 
-        design_full = np.column_stack([np.ones(len(response)), effect_lags, cause_lags])
-        design_restricted = np.column_stack([np.ones(len(response)), effect_lags])
+        design_full: FloatArray = np.column_stack(
+            [np.ones(len(response)), effect_lags, cause_lags]
+        )
+        design_restricted: FloatArray = np.column_stack(
+            [np.ones(len(response)), effect_lags]
+        )
 
         beta_full, _, _, _ = np.linalg.lstsq(design_full, response, rcond=None)
         resid_full = response - design_full @ beta_full
