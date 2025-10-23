@@ -29,6 +29,8 @@ dev = [
   "black>=24.2",
   "isort>=5.13",
   "mypy>=1.8",
+  "pandas-stubs",
+  "statsmodels-stubs",
   "types-redis>=4.6.0.4",
   "great-expectations>=0.18,<0.19",
 ]

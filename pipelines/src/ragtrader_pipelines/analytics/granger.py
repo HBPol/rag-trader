@@ -8,7 +8,7 @@ from typing import Literal
 import pandas as pd
 
 try:  # pragma: no cover - exercised when statsmodels is available
-    from statsmodels.tsa.stattools import (  # type: ignore[import-not-found,import-untyped]
+    from statsmodels.tsa.stattools import (
         adfuller,
         grangercausalitytests,
     )
