@@ -68,7 +68,18 @@ packages = ["ragtrader_pipelines"]
 mypy_path = ["src", "../api/src"]
 
 [[tool.mypy.overrides]]
-module = ["sqlalchemy", "sqlalchemy.*", "alembic", "alembic.*", "httpx", "qdrant_client"]
+module = [
+  "sqlalchemy",
+  "sqlalchemy.*",
+  "alembic",
+  "alembic.*",
+  "httpx",
+  "qdrant_client",
+  "pandas",
+  "pandas.*",
+  "statsmodels",
+  "statsmodels.*",
+]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
