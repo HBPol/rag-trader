@@ -9,7 +9,7 @@ from typing import Any, Literal, Protocol, Self, cast, overload
 pd: Any = import_module("pandas")
 
 try:  # pragma: no cover - exercised when statsmodels is available
-    from statsmodels.tsa.stattools import (  # type: ignore[import-untyped]
+    from statsmodels.tsa.stattools import (
         adfuller,
         grangercausalitytests,
     )
