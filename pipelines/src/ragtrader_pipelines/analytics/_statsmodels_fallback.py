@@ -11,11 +11,11 @@ from numpy.typing import NDArray
 GrangerTestResult = dict[str, tuple[float, float, int, int]]
 GrangerResultMap = dict[int, tuple[GrangerTestResult, dict[str, float]]]
 
-FloatArray = NDArray[np.float_]
+FloatArray = NDArray[np.float64]
 
 
 def adfuller(
-    values: NDArray[np.float_],
+    values: NDArray[np.float64],
     maxlag: int | None = None,
     regression: str = "c",
     autolag: str | None = "AIC",
@@ -67,7 +67,7 @@ def adfuller(
 
 
 def grangercausalitytests(
-    data: NDArray[np.float_],
+    data: NDArray[np.float64],
     maxlag: int,
     addconst: bool = True,
     verbose: bool = True,

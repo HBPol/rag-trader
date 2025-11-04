@@ -76,6 +76,8 @@ module = [
   "qdrant_client",
   "pandas",
   "pandas.*",
+  "networkx",
+  "networkx.*",
   "statsmodels",
   "statsmodels.*",
 ]
