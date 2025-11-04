@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from typing import Any, Literal, cast
 
 import numpy as np
-import pandas as pd  # type: ignore[import-untyped]
+import pandas as pd
 from numpy.typing import NDArray
 
 JoinStrategy = Literal["inner", "outer", "left", "right"]
