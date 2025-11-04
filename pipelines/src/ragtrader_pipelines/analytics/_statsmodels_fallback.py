@@ -7,7 +7,6 @@ from statistics import NormalDist
 
 import numpy as np
 from numpy.typing import NDArray
-from typing import Any
 
 GrangerTestResult = dict[str, tuple[float, float, int, int]]
 GrangerResultMap = dict[int, tuple[GrangerTestResult, dict[str, float]]]

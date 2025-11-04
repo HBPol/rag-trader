@@ -9,10 +9,7 @@ from typing import Any, Literal, Protocol, Self, cast, overload
 pd: Any = import_module("pandas")
 
 try:  # pragma: no cover - exercised when statsmodels is available
-    from statsmodels.tsa.stattools import (
-        adfuller,
-        grangercausalitytests,
-    )
+    from statsmodels.tsa.stattools import adfuller, grangercausalitytests
 except ModuleNotFoundError:  # pragma: no cover - fallback for constrained environments
     from ._statsmodels_fallback import adfuller, grangercausalitytests
 
