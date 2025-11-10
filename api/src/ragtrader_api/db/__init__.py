@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from . import database, migrations, models
+from . import database, migrations, models, repositories, seed_demo
 
-__all__ = ["database", "migrations", "models"]
+__all__ = ["database", "migrations", "models", "repositories", "seed_demo"]

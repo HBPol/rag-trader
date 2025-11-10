@@ -88,6 +88,63 @@ Use `RAGTRADER_API_USE_QDRANT_CLOUD=false` and omit the API key to target a
 local or self-hosted instance. All CRUD helpers automatically retry
 transient network failures using an exponential backoff.
 
+## Analytics persistence helpers
+
+Statistical artefacts computed by the pipelines package land in the API
+database. The new `SqlAlchemyAnalyticsRepository` writes feature vectors,
+lead/lag pairs, and Granger causality test results while providing typed
+query helpers for API handlers.
+
+```python
+from datetime import UTC, datetime
+from decimal import Decimal
+
+from ragtrader_api.db import database
+from ragtrader_api.db.repositories.analytics import (
+    FeatureRecord,
+    GrangerTestRecord,
+    LeadLagRecord,
+    SqlAlchemyAnalyticsRepository,
+)
+from ragtrader_api.settings import ApiSettings
+
+settings = ApiSettings(postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app")
+engine = database.create_engine(settings)
+session_factory = database.session_factory(engine)
+repository = SqlAlchemyAnalyticsRepository(session_factory)
+
+repository.upsert_features(
+    [
+        FeatureRecord(
+            symbol="BTC",
+            feature_name="rsi_14",
+            ts=datetime(2024, 1, 1, tzinfo=UTC),
+            value=Decimal("54.3210"),
+        )
+    ]
+)
+
+repository.upsert_lead_lag(
+    [
+        LeadLagRecord(
+            leader="BTC",
+            follower="ETH",
+            window="1h",
+            best_lag_min=15,
+            strength=Decimal("0.8125"),
+            computed_ts=datetime(2024, 1, 1, 1, tzinfo=UTC),
+        )
+    ]
+)
+
+latest = repository.list_granger_tests(direction="x->y", limit=5)
+```
+
+Run `python -m ragtrader_api.db.seed_demo` after configuring the Postgres
+DSN to load deterministic demo rows into the `features`, `lead_lag`, and
+`granger_tests` tables. The helper applies migrations on the fly so a
+fresh database is ready for inspection via `psql` or `psycopg` notebooks.
+
 ### Database workflows
 
 ```bash
@@ -96,6 +153,9 @@ python -m ragtrader_api.db
 
 # Run integration tests that exercise Postgres + Alembic
 pytest tests/test_database.py
+
+# Exercise analytics migrations + repository helpers
+pytest tests/test_analytics_persistence.py
 ```
 
 * Migration helpers live in `src/ragtrader_api/db/migrations/__init__.py`.
