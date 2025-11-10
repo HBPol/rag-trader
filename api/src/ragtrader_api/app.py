@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
 from urllib.parse import parse_qsl, urlsplit
 
 from .analytics import create_analytics_service
@@ -218,6 +218,8 @@ class MiniApp:
         serialized.setdefault("status", "ok")
         return Response(status_code=200, json=serialized)
 
+    AnalyticsHandler = Callable[[], tuple[int, dict[str, Any]]]
+
     def _invoke_analytics(self, handler: str) -> tuple[int, dict[str, Any]] | Response:
         try:
             service = create_analytics_service(self.settings)
@@ -226,7 +228,7 @@ class MiniApp:
                 status_code=500, json={"status": "error", "message": str(exc)}
             )
 
-        method = getattr(service, handler)
+        method = cast(AnalyticsHandler, getattr(service, handler))
         return method()
 
     def _get_lead_lag(self, _: dict[str, str] | None = None) -> Response:
