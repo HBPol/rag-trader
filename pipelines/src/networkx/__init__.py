@@ -17,11 +17,17 @@ search_path = [
 
 spec = PathFinder.find_spec("networkx", search_path)
 loaded: ModuleType | None = None
+module: ModuleType | None = None
 if spec is not None and spec.loader is not None and spec.origin != __file__:
-    loaded = util.module_from_spec(spec)
-    spec.loader.exec_module(loaded)
-    module: ModuleType = loaded
-else:  # pragma: no cover - executed when real dependency is unavailable
+    try:
+        loaded = util.module_from_spec(spec)
+        spec.loader.exec_module(loaded)
+    except (ImportError, ModuleNotFoundError):
+        loaded = None
+    else:
+        module = loaded
+
+if module is None:  # pragma: no cover - executed when real dependency is unavailable
     from ragtrader_pipelines._compat.networkx import DiGraph as _DiGraph
 
     module = ModuleType("networkx")
