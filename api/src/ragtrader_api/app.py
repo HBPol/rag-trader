@@ -15,6 +15,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 from urllib.parse import parse_qsl, urlsplit
 
+from .analytics import create_analytics_service
 from .sentiment import create_sentiment_service
 from .settings import (
     ApiSettings,
@@ -70,6 +71,10 @@ class MiniApp:
         self.add_route("GET", "/readyz", self._readyz)
         self.add_route("POST", "/jobs/poll_ohlcv", self._poll_coinbase_ohlcv_job)
         self.add_route("GET", "/sentiment", self._get_sentiment)
+        self.add_route("GET", "/analytics/leadlag", self._get_lead_lag)
+        self.add_route("GET", "/analytics/correlation", self._get_correlation)
+        self.add_route("GET", "/analytics/granger", self._get_granger)
+        self.add_route("GET", "/analytics/influence-graph", self._get_influence_graph)
 
     def add_route(
         self,
@@ -212,6 +217,45 @@ class MiniApp:
 
         serialized.setdefault("status", "ok")
         return Response(status_code=200, json=serialized)
+
+    def _invoke_analytics(self, handler: str) -> tuple[int, dict[str, Any]] | Response:
+        try:
+            service = create_analytics_service(self.settings)
+        except SettingsValidationError as exc:
+            return Response(
+                status_code=500, json={"status": "error", "message": str(exc)}
+            )
+
+        method = getattr(service, handler)
+        return method()
+
+    def _get_lead_lag(self, _: dict[str, str] | None = None) -> Response:
+        result = self._invoke_analytics("lead_lag")
+        if isinstance(result, Response):
+            return result
+        status, payload = result
+        return Response(status_code=status, json=payload)
+
+    def _get_correlation(self, _: dict[str, str] | None = None) -> Response:
+        result = self._invoke_analytics("correlation")
+        if isinstance(result, Response):
+            return result
+        status, payload = result
+        return Response(status_code=status, json=payload)
+
+    def _get_granger(self, _: dict[str, str] | None = None) -> Response:
+        result = self._invoke_analytics("granger")
+        if isinstance(result, Response):
+            return result
+        status, payload = result
+        return Response(status_code=status, json=payload)
+
+    def _get_influence_graph(self, _: dict[str, str] | None = None) -> Response:
+        result = self._invoke_analytics("influence_graph")
+        if isinstance(result, Response):
+            return result
+        status, payload = result
+        return Response(status_code=status, json=payload)
 
 
 def _default_job_factory(

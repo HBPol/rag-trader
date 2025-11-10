@@ -9,4 +9,6 @@ try:  # pragma: no cover - best effort metadata lookup
 except PackageNotFoundError:  # pragma: no cover - package not installed yet
     __version__ = "0.0.0"
 
-__all__ = ["__version__", "VectorStoreRepository"]
+from .analytics import AnalyticsService
+
+__all__ = ["__version__", "AnalyticsService", "VectorStoreRepository"]

@@ -47,6 +47,24 @@ def create_fastapi_app() -> FastAPI:
             path = f"{path}?{urlencode(query)}"
         return _adapt_response(mini_app.dispatch("GET", path))
 
+    @fastapi_app.get("/analytics/leadlag")
+    async def analytics_leadlag() -> JSONResponse:  # pragma: no cover - integration
+        return _adapt_response(mini_app.dispatch("GET", "/analytics/leadlag"))
+
+    @fastapi_app.get("/analytics/correlation")
+    async def analytics_correlation() -> JSONResponse:  # pragma: no cover - integration
+        return _adapt_response(mini_app.dispatch("GET", "/analytics/correlation"))
+
+    @fastapi_app.get("/analytics/granger")
+    async def analytics_granger() -> JSONResponse:  # pragma: no cover - integration
+        return _adapt_response(mini_app.dispatch("GET", "/analytics/granger"))
+
+    @fastapi_app.get("/analytics/influence-graph")
+    async def analytics_influence_graph() -> (
+        JSONResponse
+    ):  # pragma: no cover - integration
+        return _adapt_response(mini_app.dispatch("GET", "/analytics/influence-graph"))
+
     return fastapi_app
 
 

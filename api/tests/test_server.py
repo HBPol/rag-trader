@@ -70,6 +70,18 @@ def test_fastapi_routes_delegate_to_mini_app(
                     ("GET", "/readyz"): Response(
                         status_code=503, json={"endpoint": "ready"}
                     ),
+                    ("GET", "/analytics/leadlag"): Response(
+                        status_code=200, json={"endpoint": "leadlag"}
+                    ),
+                    ("GET", "/analytics/correlation"): Response(
+                        status_code=200, json={"endpoint": "correlation"}
+                    ),
+                    ("GET", "/analytics/granger"): Response(
+                        status_code=503, json={"endpoint": "granger"}
+                    ),
+                    ("GET", "/analytics/influence-graph"): Response(
+                        status_code=200, json={"endpoint": "influence"}
+                    ),
                 }
 
             def dispatch(self, method: str, path: str) -> Response:
@@ -89,8 +101,19 @@ def test_fastapi_routes_delegate_to_mini_app(
 
         health_response = await routes["/healthz"].endpoint()
         ready_response = await routes["/readyz"].endpoint()
+        leadlag_response = await routes["/analytics/leadlag"].endpoint()
+        correlation_response = await routes["/analytics/correlation"].endpoint()
+        granger_response = await routes["/analytics/granger"].endpoint()
+        influence_response = await routes["/analytics/influence-graph"].endpoint()
 
-        assert stub.calls == [("GET", "/healthz"), ("GET", "/readyz")]
+        assert stub.calls == [
+            ("GET", "/healthz"),
+            ("GET", "/readyz"),
+            ("GET", "/analytics/leadlag"),
+            ("GET", "/analytics/correlation"),
+            ("GET", "/analytics/granger"),
+            ("GET", "/analytics/influence-graph"),
+        ]
 
         assert isinstance(health_response, JSONResponse)
         assert health_response.status_code == 200
@@ -102,6 +125,27 @@ def test_fastapi_routes_delegate_to_mini_app(
         assert ready_response.status_code == 503
         assert json.loads(ready_response.body.decode("utf-8")) == {
             "endpoint": "ready",
+        }
+
+        assert isinstance(leadlag_response, JSONResponse)
+        assert json.loads(leadlag_response.body.decode("utf-8")) == {
+            "endpoint": "leadlag"
+        }
+
+        assert isinstance(correlation_response, JSONResponse)
+        assert json.loads(correlation_response.body.decode("utf-8")) == {
+            "endpoint": "correlation"
+        }
+
+        assert isinstance(granger_response, JSONResponse)
+        assert granger_response.status_code == 503
+        assert json.loads(granger_response.body.decode("utf-8")) == {
+            "endpoint": "granger"
+        }
+
+        assert isinstance(influence_response, JSONResponse)
+        assert json.loads(influence_response.body.decode("utf-8")) == {
+            "endpoint": "influence"
         }
 
     asyncio.run(run_test())
