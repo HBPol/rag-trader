@@ -50,6 +50,9 @@ class Response:
     json: dict[str, Any]
 
 
+AnalyticsHandler = Callable[[], tuple[int, dict[str, Any]]]
+
+
 class MiniApp:
     """Extremely small routing harness used for tests."""
 
@@ -217,8 +220,6 @@ class MiniApp:
 
         serialized.setdefault("status", "ok")
         return Response(status_code=200, json=serialized)
-
-    AnalyticsHandler = Callable[[], tuple[int, dict[str, Any]]]
 
     def _invoke_analytics(self, handler: str) -> tuple[int, dict[str, Any]] | Response:
         try:
