@@ -155,13 +155,27 @@ class BaseContentAdapter:
         """Normalise a URL for caching/deduplication purposes."""
 
         split = urlsplit(url, allow_fragments=True)
-        netloc = canonical_host.lower()
+
+        canonical_host = canonical_host.lower()
+        alias_hosts = {canonical_host}
+        if canonical_host.startswith("www."):
+            alias_hosts.add(canonical_host.removeprefix("www."))
+
+        hostname = (split.hostname or "").lower()
+        port = split.port
+
+        if not hostname or hostname in alias_hosts:
+            hostname = canonical_host
+            port = None
+
+        netloc = hostname if port is None else f"{hostname}:{port}"
+
         path = split.path or "/"
         path = re.sub(r"//+", "/", path)
         path = path.lower()
 
         normalized = SplitResult(
-            scheme="https",
+            scheme=split.scheme or "https",
             netloc=netloc,
             path=path,
             query="",
