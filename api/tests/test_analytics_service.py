@@ -355,3 +355,36 @@ def test_analytics_handlers_surface_settings_errors(
     payload = response.json
     assert payload["status"] == "error"
     assert payload["message"] == message
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        "/analytics/leadlag",
+        "/analytics/correlation",
+        "/analytics/granger",
+        "/analytics/influence-graph",
+    ),
+)
+def test_analytics_handlers_return_error_when_no_data(
+    monkeypatch: pytest.MonkeyPatch,
+    api_settings: ApiSettings,
+    fixed_now: datetime,
+    path: str,
+) -> None:
+    repository = FakeAnalyticsRepository()
+    service = _build_service(api_settings, repository, now=fixed_now)
+
+    monkeypatch.setattr(
+        "ragtrader_api.app.create_analytics_service",
+        lambda settings: service,
+    )
+
+    app = create_app(settings=api_settings)
+    response = app.dispatch("GET", path)
+
+    assert response.status_code == 503
+    payload = response.json
+    assert payload["status"] == "error"
+    assert payload.get("freshness", {}).get("age_minutes") is None
+    assert "unavailable" in payload.get("message", "").lower()

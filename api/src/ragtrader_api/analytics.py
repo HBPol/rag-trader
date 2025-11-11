@@ -292,14 +292,14 @@ class AnalyticsService:
     # ------------------------------------------------------------------
     def _metadata(
         self, last_updated: datetime | None
-    ) -> tuple[int, str, dict[str, float], str | None, str | None]:
+    ) -> tuple[int, str, dict[str, float | None], str | None, str | None]:
         if last_updated is None:
             return (
                 503,
                 "error",
-                {"age_minutes": float("inf")},
-                "Analytics data is unavailable; \
-                upstream pipelines have not produced results yet.",
+                {"age_minutes": None},
+                "Analytics data is unavailable; "
+                "upstream pipelines have not produced results yet.",
                 None,
             )
 

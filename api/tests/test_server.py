@@ -149,3 +149,62 @@ def test_fastapi_routes_delegate_to_mini_app(
         }
 
     asyncio.run(run_test())
+
+
+def test_fastapi_routes_propagate_analytics_errors(
+    server_module: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def run_test() -> None:
+        class StubMiniApp:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, str]] = []
+
+            def dispatch(self, method: str, path: str) -> Response:
+                key = (method, path)
+                self.calls.append(key)
+                if path.startswith("/analytics/"):
+                    payload = {
+                        "status": "error",
+                        "freshness": {"age_minutes": None},
+                        "message": "Analytics data is unavailable; "
+                        "upstream pipelines have not produced results yet.",
+                    }
+                    return Response(status_code=503, json=payload)
+                raise AssertionError(f"Unexpected route dispatched: {key}")
+
+        stub = StubMiniApp()
+        monkeypatch.setattr(server_module, "create_app", lambda: stub)
+
+        fastapi_app = server_module.create_fastapi_app()
+        routes = {
+            route.path: route
+            for route in fastapi_app.router.routes
+            if isinstance(route, APIRoute)
+        }
+
+        leadlag_response = await routes["/analytics/leadlag"].endpoint()
+        correlation_response = await routes["/analytics/correlation"].endpoint()
+        granger_response = await routes["/analytics/granger"].endpoint()
+        influence_response = await routes["/analytics/influence-graph"].endpoint()
+
+        assert stub.calls == [
+            ("GET", "/analytics/leadlag"),
+            ("GET", "/analytics/correlation"),
+            ("GET", "/analytics/granger"),
+            ("GET", "/analytics/influence-graph"),
+        ]
+
+        for response in (
+            leadlag_response,
+            correlation_response,
+            granger_response,
+            influence_response,
+        ):
+            assert isinstance(response, JSONResponse)
+            assert response.status_code == 503
+            payload = json.loads(response.body.decode("utf-8"))
+            assert payload["status"] == "error"
+            assert payload.get("freshness", {}).get("age_minutes") is None
+            assert "unavailable" in payload.get("message", "").lower()
+
+    asyncio.run(run_test())
