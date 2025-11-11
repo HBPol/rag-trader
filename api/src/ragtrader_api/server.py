@@ -65,6 +65,10 @@ def create_fastapi_app() -> FastAPI:
     ):  # pragma: no cover - integration
         return _adapt_response(mini_app.dispatch("GET", "/analytics/influence-graph"))
 
+    @fastapi_app.post("/jobs/poll_ohlcv", status_code=202)
+    async def jobs_poll_ohlcv() -> JSONResponse:  # pragma: no cover - integration
+        return _adapt_response(mini_app.dispatch("POST", "/jobs/poll_ohlcv"))
+
     return fastapi_app
 
 

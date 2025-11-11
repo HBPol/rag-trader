@@ -82,6 +82,9 @@ def test_fastapi_routes_delegate_to_mini_app(
                     ("GET", "/analytics/influence-graph"): Response(
                         status_code=200, json={"endpoint": "influence"}
                     ),
+                    ("POST", "/jobs/poll_ohlcv"): Response(
+                        status_code=202, json={"endpoint": "poll_ohlcv"}
+                    ),
                 }
 
             def dispatch(self, method: str, path: str) -> Response:
@@ -105,6 +108,7 @@ def test_fastapi_routes_delegate_to_mini_app(
         correlation_response = await routes["/analytics/correlation"].endpoint()
         granger_response = await routes["/analytics/granger"].endpoint()
         influence_response = await routes["/analytics/influence-graph"].endpoint()
+        poll_response = await routes["/jobs/poll_ohlcv"].endpoint()
 
         assert stub.calls == [
             ("GET", "/healthz"),
@@ -113,6 +117,7 @@ def test_fastapi_routes_delegate_to_mini_app(
             ("GET", "/analytics/correlation"),
             ("GET", "/analytics/granger"),
             ("GET", "/analytics/influence-graph"),
+            ("POST", "/jobs/poll_ohlcv"),
         ]
 
         assert isinstance(health_response, JSONResponse)
@@ -146,6 +151,12 @@ def test_fastapi_routes_delegate_to_mini_app(
         assert isinstance(influence_response, JSONResponse)
         assert json.loads(influence_response.body.decode("utf-8")) == {
             "endpoint": "influence"
+        }
+
+        assert isinstance(poll_response, JSONResponse)
+        assert poll_response.status_code == 202
+        assert json.loads(poll_response.body.decode("utf-8")) == {
+            "endpoint": "poll_ohlcv"
         }
 
     asyncio.run(run_test())
