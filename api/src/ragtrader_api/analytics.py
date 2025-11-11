@@ -310,7 +310,7 @@ class AnalyticsService:
             now = now.replace(tzinfo=UTC)
 
         age_minutes = max(0.0, (now - normalized).total_seconds() / 60)
-        freshness = {"age_minutes": age_minutes}
+        freshness: dict[str, float | None] = {"age_minutes": age_minutes}
 
         if age_minutes <= self._max_age_minutes:
             return 200, "ok", freshness, None, normalized.isoformat()
