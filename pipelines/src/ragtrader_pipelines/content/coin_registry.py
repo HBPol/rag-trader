@@ -9,7 +9,7 @@ from functools import lru_cache
 
 try:  # pragma: no cover - optional dependency during packaging
     from ragtrader_api.settings import (
-        _DEFAULT_SCHEDULER_SYMBOLS as _API_DEFAULT_SCHEDULER_SYMBOLS,  # type: ignore
+        _DEFAULT_SCHEDULER_SYMBOLS as _API_DEFAULT_SCHEDULER_SYMBOLS,
     )
 except Exception:  # pragma: no cover - defensive import guard
     _API_DEFAULT_SCHEDULER_SYMBOLS = ("BTC-USD", "ETH-USD", "SOL-USD")
