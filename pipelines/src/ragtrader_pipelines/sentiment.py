@@ -8,6 +8,8 @@ from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 
+from .content.coin_registry import normalise_supported_ticker
+
 
 class SentimentLabel(str, Enum):
     """High-level polarity labels emitted by the classifier."""
@@ -309,10 +311,12 @@ class SentimentClassifier:
             iterable = coins
         else:
             return ()
-        uppercased = {
-            str(token).strip().upper() for token in iterable if str(token).strip()
-        }
-        return tuple(sorted(uppercased))
+        supported: set[str] = set()
+        for token in iterable:
+            candidate = normalise_supported_ticker(token)
+            if candidate:
+                supported.add(candidate)
+        return tuple(sorted(supported))
 
     @staticmethod
     def _count_matches(text: str, keywords: set[str]) -> int:

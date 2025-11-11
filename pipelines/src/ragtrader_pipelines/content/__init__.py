@@ -31,6 +31,11 @@ from ..sentiment import (
     SentimentSeriesPoint,
     ZScoreCalculator,
 )
+from .coin_registry import (
+    KNOWN_TICKERS,
+    is_supported_ticker,
+    normalise_supported_ticker,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +48,13 @@ __all__ = [
     "CoinDeskContentSource",
     "CoinTelegraphAdapter",
     "CoinTelegraphContentSource",
+    "KNOWN_TICKERS",
     "InMemoryDedupeCache",
     "NormalizedArticleRecord",
     "RedditContentSource",
     "RedisDedupeCache",
+    "is_supported_ticker",
+    "normalise_supported_ticker",
     "build_arg_parser",
     "build_sources_from_env",
     "default_content_sources",
@@ -231,17 +239,12 @@ class BaseContentAdapter:
             for token in collection:
                 if not token:
                     continue
-                normalized = re.sub(r"[^A-Za-z0-9]", "", str(token)).upper()
-                if not normalized:
+                candidate = normalise_supported_ticker(token)
+                if not candidate:
                     continue
-                if normalized.isdigit():
+                if candidate in stopwords:
                     continue
-                if not re.search(r"[A-Z]", normalized):
-                    continue
-                if normalized.endswith("NEWS"):
-                    continue
-                if 2 <= len(normalized) <= 10 and normalized not in stopwords:
-                    coins.add(normalized)
+                coins.add(candidate)
         return sorted(coins)
 
     @staticmethod

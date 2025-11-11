@@ -27,6 +27,7 @@ _CONTENT_EXPORTS = {
     "CoinDeskContentSource",
     "CoinTelegraphAdapter",
     "CoinTelegraphContentSource",
+    "KNOWN_TICKERS",
     "InMemoryDedupeCache",
     "NormalizedArticleRecord",
     "RedditContentSource",
@@ -36,10 +37,12 @@ _CONTENT_EXPORTS = {
     "SqlAlchemyContentRepository",
     "UnsupportedLanguageError",
     "SourceFactoryError",
+    "is_supported_ticker",
     "build_sources_from_env",
     "build_arg_parser",
     "default_content_sources",
     "main",
+    "normalise_supported_ticker",
     "register_content_ingestion_job",
 }
 
@@ -70,6 +73,7 @@ if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
         SqlAlchemyCandleRepository,
     )
     from .content import (  # noqa: F401
+        KNOWN_TICKERS,
         ArticleCandidate,
         BaseContentAdapter,
         CoinDeskAdapter,
@@ -90,7 +94,9 @@ if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
         build_arg_parser,
         build_sources_from_env,
         default_content_sources,
+        is_supported_ticker,
         main,
+        normalise_supported_ticker,
         register_content_ingestion_job,
     )
     from .sentiment import (  # noqa: F401
