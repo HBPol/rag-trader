@@ -15,7 +15,7 @@ from ragtrader_api.db.repositories.analytics import (
     GrangerTestRecord,
     LeadLagRecord,
 )
-from ragtrader_api.settings import ApiSettings
+from ragtrader_api.settings import ApiSettings, SettingsValidationError
 
 
 class FakeAnalyticsRepository:
@@ -322,3 +322,36 @@ def test_influence_graph_handler_marks_stale_and_builds_edges(
     assert edge["granger_p_value"] == pytest.approx(0.02)
     assert edge["granger_reject_null"] is True
     assert edge["weight"] == pytest.approx((0.8 + 0.75 + 0.98) / 3, rel=1e-6)
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        "/analytics/leadlag",
+        "/analytics/correlation",
+        "/analytics/granger",
+        "/analytics/influence-graph",
+    ),
+)
+def test_analytics_handlers_surface_settings_errors(
+    monkeypatch, api_settings, path
+) -> None:
+    message = "Postgres DSN is required to serve analytics endpoints."
+
+    api_settings.require_database = True
+    api_settings.postgres_dsn = None
+
+    def _raise(_: ApiSettings) -> AnalyticsService:  # pragma: no cover - never returns
+        raise SettingsValidationError(message)
+
+    monkeypatch.setattr("ragtrader_api.app.create_analytics_service", _raise)
+
+    app = create_app(settings=api_settings)
+    response = app.dispatch("GET", path)
+
+    assert isinstance(response, Response)
+    assert response.status_code == 500
+
+    payload = response.json
+    assert payload["status"] == "error"
+    assert payload["message"] == message
