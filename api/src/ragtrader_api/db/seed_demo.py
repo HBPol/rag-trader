@@ -38,6 +38,8 @@ def load_demo_data() -> None:
                 ("BTC", "Bitcoin"),
                 ("ETH", "Ethereum"),
                 ("SOL", "Solana"),
+                ("BTC-ETH", "BTC/ETH Pair"),
+                ("ETH-SOL", "ETH/SOL Pair"),
             )
             for symbol, name in symbols:
                 conn.execute(
@@ -65,6 +67,18 @@ def load_demo_data() -> None:
                     ts=later_ts,
                     value=Decimal("48.7654"),
                 ),
+                FeatureRecord(
+                    symbol="BTC-ETH",
+                    feature_name="correlation:pearson:1h",
+                    ts=later_ts,
+                    value=Decimal("0.8456"),
+                ),
+                FeatureRecord(
+                    symbol="ETH-SOL",
+                    feature_name="correlation:pearson:1h",
+                    ts=later_ts,
+                    value=Decimal("-0.3789"),
+                ),
             ]
         )
 
@@ -81,10 +95,18 @@ def load_demo_data() -> None:
                 LeadLagRecord(
                     leader="BTC",
                     follower="ETH",
-                    window="1h",
-                    best_lag_min=5,
-                    strength=Decimal("0.6321"),
+                    window="4h",
+                    best_lag_min=60,
+                    strength=Decimal("0.7021"),
                     computed_ts=base_ts,
+                ),
+                LeadLagRecord(
+                    leader="ETH",
+                    follower="SOL",
+                    window="1h",
+                    best_lag_min=25,
+                    strength=Decimal("0.6554"),
+                    computed_ts=later_ts,
                 ),
             ]
         )
@@ -106,6 +128,14 @@ def load_demo_data() -> None:
                     p_value=Decimal("0.221000"),
                     direction="y->x",
                     computed_ts=base_ts,
+                ),
+                GrangerTestRecord(
+                    x_symbol="ETH",
+                    y_symbol="SOL",
+                    window="1h",
+                    p_value=Decimal("0.018700"),
+                    direction="x->y",
+                    computed_ts=later_ts,
                 ),
             ]
         )

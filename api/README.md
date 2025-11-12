@@ -165,6 +165,174 @@ service downgrades the response to `status: "stale"` while returning the
 last known values. Data older than the fallback horizon yields
 `status: "error"` with HTTP 503 so clients can trigger re-computation.
 
+The FastAPI OpenAPI contract is committed to `api/openapi.json` so
+reviewers can diff payload shapes alongside code. Regenerate the schema
+after modifying any endpoint by running:
+
+```bash
+cd api
+python tools/generate_openapi.py
+```
+
+### Demo analytics payloads
+
+Run `python -m ragtrader_api.db.seed_demo` to load deterministic analytics
+rows into Postgres, then query the endpoints above to receive the payloads
+demonstrated below. These fixtures make it straightforward to check the
+REST responses against [AC-1](../project_docs/RequirementsSpecifications.md#4-acceptance-criteria-summary)
+from the acceptance-criteria matrix.
+
+#### `GET /analytics/leadlag`
+
+```json
+{
+  "status": "ok",
+  "last_updated": "2024-01-01T01:00:00+00:00",
+  "freshness": {"age_minutes": 0.0},
+  "data": [
+    {
+      "leader": "BTC",
+      "follower": "ETH",
+      "window": "1h",
+      "best_lag_minutes": 15,
+      "strength": 0.8125,
+      "computed_ts": "2024-01-01T01:00:00+00:00"
+    },
+    {
+      "leader": "ETH",
+      "follower": "SOL",
+      "window": "1h",
+      "best_lag_minutes": 25,
+      "strength": 0.6554,
+      "computed_ts": "2024-01-01T01:00:00+00:00"
+    },
+    {
+      "leader": "BTC",
+      "follower": "ETH",
+      "window": "4h",
+      "best_lag_minutes": 60,
+      "strength": 0.7021,
+      "computed_ts": "2024-01-01T00:00:00+00:00"
+    }
+  ]
+}
+```
+
+#### `GET /analytics/correlation`
+
+```json
+{
+  "status": "ok",
+  "metric": "pearson",
+  "last_updated": "2024-01-01T01:00:00+00:00",
+  "freshness": {"age_minutes": 0.0},
+  "data": [
+    {
+      "pair": ["BTC", "ETH"],
+      "window": "1h",
+      "value": 0.8456,
+      "computed_ts": "2024-01-01T01:00:00+00:00"
+    },
+    {
+      "pair": ["ETH", "SOL"],
+      "window": "1h",
+      "value": -0.3789,
+      "computed_ts": "2024-01-01T01:00:00+00:00"
+    }
+  ]
+}
+```
+
+#### `GET /analytics/granger`
+
+```json
+{
+  "status": "ok",
+  "last_updated": "2024-01-01T01:00:00+00:00",
+  "freshness": {"age_minutes": 0.0},
+  "data": [
+    {
+      "source": "BTC",
+      "target": "SOL",
+      "window": "1d",
+      "direction": "x->y",
+      "p_value": 0.0125,
+      "reject_null": true,
+      "computed_ts": "2024-01-01T01:00:00+00:00"
+    },
+    {
+      "source": "ETH",
+      "target": "SOL",
+      "window": "1h",
+      "direction": "x->y",
+      "p_value": 0.0187,
+      "reject_null": true,
+      "computed_ts": "2024-01-01T01:00:00+00:00"
+    },
+    {
+      "source": "BTC",
+      "target": "ETH",
+      "window": "1d",
+      "direction": "y->x",
+      "p_value": 0.221,
+      "reject_null": false,
+      "computed_ts": "2024-01-01T00:00:00+00:00"
+    }
+  ]
+}
+```
+
+#### `GET /analytics/influence-graph`
+
+```json
+{
+  "status": "ok",
+  "last_updated": "2024-01-01T01:00:00+00:00",
+  "freshness": {"age_minutes": 0.0},
+  "graph": {
+    "nodes": ["BTC", "ETH", "SOL"],
+    "edges": [
+      {
+        "source": "BTC",
+        "target": "ETH",
+        "window": "1h",
+        "lag": 15,
+        "correlation": 0.8456,
+        "cross_correlation": 0.8125,
+        "granger_p_value": null,
+        "granger_reject_null": null,
+        "weight": 0.8291,
+        "computed_ts": "2024-01-01T01:00:00+00:00"
+      },
+      {
+        "source": "ETH",
+        "target": "SOL",
+        "window": "1h",
+        "lag": 25,
+        "correlation": -0.3789,
+        "cross_correlation": 0.6554,
+        "granger_p_value": 0.0187,
+        "granger_reject_null": true,
+        "weight": 0.6719,
+        "computed_ts": "2024-01-01T01:00:00+00:00"
+      },
+      {
+        "source": "BTC",
+        "target": "ETH",
+        "window": "4h",
+        "lag": 60,
+        "correlation": null,
+        "cross_correlation": 0.7021,
+        "granger_p_value": null,
+        "granger_reject_null": null,
+        "weight": 0.7021,
+        "computed_ts": "2024-01-01T00:00:00+00:00"
+      }
+    ]
+  }
+}
+```
+
 ### Database workflows
 
 ```bash
