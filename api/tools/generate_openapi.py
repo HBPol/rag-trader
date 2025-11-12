@@ -27,7 +27,9 @@ def main() -> None:
 
     project_root = Path(__file__).resolve().parents[1]
     output_path = PROJECT_ROOT / "openapi.json"
-    output_path.write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output_path.write_text(
+        json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     print(f"Wrote OpenAPI schema to {output_path.relative_to(PROJECT_ROOT.parent)}")
 
 
