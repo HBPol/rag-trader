@@ -25,14 +25,15 @@ optional extras and execute the focused pytest to reproduce the checks:
 
 ```bash
 pip install -e .[data-quality]
-PYTHONPATH=src pytest tests/test_analytics_data_quality.py
+PYTHONPATH=src pytest --no-cov tests/test_analytics_data_quality.py
 ```
 
 The expectation suite lives alongside the tests at
 [`tests/data_quality/analytics_suite.yml`](tests/data_quality/analytics_suite.yml),
 and the test harness loads the bundled CSV fixture via
 `pipelines/tests/__init__.py`, so no additional environment variables or
-secrets are required.
+secrets are required. Pass `--no-cov` (or another coverage override) because
+`pipelines/pyproject.toml` enforces an 80% coverage gate by default.
 
 ## Development
 

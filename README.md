@@ -171,14 +171,15 @@ before running the suite:
 ```bash
 cd pipelines
 pip install -e .[data-quality]  # installs great-expectations and pyarrow
-PYTHONPATH=src pytest tests/test_analytics_data_quality.py
+PYTHONPATH=src pytest --no-cov tests/test_analytics_data_quality.py
 ```
 
 The expectation suite lives at
 [`pipelines/tests/data_quality/analytics_suite.yml`](pipelines/tests/data_quality/analytics_suite.yml)
 and encodes the data-quality deliverable called out in Issue #3 (“Data tests (Great Expectations)
-for NaNs, gaps, time alignment”). No additional environment variables are required—the pytest fixture
-loads the bundled analytics CSV directly.
+for NaNs, gaps, time alignment”). Pass `--no-cov` (or another coverage override) because
+`pipelines/pyproject.toml` enforces an 80% coverage gate by default. No additional environment
+variables are required—the pytest fixture loads the bundled analytics CSV directly.
 - **PyCharm + Docker**: add a Docker Compose interpreter pointed at the `api` service so
   editor actions reuse the container runtime. In *Settings → Project → Python Interpreter*,
   click **Add Interpreter… → Docker Compose**, select `docker-compose.yml` (and optionally
