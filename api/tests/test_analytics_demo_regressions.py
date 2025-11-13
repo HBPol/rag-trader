@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -12,12 +13,12 @@ pytest.importorskip("psycopg")
 pytest.importorskip("alembic")
 pytest.importorskip("testcontainers")
 
-from ragtrader_api.analytics import AnalyticsService
-from ragtrader_api.db import database
-from ragtrader_api.db.repositories.analytics import SqlAlchemyAnalyticsRepository
-from ragtrader_api.db.seed_demo import load_demo_data
-from ragtrader_api.settings import ApiSettings, get_settings
-from tests.utils import PostgresTestContainer
+if TYPE_CHECKING:
+    from ragtrader_api.analytics import AnalyticsService
+    from tests.utils import PostgresTestContainer
+else:  # pragma: no cover - runtime placeholders for type checking
+    AnalyticsService = object  # type: ignore[assignment]
+    PostgresTestContainer = object  # type: ignore[assignment]
 
 _LATER_TS = datetime(2024, 1, 1, 1, tzinfo=UTC)
 _BASE_TS = datetime(2024, 1, 1, tzinfo=UTC)
@@ -25,6 +26,8 @@ _BASE_TS = datetime(2024, 1, 1, tzinfo=UTC)
 
 @pytest.fixture(scope="session")
 def postgres_container() -> Iterator[PostgresTestContainer]:
+    from tests.utils import PostgresTestContainer
+
     with PostgresTestContainer() as container:
         yield container
 
@@ -34,6 +37,12 @@ def demo_service(
     postgres_container: PostgresTestContainer,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[AnalyticsService]:
+    from ragtrader_api.analytics import AnalyticsService
+    from ragtrader_api.db import database
+    from ragtrader_api.db.repositories.analytics import SqlAlchemyAnalyticsRepository
+    from ragtrader_api.db.seed_demo import load_demo_data
+    from ragtrader_api.settings import ApiSettings, get_settings
+
     raw_url = postgres_container.get_connection_url()
     dsn = raw_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
@@ -85,7 +94,11 @@ def test_demo_seed_regressions(demo_service: AnalyticsService) -> None:
 
     lead_lag_data = sorted(
         payload["data"],
-        key=lambda entry: (entry["leader"], entry["follower"], entry["window"]),
+        key=lambda entry: (
+            entry["leader"],
+            entry["follower"],
+            entry["window"],
+        ),
     )
     assert lead_lag_data == [
         {
@@ -148,7 +161,11 @@ def test_demo_seed_regressions(demo_service: AnalyticsService) -> None:
 
     granger_data = sorted(
         payload["data"],
-        key=lambda entry: (entry["source"], entry["target"], entry["window"]),
+        key=lambda entry: (
+            entry["source"],
+            entry["target"],
+            entry["window"],
+        ),
     )
     assert granger_data == [
         {
