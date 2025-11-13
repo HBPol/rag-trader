@@ -161,6 +161,24 @@ installs remain reproducible.
   verify Coinbase, CoinDesk Data API endpoints, and Qdrant respond before we run heavier jobs. Execute
   `python tools/reachability.py` locally or rely on the "External Reachability" CI job to exercise
   them on every push.
+
+### Analytics data-quality checks
+
+The analytics pipelines rely on [Great Expectations](https://greatexpectations.io/) to validate the
+seeded BTC/ETH fixtures that drive Issue #3’s acceptance criteria. Install the optional dependency
+before running the suite:
+
+```bash
+cd pipelines
+pip install -e .[data-quality]  # installs great-expectations and pyarrow
+PYTHONPATH=src pytest tests/test_analytics_data_quality.py
+```
+
+The expectation suite lives at
+[`pipelines/tests/data_quality/analytics_suite.yml`](pipelines/tests/data_quality/analytics_suite.yml)
+and encodes the data-quality deliverable called out in Issue #3 (“Data tests (Great Expectations)
+for NaNs, gaps, time alignment”). No additional environment variables are required—the pytest fixture
+loads the bundled analytics CSV directly.
 - **PyCharm + Docker**: add a Docker Compose interpreter pointed at the `api` service so
   editor actions reuse the container runtime. In *Settings → Project → Python Interpreter*,
   click **Add Interpreter… → Docker Compose**, select `docker-compose.yml` (and optionally

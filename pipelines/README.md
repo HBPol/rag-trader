@@ -16,6 +16,24 @@ helpers. Installing the package will pull in `numpy`, `scipy`,
 `tests/test_analytics_dependency_imports.py` asserts that those modules
 are importable so contributors spot missing wheels early.
 
+## Analytics data-quality suite
+
+Great Expectations powers the regression tests for the seeded BTC/ETH
+analytics fixtures that underpin Issue #3’s acceptance criteria (“Data
+tests (Great Expectations) for NaNs, gaps, time alignment”). Install the
+optional extras and execute the focused pytest to reproduce the checks:
+
+```bash
+pip install -e .[data-quality]
+PYTHONPATH=src pytest tests/test_analytics_data_quality.py
+```
+
+The expectation suite lives alongside the tests at
+[`tests/data_quality/analytics_suite.yml`](tests/data_quality/analytics_suite.yml),
+and the test harness loads the bundled CSV fixture via
+`pipelines/tests/__init__.py`, so no additional environment variables or
+secrets are required.
+
 ## Development
 
 ```bash
