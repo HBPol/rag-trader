@@ -36,7 +36,7 @@ This upgrades the schema to the latest Alembic revision so the analytics tables 
 
 ## 3. Compute analytics from live candles
 
-The script below loads hourly Coinbase candles for BTC and ETH (`symbol` values `BTC-USD` and `ETH-USD`) where the candles were stored with the `interval` label `MIN_60`. Adjust the SQL, symbol list, or windows to match the data you have available.
+The script below loads hourly Coinbase candles for BTC and ETH. Update the `SYMBOLS` list so it matches the instrument codes that actually appear in your `ohlcv` table (for example some older datasets might use bare `BTC` / `ETH` symbols rather than `BTC-USD` / `ETH-USD`). If you are unsure which codes exist, run `SELECT DISTINCT symbol FROM ohlcv ORDER BY 1;` against your database first. The SQL still filters by the `interval` label `MIN_60`, but you can switch that to any cadence you maintain.
 
 ```bash
 python - <<'PY'
@@ -57,6 +57,9 @@ from ragtrader_api.db.repositories.analytics import (
 from ragtrader_pipelines.analytics.cross_correlation import best_cross_correlation
 from ragtrader_pipelines.analytics.granger import run_granger_causality
 
+SYMBOLS = ["BTC-USD", "ETH-USD"]
+INTERVAL = "MIN_60"
+
 dsn = os.environ["RAGTRADER_API_POSTGRES_DSN"]
 settings = ApiSettings(postgres_dsn=dsn, require_database=True, require_vector_store=False)
 engine = create_engine(settings)
@@ -68,14 +71,22 @@ with engine.connect() as conn:
         """
         SELECT ts, symbol, close
         FROM ohlcv
-        WHERE symbol IN ('BTC-USD', 'ETH-USD') AND interval = 'MIN_60'
+        WHERE symbol = ANY(%(symbols)s) AND interval = %(interval)s
         ORDER BY ts
         """,
         conn,
+        params={"symbols": SYMBOLS, "interval": INTERVAL},
         parse_dates=["ts"],
     )
 
 wide = candles.pivot(index="ts", columns="symbol", values="close").dropna()
+missing = [symbol for symbol in SYMBOLS if symbol not in wide.columns]
+if missing:
+    raise SystemExit(
+        "Symbols not found in OHLCV data: "
+        + ", ".join(missing)
+        + f". Available columns: {', '.join(wide.columns)}"
+    )
 returns = wide.pct_change().dropna()
 
 feature_records = [
@@ -90,14 +101,15 @@ feature_records = [
 ]
 repo.upsert_features(feature_records)
 
-lag_result = best_cross_correlation(wide["BTC-USD"], wide["ETH-USD"], max_lag=6)
+leader_symbol, follower_symbol = SYMBOLS
+lag_result = best_cross_correlation(wide[leader_symbol], wide[follower_symbol], max_lag=6)
 if lag_result:
     lag_steps, score = lag_result
     repo.upsert_lead_lag(
         [
             LeadLagRecord(
-                leader="BTC-USD",
-                follower="ETH-USD",
+                leader=leader_symbol,
+                follower=follower_symbol,
                 window="1h",
                 best_lag_min=lag_steps * 60,
                 strength=Decimal(str(score)),
@@ -106,20 +118,22 @@ if lag_result:
         ]
     )
 
-summary = run_granger_causality(wide["BTC-USD"], wide["ETH-USD"], max_lag=6, significance=0.05)
+summary = run_granger_causality(
+    wide[leader_symbol], wide[follower_symbol], max_lag=6, significance=0.05
+)
 repo.upsert_granger_tests(
     [
         GrangerTestRecord(
-            x_symbol="BTC-USD",
-            y_symbol="ETH-USD",
+            x_symbol=leader_symbol,
+            y_symbol=follower_symbol,
             window="1h",
             p_value=Decimal(str(summary.leader_to_follower.p_value)),
             direction="x->y",
             computed_ts=returns.index[-1].to_pydatetime().replace(tzinfo=UTC),
         ),
         GrangerTestRecord(
-            x_symbol="ETH-USD",
-            y_symbol="BTC-USD",
+            x_symbol=follower_symbol,
+            y_symbol=leader_symbol,
             window="1h",
             p_value=Decimal(str(summary.follower_to_leader.p_value)),
             direction="x->y",
