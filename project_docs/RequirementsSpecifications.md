@@ -12,10 +12,20 @@
 - **FR-5:** System shall compute rolling sentiment z-scores per coin and window (e.g., 1h, 4h, 24h).
 
 #### 1.3 Analytics
-- **FR-6:** System shall compute rolling correlations between price returns and sentiment series.
+- **FR-6:** System shall compute rolling correlations between **price returns** and **sentiment z-score series** per asset and time window. At minimum:
+  - Returns shall be computed from OHLCV close prices (e.g., log returns or percentage returns) on a configurable interval (default: 1h).
+  - Sentiment inputs shall be the rolling z-score time series produced in FR-5 for the same asset and window.
+  - For each `(asset, window)` pair, the system shall compute rolling **Pearson** and **Spearman** correlations between the return series and the sentiment z-score series.
+  - The resulting correlation values shall be stored in the analytics **features** table, keyed by timestamp, symbol, and `feature_name`.
+  - `feature_name` shall follow a documented convention, e.g. `correlation:return_vs_sentiment:{pearson|spearman}:{window}`.
 - **FR-7:** System shall compute cross-correlation and report best lead/lag (minutes/hours) per coin pair and window.
 - **FR-8:** System shall run bounded-order Granger causality tests and return p-values and effect directions.
 - **FR-9:** System shall build a cross-asset influence graph with edges weighted by recent lead/lag strength or causality evidence.
+- **FR-6a:** System shall provide a **batch analytics job** that:
+  - Reads OHLCV and sentiment z-score series from the primary Postgres database.
+  - Computes the metrics required by FR-6 to FR-9 (price-vs-sentiment correlations, cross-asset lead/lag, Granger causality).
+  - Writes results into the analytics tables (`features`, `lead_lag`, `granger_tests`) without manual intervention.
+  - Can be invoked from the command line with a documented interface (e.g., start/end time, windows, and max lag).
 
 #### 1.4 Strategy & Backtesting
 - **FR-10:** System shall provide a constrained **Strategy DSL v0** with:

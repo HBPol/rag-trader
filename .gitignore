@@ -26,6 +26,9 @@ web/node_modules/
 web/.next/
 web/coverage/
 
+# Local DB dumps for testing/dev
+data_sample/
+
 # Others...
 __pycache__/
 *.pyc
