@@ -88,15 +88,24 @@ def _quantize(value: float | None) -> Decimal:
 
 
 def _infer_interval(series: pd.Series) -> pd.Timedelta:
+    default_interval = pd.Timedelta(minutes=1)
     if series.empty or len(series) < 2:
-        return pd.Timedelta(minutes=1)
-    deltas = series.index.to_series().diff().dropna()
+        return default_interval
+
+    index = series.index
+    if not isinstance(index, pd.DatetimeIndex):
+        return default_interval
+
+    datetime_index = pd.DatetimeIndex(index)
+    deltas = pd.Series(datetime_index.asi8).diff().dropna()
     if deltas.empty:
-        return pd.Timedelta(minutes=1)
-    median = deltas.median()
-    if pd.isna(median) or median <= pd.Timedelta(0):
-        return pd.Timedelta(minutes=1)
-    return pd.Timedelta(median)
+        return default_interval
+
+    median_ns = deltas.median()
+    if pd.isna(median_ns) or not np.isfinite(median_ns) or median_ns <= 0:
+        return default_interval
+
+    return pd.to_timedelta(median_ns, unit="ns")
 
 
 def _resample_returns(series: pd.Series, window: pd.Timedelta) -> pd.Series:
