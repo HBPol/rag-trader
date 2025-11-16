@@ -35,6 +35,40 @@ and the test harness loads the bundled CSV fixture via
 secrets are required. Pass `--no-cov` (or another coverage override) because
 `pipelines/pyproject.toml` enforces an 80% coverage gate by default.
 
+## Analytics batch job
+
+The `ragtrader_pipelines.analytics_job` module wires the analytics
+helpers to Postgres, reading OHLCV closes and sentiment z-scores so it
+can compute rolling price-return versus sentiment correlations, best
+lead/lag lags, and Granger causality tests. Run it locally via the CLI:
+
+```bash
+python -m ragtrader_pipelines.analytics_job \
+  --start "2024-01-01T00:00:00Z" \
+  --end "2024-01-02T00:00:00Z" \
+  --symbols BTC,ETH \
+  --windows 1h,4h \
+  --price-interval 1h \
+  --sentiment-window 6 \
+  --max-lag-minutes 60 \
+  --database-url "postgresql+psycopg://user:pass@localhost:5432/ragtrader"
+```
+
+Flags mirror the Coinbase/content jobs—`DATABASE_URL` is required (either
+via the flag or environment), the `--windows` argument controls the
+resampled series used downstream, and `--max-lag-minutes` bounds the
+cross-correlation + Granger computations. The module also exposes
+`register_analytics_job` so schedulers can bind it via the shared pipeline
+registry.
+
+An integration test seeds a temporary Postgres instance with the bundled
+analytics fixture, runs the job, and asserts rows land in `features`,
+`lead_lag`, and `granger_tests`:
+
+```bash
+PYTHONPATH=src pytest tests/test_analytics_job_integration.py
+```
+
 ## Development
 
 ```bash

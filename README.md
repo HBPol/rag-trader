@@ -52,6 +52,33 @@ and honors the following environment variables:
 
 Pass `--help` to explore more knobs (batch size, retry/backoff tuning, dry-run mode).
 
+## Analytics batch job
+
+The analytics engine combines Coinbase OHLCV candles with sentiment
+z-scores stored in Postgres to compute rolling price-return versus
+sentiment correlations, cross-asset lead/lag relationships, and Granger
+causality tests. The job runs as a standalone CLI so it can be scheduled
+alongside the ingestion pipelines:
+
+```bash
+python -m ragtrader_pipelines.analytics_job \
+  --start "2024-01-01T00:00:00Z" \
+  --end "2024-01-02T00:00:00Z" \
+  --symbols BTC,ETH \
+  --windows 1h,4h \
+  --price-interval 1h \
+  --sentiment-window 6 \
+  --max-lag-minutes 60 \
+  --database-url "postgresql+psycopg://user:pass@localhost:5432/ragtrader"
+```
+
+`--windows` accepts a comma-separated list of sampling intervals that
+control the resampled series used for both correlation features and the
+lead/lag + Granger computations. The job looks up `DATABASE_URL` from the
+environment when the flag is omitted, and it exposes registry wiring so
+Cloud Scheduler / Airflow can reuse the shared pipeline registry
+(`ragtrader_pipelines.analytics_job:register_analytics_job`).
+
 ## Monorepo Layout
 
 | Path | Purpose |
@@ -172,6 +199,8 @@ before running the suite:
 cd pipelines
 pip install -e .[data-quality]  # installs great-expectations and pyarrow
 PYTHONPATH=src pytest --no-cov tests/test_analytics_data_quality.py
+# Run the Postgres-backed integration test for the analytics job
+PYTHONPATH=src pytest --maxfail=1 tests/test_analytics_job_integration.py
 ```
 
 The expectation suite lives at
