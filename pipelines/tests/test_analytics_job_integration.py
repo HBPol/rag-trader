@@ -130,7 +130,7 @@ def _seed_database(session: Session, data: pd.DataFrame) -> None:
             source="fixture",
             url=f"https://example.com/{article_counter}",
             title=f"Fixture article {article_counter}",
-            excerpt="seed",
+            body_excerpt="seed",
             coins=["BTC", "ETH"],
             published_ts=timestamp.to_pydatetime(),
         )
