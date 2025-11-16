@@ -111,10 +111,12 @@ def _infer_interval(series: pd.Series) -> pd.Timedelta:
 def _resample_returns(series: pd.Series, window: pd.Timedelta) -> pd.Series:
     resampled = series.resample(window, label="right", closed="right").last().dropna()
     if resampled.empty:
-        return pd.Series(dtype=float)
-    log_prices = np.log(resampled.astype(float))
+        return pd.Series(dtype=float, name=series.name or "returns")
+    float_values = resampled.astype(float)
+    log_prices = pd.Series(np.log(float_values.to_numpy()), index=float_values.index)
     returns = log_prices.diff().dropna()
-    return returns.rename(series.name or "returns")
+    returns.name = series.name or "returns"
+    return returns
 
 
 def _resample_sentiment(series: pd.Series, window: pd.Timedelta) -> pd.Series:
