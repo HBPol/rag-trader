@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal
 from itertools import combinations, permutations
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -26,6 +27,7 @@ from ragtrader_api.db.repositories.analytics import (
 
 from .analytics import (
     GrangerCausalityError,
+    SeriesLike,
     best_cross_correlation,
     rolling_pearson,
     rolling_spearman,
@@ -85,6 +87,13 @@ def _quantize(value: float | None) -> Decimal:
     if not np.isfinite(value):
         raise ValueError("Cannot quantize non-finite values")
     return Decimal(str(value)).quantize(_DECIMAL_QUANT, rounding=ROUND_HALF_EVEN)
+
+
+def _to_series_like(series: pd.Series, name: str) -> SeriesLike:
+    """Rename the pandas ``Series`` and treat it as a ``SeriesLike``."""
+
+    renamed = series.rename(name)
+    return cast(SeriesLike, renamed)
 
 
 def _infer_interval(series: pd.Series) -> pd.Timedelta:
@@ -457,10 +466,12 @@ class AnalyticsJob:
                     or follower_series.empty
                 ):
                     continue
+                leader_series_like = _to_series_like(leader_series, leader)
+                follower_series_like = _to_series_like(follower_series, follower)
                 try:
                     summary = run_granger_causality(
-                        leader_series.rename(leader),
-                        follower_series.rename(follower),
+                        leader_series_like,
+                        follower_series_like,
                         max_lag=max_lag_steps,
                     )
                 except GrangerCausalityError:
