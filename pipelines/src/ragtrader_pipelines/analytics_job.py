@@ -5,12 +5,11 @@ from __future__ import annotations
 import argparse
 import os
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal, ROUND_HALF_EVEN
+from decimal import ROUND_HALF_EVEN, Decimal
 from itertools import combinations, permutations
-from typing import Callable, Mapping
 
 import numpy as np
 import pandas as pd
@@ -110,9 +109,7 @@ def _resample_returns(series: pd.Series, window: pd.Timedelta) -> pd.Series:
 
 
 def _resample_sentiment(series: pd.Series, window: pd.Timedelta) -> pd.Series:
-    aggregated = (
-        series.resample(window, label="right", closed="right").mean().dropna()
-    )
+    aggregated = series.resample(window, label="right", closed="right").mean().dropna()
     return aggregated.rename(series.name or "sentiment")
 
 
@@ -248,7 +245,9 @@ class AnalyticsJob:
         if not normalized_symbols:
             raise ValueError("At least one symbol must be provided")
 
-        resolved_windows = list(dict.fromkeys(window.strip() for window in windows if window))
+        resolved_windows = list(
+            dict.fromkeys(window.strip() for window in windows if window)
+        )
         if not resolved_windows:
             raise ValueError("At least one sampling window must be provided")
 
@@ -382,9 +381,7 @@ class AnalyticsJob:
             if len(per_symbol) < 2:
                 continue
             window = _parse_window(window_label)
-            window_minutes = max(
-                1, int(window / pd.Timedelta(minutes=1))
-            )
+            window_minutes = max(1, int(window / pd.Timedelta(minutes=1)))
             max_lag_steps = max(0, max_lag_minutes // window_minutes)
             for leader, follower in permutations(symbols, 2):
                 leader_series = per_symbol.get(leader)
@@ -432,9 +429,7 @@ class AnalyticsJob:
             if len(per_symbol) < 2:
                 continue
             window = _parse_window(window_label)
-            window_minutes = max(
-                1, int(window / pd.Timedelta(minutes=1))
-            )
+            window_minutes = max(1, int(window / pd.Timedelta(minutes=1)))
             max_lag_steps = max(1, max_lag_minutes // window_minutes)
             for leader, follower in combinations(symbols, 2):
                 leader_series = per_symbol.get(leader)

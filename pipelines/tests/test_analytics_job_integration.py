@@ -6,18 +6,17 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import numpy as np
 import pandas as pd
 import pytest
-import numpy as np
+from pipelines.tests import get_analytics_fixture_path
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from ragtrader_api.db.migrations import apply_migrations
 from ragtrader_api.db.models import Article, Instrument, Ohlcv, Sentiment
-from ragtrader_api.db.repositories.analytics import (
-    SqlAlchemyAnalyticsRepository,
-)
+from ragtrader_api.db.repositories.analytics import SqlAlchemyAnalyticsRepository
 from ragtrader_pipelines.analytics import (
     best_cross_correlation,
     rolling_pearson,
@@ -31,8 +30,6 @@ from ragtrader_pipelines.analytics_job import (
     register_analytics_job,
 )
 from ragtrader_pipelines.registry import PipelineRegistry
-
-from pipelines.tests import get_analytics_fixture_path
 
 pytest.importorskip("sqlalchemy")
 pytest.importorskip("psycopg")
@@ -93,7 +90,7 @@ def _seed_database(session: Session, data: pd.DataFrame) -> None:
 
     article_counter = 0
     for row in data.itertuples(index=False):
-        timestamp = getattr(row, "timestamp")
+        timestamp = row.timestamp
         btc_fields = {
             "open": row.btc_open,
             "high": row.btc_high,
@@ -136,7 +133,10 @@ def _seed_database(session: Session, data: pd.DataFrame) -> None:
         )
         session.add(article)
         session.flush()
-        for coin, zscore in (("BTC", row.btc_sentiment_zscore), ("ETH", row.eth_sentiment_zscore)):
+        for coin, zscore in (
+            ("BTC", row.btc_sentiment_zscore),
+            ("ETH", row.eth_sentiment_zscore),
+        ):
             session.add(
                 Sentiment(
                     article_id=article.id,
@@ -155,7 +155,9 @@ def _seed_database(session: Session, data: pd.DataFrame) -> None:
 def _compute_expected_correlations(data: pd.DataFrame) -> dict[str, dict[str, float]]:
     results: dict[str, dict[str, float]] = {}
     for coin in ("btc", "eth"):
-        closes = pd.Series(data[f"{coin}_close"].astype(float).values, index=data["timestamp"])
+        closes = pd.Series(
+            data[f"{coin}_close"].astype(float).values, index=data["timestamp"]
+        )
         sentiments = pd.Series(
             data[f"{coin}_sentiment_zscore"].astype(float).values,
             index=data["timestamp"],
@@ -165,10 +167,18 @@ def _compute_expected_correlations(data: pd.DataFrame) -> dict[str, dict[str, fl
             .diff()
             .dropna()
         )
-        aggregated_sentiment = sentiments.resample("1h", label="right", closed="right").mean().dropna()
-        aligned_returns, aligned_sentiment = returns.align(aggregated_sentiment, join="inner")
-        pearson = rolling_pearson(aligned_returns, aligned_sentiment, window=3, min_periods=3)
-        spearman = rolling_spearman(aligned_returns, aligned_sentiment, window=3, min_periods=3)
+        aggregated_sentiment = (
+            sentiments.resample("1h", label="right", closed="right").mean().dropna()
+        )
+        aligned_returns, aligned_sentiment = returns.align(
+            aggregated_sentiment, join="inner"
+        )
+        pearson = rolling_pearson(
+            aligned_returns, aligned_sentiment, window=3, min_periods=3
+        )
+        spearman = rolling_spearman(
+            aligned_returns, aligned_sentiment, window=3, min_periods=3
+        )
         results[coin.upper()] = {
             "pearson": float(pearson.dropna().iloc[-1]),
             "spearman": float(spearman.dropna().iloc[-1]),
@@ -176,30 +186,37 @@ def _compute_expected_correlations(data: pd.DataFrame) -> dict[str, dict[str, fl
     return results
 
 
-def _compute_expected_cross_metrics(data: pd.DataFrame) -> tuple[tuple[int, float], tuple[int, float], float, float]:
+def _compute_expected_cross_metrics(
+    data: pd.DataFrame,
+) -> tuple[tuple[int, float], tuple[int, float], float, float]:
     btc = pd.Series(data["btc_close"].astype(float).values, index=data["timestamp"])
     eth = pd.Series(data["eth_close"].astype(float).values, index=data["timestamp"])
     btc_returns = (
-        np.log(btc.resample("1h", label="right", closed="right").last())
-        .diff()
-        .dropna()
+        np.log(btc.resample("1h", label="right", closed="right").last()).diff().dropna()
     )
     eth_returns = (
-        np.log(eth.resample("1h", label="right", closed="right").last())
-        .diff()
-        .dropna()
+        np.log(eth.resample("1h", label="right", closed="right").last()).diff().dropna()
     )
     lag_btc_eth = best_cross_correlation(btc_returns, eth_returns, max_lag=1)
     lag_eth_btc = best_cross_correlation(eth_returns, btc_returns, max_lag=1)
     summary = run_granger_causality(btc_returns, eth_returns, max_lag=1)
-    return lag_btc_eth, lag_eth_btc, summary.leader_to_follower.p_value, summary.follower_to_leader.p_value
+    return (
+        lag_btc_eth,
+        lag_eth_btc,
+        summary.leader_to_follower.p_value,
+        summary.follower_to_leader.p_value,
+    )
 
 
-def test_analytics_job_populates_tables(session: Session, migrated_engine: Engine) -> None:
+def test_analytics_job_populates_tables(
+    session: Session, migrated_engine: Engine
+) -> None:
     data = _load_expanded_fixture()
     _seed_database(session, data)
 
-    session_factory = sessionmaker(bind=migrated_engine, expire_on_commit=False, future=True)
+    session_factory = sessionmaker(
+        bind=migrated_engine, expire_on_commit=False, future=True
+    )
     price_repo = SqlAlchemyOhlcvRepository(session_factory)
     sentiment_repo = SqlAlchemySentimentRepository(session_factory)
     analytics_repo = SqlAlchemyAnalyticsRepository(session_factory)
@@ -227,27 +244,37 @@ def test_analytics_job_populates_tables(session: Session, migrated_engine: Engin
         symbol="BTC", feature_name="correlation:return_vs_sentiment:pearson:1h"
     )
     assert btc_features
-    assert float(btc_features[-1].value) == pytest.approx(expected_correlations["BTC"]["pearson"], rel=1e-6)
+    assert float(btc_features[-1].value) == pytest.approx(
+        expected_correlations["BTC"]["pearson"], rel=1e-6
+    )
 
     btc_spearman = repository.list_features(
         symbol="BTC", feature_name="correlation:return_vs_sentiment:spearman:1h"
     )
     assert btc_spearman
-    assert float(btc_spearman[-1].value) == pytest.approx(expected_correlations["BTC"]["spearman"], rel=1e-6)
+    assert float(btc_spearman[-1].value) == pytest.approx(
+        expected_correlations["BTC"]["spearman"], rel=1e-6
+    )
 
     eth_features = repository.list_features(
         symbol="ETH", feature_name="correlation:return_vs_sentiment:pearson:1h"
     )
     assert eth_features
-    assert float(eth_features[-1].value) == pytest.approx(expected_correlations["ETH"]["pearson"], rel=1e-6)
+    assert float(eth_features[-1].value) == pytest.approx(
+        expected_correlations["ETH"]["pearson"], rel=1e-6
+    )
 
     lead_lag = repository.list_lead_lag()
     assert len(lead_lag) >= 2
-    lag_btc_eth, lag_eth_btc, leader_p, follower_p = _compute_expected_cross_metrics(data)
+    lag_btc_eth, lag_eth_btc, leader_p, follower_p = _compute_expected_cross_metrics(
+        data
+    )
     assert lead_lag[0].window == "1h"
     assert lag_btc_eth is not None and lag_eth_btc is not None
 
-    strengths = {(item.leader, item.follower): float(item.strength) for item in lead_lag}
+    strengths = {
+        (item.leader, item.follower): float(item.strength) for item in lead_lag
+    }
     assert strengths[("BTC", "ETH")] == pytest.approx(lag_btc_eth[1], rel=1e-6)
     assert strengths[("ETH", "BTC")] == pytest.approx(lag_eth_btc[1], rel=1e-6)
 

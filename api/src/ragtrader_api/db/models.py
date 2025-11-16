@@ -236,7 +236,7 @@ class GrangerTest(Base):
         DateTime(timezone=True),
         primary_key=True,
     )
-    p_value: Mapped[Decimal] = mapped_column(Numeric(12, 6), nullable=False)
+    p_value: Mapped[Decimal] = mapped_column(Numeric(24, 12), nullable=False)
     direction: Mapped[str] = mapped_column(String(16), nullable=False)
 
 
