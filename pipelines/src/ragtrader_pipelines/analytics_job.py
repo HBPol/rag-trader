@@ -279,9 +279,13 @@ class AnalyticsJob:
             for window_label in resolved_windows:
                 window = _parse_window(window_label)
                 returns = _resample_returns(prices, window)
+                returns = returns.dropna()
                 aggregated_sentiment = _resample_sentiment(sentiments, window)
+                aggregated_sentiment = aggregated_sentiment.dropna()
                 if returns.empty or aggregated_sentiment.empty:
                     continue
+
+                returns_by_window[window_label][symbol] = returns.rename(symbol)
 
                 aligned_returns, aligned_sentiment = returns.align(
                     aggregated_sentiment, join="inner"
@@ -315,7 +319,6 @@ class AnalyticsJob:
                         symbol, window_label, spearman, metric="spearman"
                     )
                 )
-                returns_by_window[window_label][symbol] = aligned_returns.rename(symbol)
 
         if feature_records:
             self._analytics.upsert_features(feature_records)

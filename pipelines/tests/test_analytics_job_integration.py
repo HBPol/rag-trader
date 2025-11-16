@@ -254,6 +254,7 @@ def test_analytics_job_populates_tables(session: Session, migrated_engine: Engin
     granger = repository.list_granger_tests()
     assert len(granger) >= 2
     p_values = {(item.x_symbol, item.y_symbol): float(item.p_value) for item in granger}
+    assert set(p_values) >= {("BTC", "ETH"), ("ETH", "BTC")}
     assert p_values[("BTC", "ETH")] == pytest.approx(leader_p, rel=1e-6)
     assert p_values[("ETH", "BTC")] == pytest.approx(follower_p, rel=1e-6)
 
