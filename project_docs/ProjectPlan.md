@@ -63,15 +63,36 @@
 - Cross-correlation function (CCF) to find best lag.
 - Granger causality (statsmodels) with guardrails.
 - Influence graph builder (edge weights, thresholds).
+- Analytics pipeline job in `ragtrader_pipelines` that:
+  - Reads OHLCV price data and sentiment z-score time series from Postgres.
+  - Computes **price-return vs sentiment** rolling correlations per coin and window (e.g., 1h, 4h, 24h).
+  - Computes cross-asset lead/lag (best lag + strength) and Granger causality between return series.
+  - Writes results into the existing analytics tables (`features`, `lead_lag`, `granger_tests`) using a clear feature naming convention.
+- Small integration test (pipelines) that runs the analytics job against a synthetic fixture dataset and asserts the expected rows in the analytics tables.
 
 **Deliverables**
 - Endpoints: `/analytics/leadlag`, `/analytics/correlation`, `/analytics/granger`, `/analytics/influence-graph`.
 - Data tests (Great Expectations) for NaNs, gaps, time alignment.
+- **Analytics pipeline job CLI**, e.g.:
 
+```bash
+cd pipelines
+PYTHONPATH=src python -m ragtrader_pipelines.analytics_job \
+--start "2024-01-01T00:00:00Z" \
+--end "2024-01-02T00:00:00Z" \
+--window 1h \
+--max-lag-minutes 120
+```
 **Acceptance Criteria**
 - Given seeded demo data, endpoints return plausible values and are reproducible in tests.
+- Given OHLCV and sentiment z-score data for at least BTC and ETH in Postgres:
+ - Running the analytics job once produces:
+ - Rows in features where:
+  - `feature_name` follows a documented convention such as `correlation:return_vs_sentiment:{pearson|spearman}:{window}`.
+  - Values match the rolling correlation (up to numerical tolerance) between price returns and sentiment z-score series.
 
----
+ - Rows in lead_lag and granger_tests consistent with the cross-correlation and Granger utilities for the same dataset.
+- The four analytics endpoints return values derived from computed data in the analytics tables, not only from hard-coded demo inserts.
 
 ### Issue #4 — Web UI Dashboard
 **Goal:** Flashy, responsive UI that’s actually useful.

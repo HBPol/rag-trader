@@ -417,3 +417,37 @@ environment variables or Secrets Manager:
 
    Cloud Scheduler supplies the `Authorization: Bearer <token>` header, so the
    endpoint does not require an additional payload.
+
+## Analytics pipeline job (price vs sentiment)
+
+RAGTrader includes a dedicated analytics job that computes lead/lag and price-vs-sentiment metrics and persists them to the analytics tables used by the API.
+
+### What it does
+
+The analytics job:
+
+- Reads OHLCV price data and sentiment z-score time series from Postgres.
+- Computes, for each asset and window (e.g., 1h, 4h, 24h):
+  - Rolling **Pearson** and **Spearman** correlations between price returns and sentiment z-scores.
+- Computes, for each asset pair:
+  - Cross-correlation and best lead/lag (FR-7).
+  - Granger causality direction and p-values (FR-8).
+- Writes results into:
+  - `features` (price-vs-sentiment correlation features),
+  - `lead_lag` (best lag + strength per pair),
+  - `granger_tests` (direction and p-values per pair).
+
+### Running the analytics job
+
+From the `pipelines/` directory:
+
+```bash
+cd pipelines
+export DATABASE_URL=postgresql://ragtrader:ragtrader@localhost:5432/ragtrader
+
+PYTHONPATH=src python -m ragtrader_pipelines.analytics_job \
+  --start "2024-01-01T00:00:00Z" \
+  --end "2024-01-02T00:00:00Z" \
+  --window 1h \
+  --max-lag-minutes 120
+```
