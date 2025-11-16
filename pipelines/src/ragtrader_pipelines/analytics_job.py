@@ -365,6 +365,11 @@ class AnalyticsJob:
             return records
         feature_name = f"correlation:return_vs_sentiment:{metric}:{window}"
         for timestamp, value in cleaned.items():
+            if not isinstance(timestamp, pd.Timestamp):
+                try:
+                    timestamp = pd.Timestamp(timestamp)
+                except (TypeError, ValueError):
+                    continue
             try:
                 decimal_value = _quantize(float(value))
             except ValueError:
