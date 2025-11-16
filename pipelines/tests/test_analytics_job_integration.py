@@ -188,7 +188,7 @@ def _compute_expected_correlations(data: pd.DataFrame) -> dict[str, dict[str, fl
 
 def _compute_expected_cross_metrics(
     data: pd.DataFrame,
-) -> tuple[tuple[int, float], tuple[int, float], float, float]:
+) -> tuple[dict[tuple[str, str], tuple[int, float]], dict[tuple[str, str], float]]:
     btc = pd.Series(data["btc_close"].astype(float).values, index=data["timestamp"])
     eth = pd.Series(data["eth_close"].astype(float).values, index=data["timestamp"])
     btc_returns = (
@@ -200,12 +200,17 @@ def _compute_expected_cross_metrics(
     lag_btc_eth = best_cross_correlation(btc_returns, eth_returns, max_lag=1)
     lag_eth_btc = best_cross_correlation(eth_returns, btc_returns, max_lag=1)
     summary = run_granger_causality(btc_returns, eth_returns, max_lag=1)
-    return (
-        lag_btc_eth,
-        lag_eth_btc,
-        summary.leader_to_follower.p_value,
-        summary.follower_to_leader.p_value,
-    )
+    if lag_btc_eth is None or lag_eth_btc is None:
+        raise AssertionError("Expected cross-correlation results in both directions")
+    lead_lag = {
+        ("BTC", "ETH"): lag_btc_eth,
+        ("ETH", "BTC"): lag_eth_btc,
+    }
+    granger = {
+        ("BTC", "ETH"): summary.leader_to_follower.p_value,
+        ("ETH", "BTC"): summary.follower_to_leader.p_value,
+    }
+    return lead_lag, granger
 
 
 def test_analytics_job_populates_tables(
@@ -266,25 +271,20 @@ def test_analytics_job_populates_tables(
 
     lead_lag = repository.list_lead_lag()
     assert len(lead_lag) >= 2
-    lag_btc_eth, lag_eth_btc, leader_p, follower_p = _compute_expected_cross_metrics(
-        data
-    )
+    expected_lead_lag, expected_granger = _compute_expected_cross_metrics(data)
     assert lead_lag[0].window == "1h"
-    assert lag_btc_eth is not None and lag_eth_btc is not None
 
-    strengths = {
-        (item.leader, item.follower): float(item.strength) for item in lead_lag
-    }
-    assert strengths[("BTC", "ETH")] == pytest.approx(lag_btc_eth[1], rel=1e-6)
-    assert strengths[("ETH", "BTC")] == pytest.approx(lag_eth_btc[1], rel=1e-6)
+    lead_lag_by_pair = {(item.leader, item.follower): item for item in lead_lag}
+    assert set(lead_lag_by_pair) >= expected_lead_lag.keys()
+    for direction, (lag_steps, strength) in expected_lead_lag.items():
+        record = lead_lag_by_pair[direction]
+        expected_minutes = lag_steps * 60  # 1h window
+        assert record.best_lag_min == expected_minutes
+        assert float(record.strength) == pytest.approx(strength, rel=1e-6)
 
     granger = repository.list_granger_tests()
     assert len(granger) >= 2
     p_values = {(item.x_symbol, item.y_symbol): float(item.p_value) for item in granger}
-    expected_granger = {
-        ("BTC", "ETH"): leader_p,
-        ("ETH", "BTC"): follower_p,
-    }
     assert set(p_values) >= expected_granger.keys()
     for direction, expected in expected_granger.items():
         assert p_values[direction] == pytest.approx(expected, rel=1e-6)

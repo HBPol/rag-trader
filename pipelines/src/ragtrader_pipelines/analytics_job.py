@@ -299,12 +299,15 @@ class AnalyticsJob:
                 window = _parse_window(window_label)
                 returns = _resample_returns(prices, window)
                 raw_returns = returns.dropna()
-                aggregated_sentiment = _resample_sentiment(sentiments, window)
-                aggregated_sentiment = aggregated_sentiment.dropna()
-                if raw_returns.empty or aggregated_sentiment.empty:
+                if raw_returns.empty:
                     continue
 
                 returns_by_window[window_label][symbol] = raw_returns.rename(symbol)
+
+                aggregated_sentiment = _resample_sentiment(sentiments, window)
+                aggregated_sentiment = aggregated_sentiment.dropna()
+                if aggregated_sentiment.empty:
+                    continue
 
                 aligned_returns, aligned_sentiment = raw_returns.align(
                     aggregated_sentiment, join="inner"
