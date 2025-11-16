@@ -20,7 +20,7 @@ from .granger import (
 )
 from .influence_graph import InfluenceEdge, InfluenceGraphPayload, build_influence_graph
 
-__all__ = [
+__all__: list[str] = [
     "JoinStrategy",
     "best_cross_correlation",
     "cross_correlation_scores",
@@ -32,6 +32,7 @@ __all__ = [
     "GrangerCausalitySummary",
     "InsufficientSamplesError",
     "NonStationarySeriesError",
+    # Export the SeriesLike Protocol for downstream typing helpers.
     "SeriesLike",
     "build_influence_graph",
     "normalize_aligned_series",
