@@ -281,9 +281,13 @@ def test_analytics_job_populates_tables(
     granger = repository.list_granger_tests()
     assert len(granger) >= 2
     p_values = {(item.x_symbol, item.y_symbol): float(item.p_value) for item in granger}
-    assert set(p_values) >= {("BTC", "ETH"), ("ETH", "BTC")}
-    assert p_values[("BTC", "ETH")] == pytest.approx(leader_p, rel=1e-6)
-    assert p_values[("ETH", "BTC")] == pytest.approx(follower_p, rel=1e-6)
+    expected_granger = {
+        ("BTC", "ETH"): leader_p,
+        ("ETH", "BTC"): follower_p,
+    }
+    assert set(p_values) >= expected_granger.keys()
+    for direction, expected in expected_granger.items():
+        assert p_values[direction] == pytest.approx(expected, rel=1e-6)
 
     registry = PipelineRegistry()
     register_analytics_job(
