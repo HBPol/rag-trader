@@ -34,11 +34,9 @@ def get(
     if scheme and scheme not in ALLOWED_URL_SCHEMES:
         raise ValueError(f"Unsupported URL scheme for shimmed request: {scheme}")
 
-    req = (
-        request.Request(  # noqa: S310 - restricted to http(s) URLs by validation above
-            url,
-            headers=headers or {},
-        )
+    req = request.Request(  # noqa: S310 - restricted to http(s) URLs by validation above
+        url,
+        headers=headers or {},
     )
     try:
         with request.urlopen(  # noqa: S310 - restricted to http(s) URLs by validation above
