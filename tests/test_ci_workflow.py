@@ -66,7 +66,7 @@ def test_python_quality_has_static_analysis_steps(
     python_quality_job: dict[str, Any],
 ) -> None:
     names = _step_names(python_quality_job)
-    for required in ["Ruff", "Black", "isort", "mypy"]:
+    for required in ["Ruff (lint)", "Ruff format", "mypy"]:
         assert required in names, f"Python quality job missing '{required}' step"
 
 
