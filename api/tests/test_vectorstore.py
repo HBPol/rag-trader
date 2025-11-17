@@ -93,9 +93,9 @@ def test_repository_warns_when_cloud_without_key(
     with caplog.at_level(logging.WARNING):
         assert repo.delete_collection("demo") is True
 
-    assert any(
-        "no API key provided" in message for message in caplog.messages
-    ), "Expected warning about missing API key"
+    assert any("no API key provided" in message for message in caplog.messages), (
+        "Expected warning about missing API key"
+    )
     assert captured_kwargs["url"] == "https://example-qdrant"
     assert "api_key" not in captured_kwargs
 

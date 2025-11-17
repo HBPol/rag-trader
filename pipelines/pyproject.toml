@@ -25,7 +25,7 @@ dependencies = [
 dev = [
   "pytest>=8.0",
   "pytest-cov>=4.1",
-  "ruff>=0.3",
+  "ruff==0.6.9",
   "mypy>=1.8",
   "pandas-stubs ; python_version < \"3.12\"",
   "types-redis>=4.6.0.4",

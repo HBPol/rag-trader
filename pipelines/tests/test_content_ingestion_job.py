@@ -439,8 +439,7 @@ def test_content_ingestion_job_persists_documented_coindesk_payload(
                 article_rows = (
                     conn.execute(
                         text(
-                            "SELECT id, source, url, coins, published_ts "
-                            "FROM articles"
+                            "SELECT id, source, url, coins, published_ts FROM articles"
                         )
                     )
                     .mappings()
