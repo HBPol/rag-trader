@@ -88,7 +88,8 @@ PYTHONPATH=src python -m ragtrader_pipelines.analytics_job \
 - Given OHLCV and sentiment z-score data for at least BTC and ETH in Postgres:
  - Running the analytics job once produces:
  - Rows in features where:
-  - `feature_name` follows a documented convention such as `correlation:return_vs_sentiment:{pearson|spearman}:{window}`.
+  - `feature_name` follows a documented convention such as `correlation:return_vs_sentiment:{pearson|spearman}:{window}` with two rows per `(asset, window)` pair.
+  - The `/analytics/correlation` endpoint returns `{"asset", "window", "metrics"}` entries that expose both Pearson and Spearman values (plus a backwards-compatible `value` alias for the configured primary metric).
   - Values match the rolling correlation (up to numerical tolerance) between price returns and sentiment z-score series.
 
  - Rows in lead_lag and granger_tests consistent with the cross-correlation and Granger utilities for the same dataset.

@@ -69,6 +69,21 @@ def test_settings_load_from_environment(monkeypatch: pytest.MonkeyPatch) -> None
     assert settings.postgres_dsn.startswith("postgresql+psycopg")
 
 
+def test_settings_infer_analytics_symbols_from_pairs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("RAGTRADER_API_QDRANT_URL", "http://localhost:6333")
+    settings = ApiSettings(
+        postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
+        qdrant_url="http://localhost:6333",
+        require_database=False,
+        require_vector_store=False,
+        analytics_pairs=("BTC-ETH", "ETH-SOL"),
+    )
+
+    assert settings.analytics_symbols == ("BTC", "ETH", "SOL")
+
+
 def test_settings_infer_postgres_dsn_from_components(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

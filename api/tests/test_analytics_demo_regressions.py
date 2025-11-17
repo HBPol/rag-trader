@@ -136,19 +136,37 @@ def test_demo_seed_regressions(demo_service: AnalyticsService) -> None:
 
     correlation_data = sorted(
         payload["data"],
-        key=lambda entry: (entry["pair"][0], entry["pair"][1], entry["window"]),
+        key=lambda entry: (entry["asset"], entry["window"]),
     )
     assert correlation_data == [
         {
-            "pair": ["BTC", "ETH"],
+            "asset": "BTC",
             "window": "1h",
+            "metrics": {
+                "pearson": {"value": pytest.approx(0.8456), "computed_ts": later_iso},
+                "spearman": {"value": pytest.approx(0.8012), "computed_ts": later_iso},
+            },
             "value": pytest.approx(0.8456),
             "computed_ts": later_iso,
         },
         {
-            "pair": ["ETH", "SOL"],
+            "asset": "ETH",
             "window": "1h",
+            "metrics": {
+                "pearson": {"value": pytest.approx(-0.3789), "computed_ts": later_iso},
+                "spearman": {"value": pytest.approx(-0.4123), "computed_ts": later_iso},
+            },
             "value": pytest.approx(-0.3789),
+            "computed_ts": later_iso,
+        },
+        {
+            "asset": "SOL",
+            "window": "1h",
+            "metrics": {
+                "pearson": {"value": pytest.approx(0.4210), "computed_ts": later_iso},
+                "spearman": {"value": pytest.approx(0.3899), "computed_ts": later_iso},
+            },
+            "value": pytest.approx(0.4210),
             "computed_ts": later_iso,
         },
     ]

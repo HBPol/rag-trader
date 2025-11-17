@@ -68,16 +68,40 @@ def load_demo_data() -> None:
                     value=Decimal("48.7654"),
                 ),
                 FeatureRecord(
-                    symbol="BTC-ETH",
-                    feature_name="correlation:pearson:1h",
+                    symbol="BTC",
+                    feature_name="correlation:return_vs_sentiment:pearson:1h",
                     ts=later_ts,
                     value=Decimal("0.8456"),
                 ),
                 FeatureRecord(
-                    symbol="ETH-SOL",
-                    feature_name="correlation:pearson:1h",
+                    symbol="BTC",
+                    feature_name="correlation:return_vs_sentiment:spearman:1h",
+                    ts=later_ts,
+                    value=Decimal("0.8012"),
+                ),
+                FeatureRecord(
+                    symbol="ETH",
+                    feature_name="correlation:return_vs_sentiment:pearson:1h",
                     ts=later_ts,
                     value=Decimal("-0.3789"),
+                ),
+                FeatureRecord(
+                    symbol="ETH",
+                    feature_name="correlation:return_vs_sentiment:spearman:1h",
+                    ts=later_ts,
+                    value=Decimal("-0.4123"),
+                ),
+                FeatureRecord(
+                    symbol="SOL",
+                    feature_name="correlation:return_vs_sentiment:pearson:1h",
+                    ts=later_ts,
+                    value=Decimal("0.4210"),
+                ),
+                FeatureRecord(
+                    symbol="SOL",
+                    feature_name="correlation:return_vs_sentiment:spearman:1h",
+                    ts=later_ts,
+                    value=Decimal("0.3899"),
                 ),
             ]
         )

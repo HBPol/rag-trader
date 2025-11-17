@@ -466,6 +466,29 @@ The analytics job:
   - `lead_lag` (best lag + strength per pair),
   - `granger_tests` (direction and p-values per pair).
 
+Each instrument symbol receives two feature rows per `(asset, window)` pair: `correlation:return_vs_sentiment:pearson:{window}` and `correlation:return_vs_sentiment:spearman:{window}`. These metrics are computed from aligned price-return and sentiment z-score series. The `/analytics/correlation` API exposes the same data in a sentiment-aware payload:
+
+```json
+{
+  "status": "ok",
+  "metric": "pearson",
+  "data": [
+    {
+      "asset": "BTC-USD",
+      "window": "1h",
+      "metrics": {
+        "pearson": {"value": 0.84, "computed_ts": "2024-01-01T01:00:00+00:00"},
+        "spearman": {"value": 0.80, "computed_ts": "2024-01-01T01:00:00+00:00"}
+      },
+      "value": 0.84,
+      "computed_ts": "2024-01-01T01:00:00+00:00"
+    }
+  ]
+}
+```
+
+The `value`/`computed_ts` fields mirror whichever metric is configured as the primary (`analytics_correlation_metric`) to preserve backwards compatibility for existing clients.
+
 ### Running the analytics job
 
 From the `pipelines/` directory:

@@ -195,6 +195,44 @@ def _parse_analytics_pairs_value(value: Sequence[str] | str | None) -> tuple[str
     return tuple(dict.fromkeys(normalized))
 
 
+def _parse_analytics_symbols_value(
+    value: Sequence[str] | str | None,
+) -> tuple[str, ...]:
+    if value is None:
+        raw_items: list[str] = []
+    elif isinstance(value, str):
+        raw_items = value.split(",")
+    else:
+        raw_items = list(value)
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for item in raw_items:
+        candidate = item.strip().upper().replace("/", "-")
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        normalized.append(candidate)
+
+    return tuple(normalized)
+
+
+def _symbols_from_pairs(pairs: Sequence[str]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for pair in pairs:
+        candidate = pair.replace("/", "-").replace(":", "-")
+        if "-" not in candidate:
+            continue
+        base, quote = candidate.split("-", 1)
+        for symbol in (base.strip().upper(), quote.strip().upper()):
+            if not symbol or symbol in seen:
+                continue
+            seen.add(symbol)
+            normalized.append(symbol)
+    return tuple(normalized)
+
+
 def _parse_analytics_windows_value(
     value: Sequence[str] | str | None,
 ) -> tuple[str, ...]:
@@ -371,6 +409,7 @@ class ApiSettings:
     require_database: bool
     require_vector_store: bool
     analytics_pairs: tuple[str, ...]
+    analytics_symbols: tuple[str, ...]
     analytics_windows: tuple[str, ...]
     analytics_correlation_metric: str
     analytics_max_age_minutes: int
@@ -391,6 +430,7 @@ class ApiSettings:
         require_vector_store: bool | None = None,
         analytics_pairs: Sequence[str] | None = None,
         analytics_windows: Sequence[str] | None = None,
+        analytics_symbols: Sequence[str] | None = None,
         analytics_correlation_metric: str | None = None,
         analytics_max_age_minutes: int | None = None,
         analytics_fallback_minutes: int | None = None,
@@ -521,7 +561,13 @@ class ApiSettings:
             parsed_pairs = _parse_analytics_pairs_value(
                 env_vars.get("RAGTRADER_API_ANALYTICS_PAIRS")
             )
-
+        parsed_symbols = _parse_analytics_symbols_value(analytics_symbols)
+        if not parsed_symbols:
+            parsed_symbols = _parse_analytics_symbols_value(
+                env_vars.get("RAGTRADER_API_ANALYTICS_SYMBOLS")
+            )
+        if not parsed_symbols and parsed_pairs:
+            parsed_symbols = _symbols_from_pairs(parsed_pairs)
         parsed_windows = _parse_analytics_windows_value(analytics_windows)
         if not parsed_windows:
             parsed_windows = _parse_analytics_windows_value(
@@ -562,6 +608,7 @@ class ApiSettings:
             parsed_significance = _parse_granger_significance(env_significance)
 
         self.analytics_pairs = parsed_pairs
+        self.analytics_symbols = parsed_symbols
         self.analytics_windows = parsed_windows
         self.analytics_correlation_metric = parsed_metric
         self.analytics_max_age_minutes = raw_max_age

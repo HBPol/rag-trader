@@ -228,15 +228,33 @@ from the acceptance-criteria matrix.
   "freshness": {"age_minutes": 0.0},
   "data": [
     {
-      "pair": ["BTC", "ETH"],
+      "asset": "BTC",
       "window": "1h",
+      "metrics": {
+        "pearson": {"value": 0.8456, "computed_ts": "2024-01-01T01:00:00+00:00"},
+        "spearman": {"value": 0.8012, "computed_ts": "2024-01-01T01:00:00+00:00"}
+      },
       "value": 0.8456,
       "computed_ts": "2024-01-01T01:00:00+00:00"
     },
     {
-      "pair": ["ETH", "SOL"],
+      "asset": "ETH",
       "window": "1h",
+      "metrics": {
+        "pearson": {"value": -0.3789, "computed_ts": "2024-01-01T01:00:00+00:00"},
+        "spearman": {"value": -0.4123, "computed_ts": "2024-01-01T01:00:00+00:00"}
+      },
       "value": -0.3789,
+      "computed_ts": "2024-01-01T01:00:00+00:00"
+    },
+    {
+      "asset": "SOL",
+      "window": "1h",
+      "metrics": {
+        "pearson": {"value": 0.4210, "computed_ts": "2024-01-01T01:00:00+00:00"},
+        "spearman": {"value": 0.3899, "computed_ts": "2024-01-01T01:00:00+00:00"}
+      },
+      "value": 0.4210,
       "computed_ts": "2024-01-01T01:00:00+00:00"
     }
   ]

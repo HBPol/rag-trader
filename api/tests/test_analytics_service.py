@@ -170,23 +170,34 @@ def test_correlation_handler_formats_values(
     repository = FakeAnalyticsRepository(
         features={
             (
-                "BTC-ETH",
-                "correlation:pearson:1h",
+                "BTC",
+                "correlation:return_vs_sentiment:pearson:1h",
             ): [
                 FeatureRecord(
-                    symbol="BTC-ETH",
-                    feature_name="correlation:pearson:1h",
+                    symbol="BTC",
+                    feature_name="correlation:return_vs_sentiment:pearson:1h",
                     ts=feature_ts,
                     value=Decimal("0.812500"),
                 )
             ],
             (
-                "ETH-SOL",
-                "correlation:pearson:1h",
+                "BTC",
+                "correlation:return_vs_sentiment:spearman:1h",
             ): [
                 FeatureRecord(
-                    symbol="ETH-SOL",
-                    feature_name="correlation:pearson:1h",
+                    symbol="BTC",
+                    feature_name="correlation:return_vs_sentiment:spearman:1h",
+                    ts=feature_ts,
+                    value=Decimal("0.790000"),
+                )
+            ],
+            (
+                "ETH",
+                "correlation:return_vs_sentiment:pearson:1h",
+            ): [
+                FeatureRecord(
+                    symbol="ETH",
+                    feature_name="correlation:return_vs_sentiment:pearson:1h",
                     ts=feature_ts,
                     value=Decimal("-0.412345"),
                 )
@@ -210,12 +221,20 @@ def test_correlation_handler_formats_values(
     assert payload["last_updated"] == feature_ts.isoformat()
     assert payload["freshness"]["age_minutes"] == pytest.approx(5.0, rel=1e-6)
 
-    pairs = {tuple(item["pair"]): item for item in payload["data"]}
-    assert pairs[("BTC", "ETH")]["value"] == pytest.approx(0.8125)
-    assert pairs[("ETH", "SOL")]["value"] == pytest.approx(-0.412345)
+    assets = {item["asset"]: item for item in payload["data"]}
+    btc_metrics = assets["BTC"]["metrics"]
+    assert btc_metrics["pearson"]["value"] == pytest.approx(0.8125)
+    assert btc_metrics["spearman"]["value"] == pytest.approx(0.79)
+    assert assets["BTC"]["value"] == pytest.approx(0.8125)
+    assert assets["BTC"]["computed_ts"] == feature_ts.isoformat()
+    assert assets["ETH"]["metrics"]["pearson"]["value"] == pytest.approx(-0.412345)
     assert repository.feature_calls == [
-        ("BTC-ETH", "correlation:pearson:1h", None),
-        ("ETH-SOL", "correlation:pearson:1h", None),
+        ("BTC", "correlation:return_vs_sentiment:pearson:1h", None),
+        ("BTC", "correlation:return_vs_sentiment:spearman:1h", None),
+        ("ETH", "correlation:return_vs_sentiment:pearson:1h", None),
+        ("ETH", "correlation:return_vs_sentiment:spearman:1h", None),
+        ("SOL", "correlation:return_vs_sentiment:pearson:1h", None),
+        ("SOL", "correlation:return_vs_sentiment:spearman:1h", None),
     ]
 
 
@@ -272,12 +291,12 @@ def test_influence_graph_handler_marks_stale_and_builds_edges(
         ],
         features={
             (
-                "BTC-ETH",
-                "correlation:pearson:1h",
+                "BTC",
+                "correlation:return_vs_sentiment:pearson:1h",
             ): [
                 FeatureRecord(
-                    symbol="BTC-ETH",
-                    feature_name="correlation:pearson:1h",
+                    symbol="BTC",
+                    feature_name="correlation:return_vs_sentiment:pearson:1h",
                     ts=stale_ts,
                     value=Decimal("0.8000"),
                 )

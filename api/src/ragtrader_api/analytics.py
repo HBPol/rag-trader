@@ -15,6 +15,8 @@ from .db.repositories.analytics import (
 )
 from .settings import ApiSettings, SettingsValidationError
 
+CORRELATION_METRICS: tuple[str, ...] = ("pearson", "spearman")
+
 
 class AnalyticsRepositoryProtocol(Protocol):
     """Protocol describing the analytics repository methods used by the API."""
@@ -82,6 +84,7 @@ class AnalyticsService:
         self._clock = clock or _now
 
         self._pairs: tuple[str, ...] = tuple(settings.analytics_pairs)
+        self._symbols: tuple[str, ...] = tuple(settings.analytics_symbols)
         self._windows: tuple[str, ...] = tuple(settings.analytics_windows)
         self._correlation_metric: str = settings.analytics_correlation_metric
         self._max_age_minutes: int = settings.analytics_max_age_minutes
@@ -211,11 +214,16 @@ class AnalyticsService:
             if computed is not None:
                 last_updated = self._max_dt(last_updated, computed)
 
-            corr_value, corr_ts = correlation_map.get(
-                (record.leader, record.follower, record.window), (None, None)
+            leader_corr, leader_ts = correlation_map.get(
+                (record.leader, record.window), (None, None)
             )
-            if corr_ts is not None:
-                last_updated = self._max_dt(last_updated, corr_ts)
+            follower_corr, follower_ts = correlation_map.get(
+                (record.follower, record.window), (None, None)
+            )
+            corr_value = leader_corr if leader_corr is not None else follower_corr
+            for ts in (leader_ts, follower_ts):
+                if ts is not None:
+                    last_updated = self._max_dt(last_updated, ts)
 
             granger_info = granger_map.get(
                 (record.leader, record.follower, record.window)
@@ -259,10 +267,14 @@ class AnalyticsService:
 
         # Add nodes derived only from correlation/Granger data when no lead/lag exists.
         for entry in correlations:
+            asset = entry.get("asset")
+            if isinstance(asset, str) and asset:
+                nodes.add(asset)
             pair = entry.get("pair", [])
-            if isinstance(pair, Sequence) and len(pair) == 2:
-                nodes.add(str(pair[0]))
-                nodes.add(str(pair[1]))
+            if isinstance(pair, Sequence):
+                for node in pair:
+                    if isinstance(node, str) and node:
+                        nodes.add(node)
 
         for info in granger_map.values():
             nodes.add(info.source)
@@ -344,42 +356,80 @@ class AnalyticsService:
             discovered[f"{record.follower}-{record.leader}"] = None
         return tuple(discovered)
 
+    def _configured_symbols(self) -> tuple[str, ...]:
+        if self._symbols:
+            return self._symbols
+
+        symbols: dict[str, None] = {}
+        for pair in self._configured_pairs():
+            base, quote = self._split_pair(pair)
+            symbols[base] = None
+            symbols[quote] = None
+        return tuple(symbols)
+
     def _collect_correlation_entries(
         self,
     ) -> tuple[
         list[dict[str, Any]],
         datetime | None,
-        dict[tuple[str, str, str], tuple[float | None, datetime | None]],
+        dict[tuple[str, str], tuple[float | None, datetime | None]],
     ]:
         entries: list[dict[str, Any]] = []
         last_updated: datetime | None = None
-        value_map: dict[tuple[str, str, str], tuple[float | None, datetime | None]] = {}
+        value_map: dict[tuple[str, str], tuple[float | None, datetime | None]] = {}
 
-        for pair in self._configured_pairs():
-            base, quote = self._split_pair(pair)
-            symbol = f"{base}-{quote}"
+        configured_symbols = self._configured_symbols()
+        for symbol in configured_symbols:
             for window in self._windows:
-                feature_name = f"correlation:{self._correlation_metric}:{window}"
-                records = self._repository.list_features(
-                    symbol=symbol, feature_name=feature_name
-                )
-                if not records:
-                    continue
-                record = records[-1]
-                ts = _ensure_utc(record.ts)
-                if ts is not None:
-                    last_updated = self._max_dt(last_updated, ts)
-                value = _decimal_to_float(record.value)
-                entries.append(
-                    {
-                        "pair": [base, quote],
-                        "window": window,
+                metrics_payload: dict[str, dict[str, Any]] = {}
+                metric_timestamps: dict[str, datetime | None] = {}
+                primary_value: float | None = None
+                primary_ts: datetime | None = None
+                for metric in CORRELATION_METRICS:
+                    feature_name = f"correlation:return_vs_sentiment:{metric}:{window}"
+                    records = self._repository.list_features(
+                        symbol=symbol, feature_name=feature_name
+                    )
+                    if not records:
+                        continue
+                    record = records[-1]
+                    ts = _ensure_utc(record.ts)
+                    if ts is not None:
+                        last_updated = self._max_dt(last_updated, ts)
+                    value = _decimal_to_float(record.value)
+                    metrics_payload[metric] = {
                         "value": value,
                         "computed_ts": ts.isoformat() if ts else None,
                     }
-                )
-                value_map[(base, quote, window)] = (value, ts)
-                value_map[(quote, base, window)] = (value, ts)
+                    metric_timestamps[metric] = ts
+                    if metric == self._correlation_metric:
+                        primary_value = value
+                        primary_ts = ts
+                if not metrics_payload:
+                    continue
+                if primary_value is None:
+                    # Use the most recently-added metric as the primary when the
+                    # configured one is missing to preserve compatibility.
+                    metric_name = next(iter(metrics_payload))
+                    metric_info = metrics_payload[metric_name]
+                    primary_value = metric_info["value"]
+                    primary_ts = metric_timestamps.get(metric_name)
+                value_map[(symbol, window)] = (primary_value, primary_ts)
+
+                entry: dict[str, Any] = {
+                    "asset": symbol,
+                    "window": window,
+                    "metrics": metrics_payload,
+                }
+
+                base_quote = symbol.split("-", 1)
+                if len(base_quote) == 2:
+                    entry["pair"] = [base_quote[0], base_quote[1]]
+                if primary_value is not None:
+                    entry["value"] = primary_value
+                if primary_ts is not None:
+                    entry["computed_ts"] = primary_ts.isoformat()
+                entries.append(entry)
 
         return entries, last_updated, value_map
 
