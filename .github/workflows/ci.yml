@@ -96,7 +96,7 @@ jobs:
 
       - name: Coinbase ingestion unit tests
         if: ${{ matrix.package == 'pipelines' }}
-        run: pytest tests/test_coinbase_ingestion.py
+        run: pytest --no-cov tests/test_coinbase_ingestion.py
 
       - name: Pytest with coverage gate
         env:
