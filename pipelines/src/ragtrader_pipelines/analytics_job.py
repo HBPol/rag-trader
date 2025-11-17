@@ -7,7 +7,7 @@ import os
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal
 from itertools import combinations, permutations
 from typing import cast
@@ -106,31 +106,37 @@ def _infer_interval(series: pd.Series) -> pd.Timedelta:
         return default_interval
 
     datetime_index = pd.DatetimeIndex(index)
-    deltas = pd.Series(datetime_index.asi8).diff().dropna()
+    timestamp_series = pd.Series(datetime_index, dtype="datetime64[ns]")
+    deltas = timestamp_series.diff().dropna()
     if deltas.empty:
         return default_interval
 
-    median_ns = deltas.median()
-    if pd.isna(median_ns) or not np.isfinite(median_ns) or median_ns <= 0:
+    median_delta = pd.to_timedelta(deltas.median())
+    if pd.isna(median_delta) or median_delta <= pd.Timedelta(0):
         return default_interval
 
-    return pd.to_timedelta(median_ns, unit="ns")
+    return median_delta
 
 
 def _resample_returns(series: pd.Series, window: pd.Timedelta) -> pd.Series:
     resampled = series.resample(window, label="right", closed="right").last().dropna()
     if resampled.empty:
-        return pd.Series(dtype=float, name=series.name or "returns")
+        empty_returns: pd.Series = pd.Series(dtype=float, name=series.name or "returns")
+        return empty_returns
     float_values = resampled.astype(float)
-    log_prices = pd.Series(np.log(float_values.to_numpy()), index=float_values.index)
-    returns = log_prices.diff().dropna()
+    log_prices: pd.Series = pd.Series(
+        np.log(float_values.to_numpy()), index=float_values.index
+    )
+    returns: pd.Series = log_prices.diff().dropna()
     returns.name = series.name or "returns"
     return returns
 
 
 def _resample_sentiment(series: pd.Series, window: pd.Timedelta) -> pd.Series:
     aggregated = series.resample(window, label="right", closed="right").mean().dropna()
-    return aggregated.rename(series.name or "sentiment")
+    aggregated = aggregated.copy()
+    aggregated.name = series.name or "sentiment"
+    return aggregated
 
 
 def _rolling_window_periods(window: pd.Timedelta, base_interval: pd.Timedelta) -> int:
@@ -376,12 +382,19 @@ class AnalyticsJob:
         if cleaned.empty:
             return records
         feature_name = f"correlation:return_vs_sentiment:{metric}:{window}"
-        for timestamp, value in cleaned.items():
-            if not isinstance(timestamp, pd.Timestamp):
+        for raw_timestamp, value in cleaned.items():
+            timestamp: pd.Timestamp
+            if isinstance(raw_timestamp, pd.Timestamp):
+                timestamp = raw_timestamp
+            elif isinstance(
+                raw_timestamp, (datetime, date, np.datetime64, int, float, str)
+            ):
                 try:
-                    timestamp = pd.Timestamp(timestamp)
+                    timestamp = pd.Timestamp(raw_timestamp)
                 except (TypeError, ValueError):
                     continue
+            else:
+                continue
             try:
                 decimal_value = _quantize(float(value))
             except ValueError:
