@@ -124,6 +124,6 @@ def test_docker_build_job_present(ci_workflow: Workflow) -> None:
 def test_reachability_job_runs_probes(ci_workflow: Workflow) -> None:
     reachability = ci_workflow["jobs"]["reachability"]
     run_step = _find_step(reachability, "Run reachability probes")
-    assert "tools/reachability.py" in run_step.get(
-        "run", ""
-    ), "Reachability job must invoke probes script"
+    assert "tools/reachability.py" in run_step.get("run", ""), (
+        "Reachability job must invoke probes script"
+    )
