@@ -387,7 +387,7 @@ class AnalyticsJob:
             if isinstance(raw_timestamp, pd.Timestamp):
                 timestamp = raw_timestamp
             elif isinstance(
-                raw_timestamp, (datetime, date, np.datetime64, int, float, str)
+                raw_timestamp, datetime | date | np.datetime64 | int | float | str
             ):
                 try:
                     timestamp = pd.Timestamp(raw_timestamp)
