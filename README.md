@@ -224,7 +224,10 @@ formatting jobs that GitHub Actions executes. Python-focused hooks lean on Ruff 
 formatting, and import sorting (plus mypy for typing) across the `api/` and `pipelines/`
 packages, while the JavaScript/TypeScript hooks (ESLint and Prettier) cover the `web/` app. Run
 everything from the repository root before opening a PR—there's no need to `cd` into individual
-packages, because `pre-commit run --all-files` mirrors the CI workflow one-for-one:
+packages, because `pre-commit run --all-files` mirrors the CI workflow one-for-one. The `ruff-format`
+hook now rewrites files in-place during local runs so you get fixed sources automatically, while
+CI still verifies that the formatter stays clean via `ruff format --check .`, ensuring bypassed
+hooks are caught:
 
 ```bash
 pre-commit install      # sets up the Git hook using the shared virtualenv
@@ -256,7 +259,7 @@ available via `pre-commit run <hook> --all-files`:
 
 ```bash
 pre-commit run ruff --all-files           # Python linting + import sorting (Ruff)
-pre-commit run ruff-format --all-files    # Python formatting (Ruff formatter)
+pre-commit run ruff-format --all-files    # Python formatting (Ruff formatter, auto-rewrites)
 pre-commit run mypy-api --all-files       # Python type checks (api/)
 pre-commit run mypy-pipelines --all-files # Python type checks (pipelines/)
 pre-commit run eslint --all-files         # Web linting (ESLint)

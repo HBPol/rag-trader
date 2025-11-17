@@ -75,9 +75,9 @@ def env_example() -> dict[str, str]:
 @pytest.fixture(scope="module")
 def compose_configs() -> dict[str, dict[str, Any]]:
     configs = {path.name: load_compose_file(path) for path in COMPOSE_FILES}
-    assert QDRANT_COMPOSE_FILE in configs, (
-        "Expected to load the opt-in Qdrant Compose descriptor."
-    )
+    assert (
+        QDRANT_COMPOSE_FILE in configs
+    ), "Expected to load the opt-in Qdrant Compose descriptor."
     return configs
 
 
