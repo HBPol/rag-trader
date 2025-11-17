@@ -7,6 +7,68 @@ adapters, a deduplication cache, the shared sentiment classifier, and a
 rolling z-score calculator. Both jobs provide scheduler-friendly CLI
 entrypoints and registry wiring.
 
+## Analytics dependencies
+
+The analytics stack now leans on the broader scientific Python
+ecosystem for graph analytics, statistical modelling, and numerical
+helpers. Installing the package will pull in `numpy`, `scipy`,
+`statsmodels`, and `networkx`; a lightweight import smoke test in
+`tests/test_analytics_dependency_imports.py` asserts that those modules
+are importable so contributors spot missing wheels early.
+
+## Analytics data-quality suite
+
+Great Expectations powers the regression tests for the seeded BTC/ETH
+analytics fixtures that underpin Issue #3’s acceptance criteria (“Data
+tests (Great Expectations) for NaNs, gaps, time alignment”). Install the
+optional extras and execute the focused pytest to reproduce the checks:
+
+```bash
+pip install -e .[data-quality]
+PYTHONPATH=src pytest --no-cov tests/test_analytics_data_quality.py
+```
+
+The expectation suite lives alongside the tests at
+[`tests/data_quality/analytics_suite.yml`](tests/data_quality/analytics_suite.yml),
+and the test harness loads the bundled CSV fixture via
+`pipelines/tests/__init__.py`, so no additional environment variables or
+secrets are required. Pass `--no-cov` (or another coverage override) because
+`pipelines/pyproject.toml` enforces an 80% coverage gate by default.
+
+## Analytics batch job
+
+The `ragtrader_pipelines.analytics_job` module wires the analytics
+helpers to Postgres, reading OHLCV closes and sentiment z-scores so it
+can compute rolling price-return versus sentiment correlations, best
+lead/lag lags, and Granger causality tests. Run it locally via the CLI:
+
+```bash
+python -m ragtrader_pipelines.analytics_job \
+  --start "2024-01-01T00:00:00Z" \
+  --end "2024-01-02T00:00:00Z" \
+  --symbols BTC,ETH \
+  --windows 1h,4h \
+  --price-interval 1h \
+  --sentiment-window 6 \
+  --max-lag-minutes 60 \
+  --database-url "postgresql+psycopg://user:pass@localhost:5432/ragtrader"
+```
+
+Flags mirror the Coinbase/content jobs—`DATABASE_URL` is required (either
+via the flag or environment), the `--windows` argument controls the
+resampled series used downstream, and `--max-lag-minutes` bounds the
+cross-correlation + Granger computations. The module also exposes
+`register_analytics_job` so schedulers can bind it via the shared pipeline
+registry.
+
+An integration test seeds a temporary Postgres instance with the bundled
+analytics fixture, runs the job, and asserts rows land in `features`,
+`lead_lag`, and `granger_tests`:
+
+```bash
+PYTHONPATH=src pytest tests/test_analytics_job_integration.py
+```
+
 ## Development
 
 ```bash

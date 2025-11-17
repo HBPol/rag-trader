@@ -34,6 +34,10 @@ class Instrument(Base):
     )
 
     ohlcv: Mapped[list[Ohlcv]] = relationship(back_populates="instrument")
+    features: Mapped[list[Feature]] = relationship(
+        back_populates="instrument",
+        cascade="all, delete-orphan",
+    )
 
 
 class Ohlcv(Base):
@@ -147,4 +151,102 @@ class Sentiment(Base):
     article: Mapped[Article] = relationship("Article", back_populates="sentiments")
 
 
-__all__ = ["Base", "Instrument", "Ohlcv", "Article", "Sentiment"]
+class Feature(Base):
+    """Computed feature values associated with an instrument."""
+
+    __tablename__ = "features"
+    __table_args__ = (
+        Index("ix_features_symbol_feature_name_ts", "symbol", "feature_name", "ts"),
+    )
+
+    symbol: Mapped[str] = mapped_column(
+        String(16),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    feature_name: Mapped[str] = mapped_column(String(128), primary_key=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    value: Mapped[Decimal] = mapped_column(Numeric(24, 12), nullable=False)
+
+    instrument: Mapped[Instrument] = relationship(
+        "Instrument",
+        back_populates="features",
+    )
+
+
+class LeadLag(Base):
+    """Lead/lag analytics describing leader and follower relationships."""
+
+    __tablename__ = "lead_lag"
+    __table_args__ = (
+        Index(
+            "ix_lead_lag_pair_window_ts",
+            "leader",
+            "follower",
+            "window",
+            "computed_ts",
+        ),
+    )
+
+    leader: Mapped[str] = mapped_column(
+        String(16),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    follower: Mapped[str] = mapped_column(
+        String(16),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    window: Mapped[str] = mapped_column(String(32), primary_key=True)
+    computed_ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        primary_key=True,
+    )
+    best_lag_min: Mapped[int] = mapped_column(Integer, nullable=False)
+    strength: Mapped[Decimal] = mapped_column(Numeric(12, 6), nullable=False)
+
+
+class GrangerTest(Base):
+    """Granger causality test outcomes between two instruments."""
+
+    __tablename__ = "granger_tests"
+    __table_args__ = (
+        Index(
+            "ix_granger_tests_pair_window_ts",
+            "x_symbol",
+            "y_symbol",
+            "window",
+            "computed_ts",
+        ),
+    )
+
+    x_symbol: Mapped[str] = mapped_column(
+        String(16),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    y_symbol: Mapped[str] = mapped_column(
+        String(16),
+        ForeignKey("instruments.symbol", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    window: Mapped[str] = mapped_column(String(32), primary_key=True)
+    computed_ts: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        primary_key=True,
+    )
+    p_value: Mapped[Decimal] = mapped_column(Numeric(24, 12), nullable=False)
+    direction: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+__all__ = [
+    "Base",
+    "Instrument",
+    "Ohlcv",
+    "Article",
+    "Sentiment",
+    "Feature",
+    "LeadLag",
+    "GrangerTest",
+]

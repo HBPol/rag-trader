@@ -19,7 +19,8 @@ RAGTrader is a crypto analytics and prototyping platform that fuses price data f
 - Show cross-asset effects (influence graph) and report simple Granger causality tests.
 - Prototype a **Strategy DSL** + vectorized backtester; run at least one sentiment/lead-lag strategy.
 - RAG Explorer v0: retrieve relevant snippets and summarize with citations.
-
+- Compute and persist **price-vs-sentiment** analytics:
+  - A dedicated pipelines job computes rolling correlations between price returns and sentiment z-scores, cross-asset lead/lag, and Granger causality, and stores them in analytics tables consumed by the `/analytics/*` API.
 ### Non-Goals (MVP)
 - Live trading or exchange account linking.
 - Complex execution simulation (basic slippage model only).

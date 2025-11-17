@@ -173,3 +173,16 @@ def test_classifier_handles_multi_coin_metadata(
     )
     assert result.label in {SentimentLabel.BULLISH, SentimentLabel.NEUTRAL}
     _assert_coin_alignment(result.coins, ("ARB", "OP"))
+
+
+def test_classifier_discards_non_tickers_from_metadata(
+    classifier: SentimentClassifier,
+) -> None:
+    """Metadata keywords should not leak into the classifier coin output."""
+
+    result = classifier.classify(
+        text="Bitcoin steadies while analysts debate long-term adoption trends.",
+        metadata={"coins": ["btc", "AI", "GOOGLE", "ETH"]},
+    )
+
+    _assert_coin_alignment(result.coins, ("BTC", "ETH"))

@@ -52,6 +52,33 @@ and honors the following environment variables:
 
 Pass `--help` to explore more knobs (batch size, retry/backoff tuning, dry-run mode).
 
+## Analytics batch job
+
+The analytics engine combines Coinbase OHLCV candles with sentiment
+z-scores stored in Postgres to compute rolling price-return versus
+sentiment correlations, cross-asset lead/lag relationships, and Granger
+causality tests. The job runs as a standalone CLI so it can be scheduled
+alongside the ingestion pipelines:
+
+```bash
+python -m ragtrader_pipelines.analytics_job \
+  --start "2024-01-01T00:00:00Z" \
+  --end "2024-01-02T00:00:00Z" \
+  --symbols BTC,ETH \
+  --windows 1h,4h \
+  --price-interval 1h \
+  --sentiment-window 6 \
+  --max-lag-minutes 60 \
+  --database-url "postgresql+psycopg://user:pass@localhost:5432/ragtrader"
+```
+
+`--windows` accepts a comma-separated list of sampling intervals that
+control the resampled series used for both correlation features and the
+lead/lag + Granger computations. The job looks up `DATABASE_URL` from the
+environment when the flag is omitted, and it exposes registry wiring so
+Cloud Scheduler / Airflow can reuse the shared pipeline registry
+(`ragtrader_pipelines.analytics_job:register_analytics_job`).
+
 ## Monorepo Layout
 
 | Path | Purpose |
@@ -161,6 +188,27 @@ installs remain reproducible.
   verify Coinbase, CoinDesk Data API endpoints, and Qdrant respond before we run heavier jobs. Execute
   `python tools/reachability.py` locally or rely on the "External Reachability" CI job to exercise
   them on every push.
+
+### Analytics data-quality checks
+
+The analytics pipelines rely on [Great Expectations](https://greatexpectations.io/) to validate the
+seeded BTC/ETH fixtures that drive Issue #3’s acceptance criteria. Install the optional dependency
+before running the suite:
+
+```bash
+cd pipelines
+pip install -e .[data-quality]  # installs great-expectations and pyarrow
+PYTHONPATH=src pytest --no-cov tests/test_analytics_data_quality.py
+# Run the Postgres-backed integration test for the analytics job
+PYTHONPATH=src pytest --maxfail=1 tests/test_analytics_job_integration.py
+```
+
+The expectation suite lives at
+[`pipelines/tests/data_quality/analytics_suite.yml`](pipelines/tests/data_quality/analytics_suite.yml)
+and encodes the data-quality deliverable called out in Issue #3 (“Data tests (Great Expectations)
+for NaNs, gaps, time alignment”). Pass `--no-cov` (or another coverage override) because
+`pipelines/pyproject.toml` enforces an 80% coverage gate by default. No additional environment
+variables are required—the pytest fixture loads the bundled analytics CSV directly.
 - **PyCharm + Docker**: add a Docker Compose interpreter pointed at the `api` service so
   editor actions reuse the container runtime. In *Settings → Project → Python Interpreter*,
   click **Add Interpreter… → Docker Compose**, select `docker-compose.yml` (and optionally
@@ -398,3 +446,60 @@ environment variables or Secrets Manager:
 
    Cloud Scheduler supplies the `Authorization: Bearer <token>` header, so the
    endpoint does not require an additional payload.
+
+## Analytics pipeline job (price vs sentiment)
+
+RAGTrader includes a dedicated analytics job that computes lead/lag and price-vs-sentiment metrics and persists them to the analytics tables used by the API.
+
+### What it does
+
+The analytics job:
+
+- Reads OHLCV price data and sentiment z-score time series from Postgres.
+- Computes, for each asset and window (e.g., 1h, 4h, 24h):
+  - Rolling **Pearson** and **Spearman** correlations between price returns and sentiment z-scores.
+- Computes, for each asset pair:
+  - Cross-correlation and best lead/lag (FR-7).
+  - Granger causality direction and p-values (FR-8).
+- Writes results into:
+  - `features` (price-vs-sentiment correlation features),
+  - `lead_lag` (best lag + strength per pair),
+  - `granger_tests` (direction and p-values per pair).
+
+Each instrument symbol receives two feature rows per `(asset, window)` pair: `correlation:return_vs_sentiment:pearson:{window}` and `correlation:return_vs_sentiment:spearman:{window}`. These metrics are computed from aligned price-return and sentiment z-score series. The `/analytics/correlation` API exposes the same data in a sentiment-aware payload:
+
+```json
+{
+  "status": "ok",
+  "metric": "pearson",
+  "data": [
+    {
+      "asset": "BTC-USD",
+      "window": "1h",
+      "metrics": {
+        "pearson": {"value": 0.84, "computed_ts": "2024-01-01T01:00:00+00:00"},
+        "spearman": {"value": 0.80, "computed_ts": "2024-01-01T01:00:00+00:00"}
+      },
+      "value": 0.84,
+      "computed_ts": "2024-01-01T01:00:00+00:00"
+    }
+  ]
+}
+```
+
+The `value`/`computed_ts` fields mirror whichever metric is configured as the primary (`analytics_correlation_metric`) to preserve backwards compatibility for existing clients.
+
+### Running the analytics job
+
+From the `pipelines/` directory:
+
+```bash
+cd pipelines
+export DATABASE_URL=postgresql://ragtrader:ragtrader@localhost:5432/ragtrader
+
+PYTHONPATH=src python -m ragtrader_pipelines.analytics_job \
+  --start "2024-01-01T00:00:00Z" \
+  --end "2024-01-02T00:00:00Z" \
+  --window 1h \
+  --max-lag-minutes 120
+```

@@ -31,6 +31,11 @@ from ..sentiment import (
     SentimentSeriesPoint,
     ZScoreCalculator,
 )
+from .coin_registry import (
+    KNOWN_TICKERS,
+    is_supported_ticker,
+    normalise_supported_ticker,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +48,13 @@ __all__ = [
     "CoinDeskContentSource",
     "CoinTelegraphAdapter",
     "CoinTelegraphContentSource",
+    "KNOWN_TICKERS",
     "InMemoryDedupeCache",
     "NormalizedArticleRecord",
     "RedditContentSource",
     "RedisDedupeCache",
+    "is_supported_ticker",
+    "normalise_supported_ticker",
     "build_arg_parser",
     "build_sources_from_env",
     "default_content_sources",
@@ -147,13 +155,27 @@ class BaseContentAdapter:
         """Normalise a URL for caching/deduplication purposes."""
 
         split = urlsplit(url, allow_fragments=True)
-        netloc = canonical_host.lower()
+
+        canonical_host = canonical_host.lower()
+        alias_hosts = {canonical_host}
+        if canonical_host.startswith("www."):
+            alias_hosts.add(canonical_host.removeprefix("www."))
+
+        hostname = (split.hostname or "").lower()
+        port = split.port
+
+        if not hostname or hostname in alias_hosts:
+            hostname = canonical_host
+            port = None
+
+        netloc = hostname if port is None else f"{hostname}:{port}"
+
         path = split.path or "/"
         path = re.sub(r"//+", "/", path)
         path = path.lower()
 
         normalized = SplitResult(
-            scheme="https",
+            scheme=split.scheme or "https",
             netloc=netloc,
             path=path,
             query="",
@@ -231,17 +253,12 @@ class BaseContentAdapter:
             for token in collection:
                 if not token:
                     continue
-                normalized = re.sub(r"[^A-Za-z0-9]", "", str(token)).upper()
-                if not normalized:
+                candidate = normalise_supported_ticker(token)
+                if not candidate:
                     continue
-                if normalized.isdigit():
+                if candidate in stopwords:
                     continue
-                if not re.search(r"[A-Z]", normalized):
-                    continue
-                if normalized.endswith("NEWS"):
-                    continue
-                if 2 <= len(normalized) <= 10 and normalized not in stopwords:
-                    coins.add(normalized)
+                coins.add(candidate)
         return sorted(coins)
 
     @staticmethod

@@ -8,7 +8,12 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-PATHS = [ROOT, ROOT / "api" / "src", ROOT / "api" / "tests"]
+PATHS = [
+    ROOT,
+    ROOT / "pipelines" / "src",
+    ROOT / "api" / "src",
+    ROOT / "api" / "tests",
+]
 
 for path in PATHS:
     candidate = str(path)

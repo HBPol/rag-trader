@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import os
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache
@@ -172,6 +172,125 @@ def _coerce_positive_int(value: str | None, *, default: int) -> int:
     return parsed
 
 
+def _parse_analytics_pairs_value(value: Sequence[str] | str | None) -> tuple[str, ...]:
+    if value is None:
+        raw_items: list[str] = []
+    elif isinstance(value, str):
+        raw_items = value.split(",")
+    else:
+        raw_items = list(value)
+
+    normalized: list[str] = []
+    for item in raw_items:
+        candidate = item.strip()
+        if not candidate:
+            continue
+        candidate = candidate.upper().replace("/", "-").replace(":", "-")
+        if "-" not in candidate:
+            raise SettingsValidationError(
+                "Analytics pairs must include a '-' separator between symbols."
+            )
+        normalized.append(candidate)
+
+    return tuple(dict.fromkeys(normalized))
+
+
+def _parse_analytics_symbols_value(
+    value: Sequence[str] | str | None,
+) -> tuple[str, ...]:
+    if value is None:
+        raw_items: list[str] = []
+    elif isinstance(value, str):
+        raw_items = value.split(",")
+    else:
+        raw_items = list(value)
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for item in raw_items:
+        candidate = item.strip().upper().replace("/", "-")
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        normalized.append(candidate)
+
+    return tuple(normalized)
+
+
+def _symbols_from_pairs(pairs: Sequence[str]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for pair in pairs:
+        candidate = pair.replace("/", "-").replace(":", "-")
+        if "-" not in candidate:
+            continue
+        base, quote = candidate.split("-", 1)
+        for symbol in (base.strip().upper(), quote.strip().upper()):
+            if not symbol or symbol in seen:
+                continue
+            seen.add(symbol)
+            normalized.append(symbol)
+    return tuple(normalized)
+
+
+def _parse_analytics_windows_value(
+    value: Sequence[str] | str | None,
+) -> tuple[str, ...]:
+    if value is None:
+        raw_items: list[str] = []
+    elif isinstance(value, str):
+        raw_items = value.split(",")
+    else:
+        raw_items = list(value)
+
+    windows: list[str] = []
+    for item in raw_items:
+        candidate = item.strip()
+        if not candidate:
+            continue
+        windows.append(candidate)
+
+    if not windows:
+        return ("1h",)
+
+    return tuple(dict.fromkeys(windows))
+
+
+def _parse_correlation_metric(value: str | None) -> str:
+    candidate = (value or "pearson").strip().lower()
+    if not candidate:
+        raise SettingsValidationError("Analytics correlation metric must not be empty.")
+    return candidate
+
+
+def _parse_granger_significance(value: float | str | None) -> float:
+    candidate: float | str
+    if value is None:
+        candidate = 0.05
+    else:
+        candidate = value
+
+    try:
+        parsed = float(candidate)
+    except (TypeError, ValueError) as exc:
+        raise SettingsValidationError(
+            "Analytics Granger significance must be a numeric value."
+        ) from exc
+
+    if not 0 < parsed <= 1:
+        raise SettingsValidationError(
+            "Analytics Granger significance must be between 0 and 1."
+        )
+
+    return parsed
+
+
+def _validate_positive_minutes(value: int, *, field: str) -> int:
+    if value <= 0:
+        raise SettingsValidationError(f"{field} must be greater than zero.")
+    return value
+
+
 def _load_secret_from_manager(name: str) -> str:
     try:
         import boto3  # type: ignore
@@ -289,6 +408,13 @@ class ApiSettings:
     use_qdrant_cloud: bool
     require_database: bool
     require_vector_store: bool
+    analytics_pairs: tuple[str, ...]
+    analytics_symbols: tuple[str, ...]
+    analytics_windows: tuple[str, ...]
+    analytics_correlation_metric: str
+    analytics_max_age_minutes: int
+    analytics_fallback_minutes: int
+    analytics_granger_significance: float
 
     def __init__(
         self,
@@ -302,6 +428,13 @@ class ApiSettings:
         use_qdrant_cloud: bool | None = None,
         require_database: bool | None = None,
         require_vector_store: bool | None = None,
+        analytics_pairs: Sequence[str] | None = None,
+        analytics_windows: Sequence[str] | None = None,
+        analytics_symbols: Sequence[str] | None = None,
+        analytics_correlation_metric: str | None = None,
+        analytics_max_age_minutes: int | None = None,
+        analytics_fallback_minutes: int | None = None,
+        analytics_granger_significance: float | None = None,
     ) -> None:
         _ensure_env_loaded()
         env_vars = os.environ
@@ -422,6 +555,65 @@ class ApiSettings:
         self.use_qdrant_cloud = raw_use_qdrant_cloud
         self.require_database = raw_require_db
         self.require_vector_store = raw_require_vector
+
+        parsed_pairs = _parse_analytics_pairs_value(analytics_pairs)
+        if not parsed_pairs:
+            parsed_pairs = _parse_analytics_pairs_value(
+                env_vars.get("RAGTRADER_API_ANALYTICS_PAIRS")
+            )
+        parsed_symbols = _parse_analytics_symbols_value(analytics_symbols)
+        if not parsed_symbols:
+            parsed_symbols = _parse_analytics_symbols_value(
+                env_vars.get("RAGTRADER_API_ANALYTICS_SYMBOLS")
+            )
+        if not parsed_symbols and parsed_pairs:
+            parsed_symbols = _symbols_from_pairs(parsed_pairs)
+        parsed_windows = _parse_analytics_windows_value(analytics_windows)
+        if not parsed_windows:
+            parsed_windows = _parse_analytics_windows_value(
+                env_vars.get("RAGTRADER_API_ANALYTICS_WINDOWS")
+            )
+
+        parsed_metric = _parse_correlation_metric(analytics_correlation_metric)
+        env_metric = env_vars.get("RAGTRADER_API_ANALYTICS_CORRELATION_METRIC")
+        if analytics_correlation_metric is None and env_metric is not None:
+            parsed_metric = _parse_correlation_metric(env_metric)
+
+        if analytics_max_age_minutes is not None:
+            raw_max_age = _validate_positive_minutes(
+                analytics_max_age_minutes, field="Analytics max age minutes"
+            )
+        else:
+            raw_max_age = _coerce_positive_int(
+                env_vars.get("RAGTRADER_API_ANALYTICS_MAX_AGE_MINUTES"), default=60
+            )
+
+        if analytics_fallback_minutes is not None:
+            raw_fallback = _validate_positive_minutes(
+                analytics_fallback_minutes, field="Analytics fallback minutes"
+            )
+        else:
+            raw_fallback = _coerce_positive_int(
+                env_vars.get("RAGTRADER_API_ANALYTICS_FALLBACK_MINUTES"), default=240
+            )
+
+        if raw_fallback < raw_max_age:
+            raw_fallback = raw_max_age
+
+        parsed_significance = _parse_granger_significance(
+            analytics_granger_significance
+        )
+        env_significance = env_vars.get("RAGTRADER_API_ANALYTICS_GRANGER_SIGNIFICANCE")
+        if analytics_granger_significance is None and env_significance is not None:
+            parsed_significance = _parse_granger_significance(env_significance)
+
+        self.analytics_pairs = parsed_pairs
+        self.analytics_symbols = parsed_symbols
+        self.analytics_windows = parsed_windows
+        self.analytics_correlation_metric = parsed_metric
+        self.analytics_max_age_minutes = raw_max_age
+        self.analytics_fallback_minutes = raw_fallback
+        self.analytics_granger_significance = parsed_significance
 
     def readiness_checks(self) -> dict[str, bool]:
         checks: dict[str, bool] = {
