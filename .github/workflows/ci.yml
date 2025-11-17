@@ -86,7 +86,13 @@ jobs:
         run: ruff format --check .
 
       - name: mypy
-        run: mypy
+        working-directory: .
+        run: >-
+          if [[ "${{ matrix.package }}" == 'api' ]]; then
+            tools/precommit/mypy_api.sh;
+          else
+            tools/precommit/mypy_pipelines.sh;
+          fi
 
       - name: Coinbase ingestion unit tests
         if: ${{ matrix.package == 'pipelines' }}
