@@ -30,8 +30,6 @@ dev = [
   "pytest>=8.0",
   "pytest-cov>=4.1",
   "ruff>=0.3",
-  "black>=24.2",
-  "isort>=5.13",
   "mypy>=1.8",
   "httpx>=0.26",
   "testcontainers[postgresql]>=4.2",
@@ -47,21 +45,17 @@ markers = [
   "asyncio: mark tests that rely on pytest-asyncio",
 ]
 
-[tool.black]
-line-length = 88
-target-version = ["py311"]
-
-[tool.isort]
-profile = "black"
-known_first_party = ["ragtrader_api", "ragtrader_pipelines"]
-
 [tool.ruff]
 line-length = 88
 src = ["src", "tests"]
+target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "UP", "B", "Q", "S"]
+select = ["E", "F", "UP", "B", "Q", "S", "I"]
 ignore = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ragtrader_api", "ragtrader_pipelines"]
 
 [tool.mypy]
 python_version = "3.11"

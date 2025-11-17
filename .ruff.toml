@@ -9,7 +9,7 @@ src = [
 ]
 
 [lint]
-select = ["E", "F", "UP", "B", "Q", "S"]
+select = ["E", "F", "UP", "B", "Q", "S", "I"]
 ignore = ["S101"]
 
 [lint.per-file-ignores]
