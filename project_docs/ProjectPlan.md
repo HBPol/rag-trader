@@ -19,7 +19,7 @@
 - GitHub Actions: lint, type-check, tests, coverage gates, Docker build.
 - Python: FastAPI skeleton; **Postgres (Timescale optional) as a docker service** for time‑series/metadata (no files in repo); Coinbase OHLCV poller.
 - Frontend: Next.js skeleton, UI kit setup (shadcn/ui), auth gate (basic).
-- Pre-commit: ruff, black, isort, mypy; ESLint, Prettier, TypeScript strict.
+- Pre-commit: ruff (linting/formatting/imports) + mypy; ESLint, Prettier, TypeScript strict.
 - Vector store wired to **Qdrant Cloud (Free Tier)** (or self‑hosted Qdrant as a docker service for offline dev). Add thin repository interface to allow swapping providers.
 - **Dev/Prod parity**: compose files align with Cloud Run deploys; development secrets via `.env`.
 - CI smoke **reachability tests** for Coinbase, CoinDesk Data API endpoints, and Qdrant (with graceful skip on rate limits).

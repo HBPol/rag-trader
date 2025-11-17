@@ -80,7 +80,7 @@
 
 #### 2.5 Maintainability & Testability
 - **NFR-9:** Backend test coverage ≥80%; frontend ≥70%; Great Expectations checks for data quality.
-- **NFR-10:** Code style: ruff/black/isort/mypy; ESLint/Prettier/TS strict; conventional commits; typed pydantic schemas.
+- **NFR-10:** Code style: Ruff (linting/formatting/imports) + mypy; ESLint/Prettier/TS strict; conventional commits; typed pydantic schemas.
 
 #### 2.6 Observability
 - **NFR-11:** Structured JSON logging; request IDs; basic traces/metrics (OpenTelemetry optional); `/healthz` and `/readyz` endpoints.

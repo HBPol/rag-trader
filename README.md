@@ -177,7 +177,7 @@ use the pnpm cache configured in `.github/workflows/ci.yml` and that local
 installs remain reproducible.
 
 ### Root Tooling
-- **Pre-commit** enforces Ruff, Black, isort, mypy, ESLint, and Prettier.
+- **Pre-commit** enforces Ruff (linting, formatting, and import sorting), mypy, ESLint, and Prettier.
 - **Docker Compose & CI** expose the API, web, Postgres, and Redis services (with an optional
   local Qdrant override) described in the [Quickstart](#quickstart), and GitHub Actions already
   runs smoke tests with the stack while we stage deeper pipeline coverage for upcoming CI work.
@@ -220,11 +220,11 @@ variables are required—the pytest fixture loads the bundled analytics CSV dire
 #### Run pre-commit locally
 
 The root [`.pre-commit-config.yaml`](.pre-commit-config.yaml) defines the exact linting and
-formatting jobs that GitHub Actions executes. Python-focused hooks (Ruff, Black, isort, mypy)
-target the `api/` and `pipelines/` packages, while the JavaScript/TypeScript hooks (ESLint and
-Prettier) cover the `web/` app. Run everything from the repository root before opening a PR—there's
-no need to `cd` into individual packages, because `pre-commit run --all-files` mirrors the CI
-workflow one-for-one:
+formatting jobs that GitHub Actions executes. Python-focused hooks lean on Ruff for linting,
+formatting, and import sorting (plus mypy for typing) across the `api/` and `pipelines/`
+packages, while the JavaScript/TypeScript hooks (ESLint and Prettier) cover the `web/` app. Run
+everything from the repository root before opening a PR—there's no need to `cd` into individual
+packages, because `pre-commit run --all-files` mirrors the CI workflow one-for-one:
 
 ```bash
 pre-commit install      # sets up the Git hook using the shared virtualenv
@@ -255,9 +255,8 @@ To re-run a specific hook against the full tree, use the hook's name explicitly.
 available via `pre-commit run <hook> --all-files`:
 
 ```bash
-pre-commit run ruff --all-files           # Python linting & formatting (Ruff)
-pre-commit run black --all-files          # Python formatting (Black)
-pre-commit run isort --all-files          # Python import sorting (isort)
+pre-commit run ruff --all-files           # Python linting + import sorting (Ruff)
+pre-commit run ruff-format --all-files    # Python formatting (Ruff formatter)
 pre-commit run mypy-api --all-files       # Python type checks (api/)
 pre-commit run mypy-pipelines --all-files # Python type checks (pipelines/)
 pre-commit run eslint --all-files         # Web linting (ESLint)

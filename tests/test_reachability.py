@@ -9,7 +9,6 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import pytest
-
 from tools import reachability
 from tools.reachability import ProbeStatus
 
