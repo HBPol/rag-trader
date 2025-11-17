@@ -106,7 +106,12 @@ def _infer_interval(series: pd.Series) -> pd.Timedelta:
         return default_interval
 
     datetime_index = pd.DatetimeIndex(index)
-    timestamp_series = pd.Series(datetime_index, dtype="datetime64[ns]")
+    # ``DatetimeIndex`` instances may be timezone-aware (as they are in the
+    # integration test fixtures).  Constructing a ``Series`` with an explicit
+    # timezone-naive dtype would attempt to drop the timezone and raise a
+    # ``TypeError``.  Let pandas pick the dtype so tz-aware timestamps remain
+    # aware and we can still compute the diffs.
+    timestamp_series = pd.Series(datetime_index)
     deltas = timestamp_series.diff().dropna()
     if deltas.empty:
         return default_interval
