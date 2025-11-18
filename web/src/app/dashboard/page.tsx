@@ -4,12 +4,7 @@ import { useMemo, useState } from "react";
 
 import AuthGate from "@/components/AuthGate";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const coins = ["BTC", "ETH", "SOL", "USDT", "USDC", "ARB", "DOGE"];
 
@@ -53,7 +48,9 @@ export default function DashboardPage() {
                     {environmentLabel}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">Refreshed {refreshedAt}</p>
+                <p className="text-xs text-muted-foreground">
+                  Refreshed {refreshedAt}
+                </p>
               </div>
               <div className="flex w-full flex-col gap-3 sm:w-auto">
                 <div className="flex flex-col gap-3 sm:flex-row">
@@ -78,8 +75,7 @@ export default function DashboardPage() {
                       className="mt-5"
                       onClick={handleSwap}
                     >
-                      <span className="sr-only">Swap coins</span>
-                      ⇄
+                      <span className="sr-only">Swap coins</span>⇄
                     </Button>
                   </div>
                   <label className="flex flex-1 flex-col text-xs font-medium text-muted-foreground">
