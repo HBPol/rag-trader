@@ -18,8 +18,8 @@ export default function Home() {
           <CardHeader className="space-y-3 text-center">
             <CardTitle className="text-3xl">RAGTrader</CardTitle>
             <CardDescription>
-              Monorepo scaffold ready. Subsequent tasks will bring live price and
-              sentiment analytics to life.
+              Monorepo scaffold ready. Subsequent tasks will bring live price
+              and sentiment analytics to life.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -31,8 +31,8 @@ export default function Home() {
             <div className="rounded-md border border-dashed border-muted-foreground/30 bg-muted/40 p-4 text-sm text-muted-foreground">
               <p className="font-medium text-foreground">Mock auth preview</p>
               <p>
-                You are signed in via the mock auth provider—swap the environment
-                flag to review the locked experience.
+                You are signed in via the mock auth provider—swap the
+                environment flag to review the locked experience.
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
