@@ -30,6 +30,8 @@ dev = [
   "pandas-stubs ; python_version < \"3.12\"",
   "types-redis>=4.6.0.4",
   "great-expectations>=0.18,<0.19",
+  "psycopg[binary]>=3.1",
+  "testcontainers[postgresql]>=4.2",
 ]
 
 data-quality = [
