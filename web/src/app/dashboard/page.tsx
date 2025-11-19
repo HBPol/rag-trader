@@ -5,19 +5,78 @@ import { useMemo, useState } from "react";
 import AuthGate from "@/components/AuthGate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  useCorrelationQuery,
+  useEventsQuery,
+  useGrangerQuery,
+  useInfluenceGraphQuery,
+  useLeadLagQuery,
+  useSentimentQuery,
+} from "@/lib/queries/analytics";
+import type { CorrelationEntry } from "@/lib/schemas/correlation";
 
 const coins = ["BTC", "ETH", "SOL", "USDT", "USDC", "ARB", "DOGE"];
+
+function renderMetric(
+  isLoading: boolean,
+  error: unknown,
+  value: string | number | null,
+): string | number {
+  if (isLoading) return "Loading...";
+  if (error) return "Unavailable";
+  if (value === null || value === undefined) return "No data";
+  return value;
+}
+
+function renderFreshness(ageMinutes?: number | null): string {
+  if (
+    ageMinutes === undefined ||
+    ageMinutes === null ||
+    !Number.isFinite(ageMinutes)
+  ) {
+    return "Unknown";
+  }
+  if (ageMinutes < 1) return "<1 min ago";
+  if (ageMinutes < 60) return `${ageMinutes.toFixed(1)} mins ago`;
+  return `${(ageMinutes / 60).toFixed(1)} hrs ago`;
+}
+
+function formatCorrelationValue(
+  entry: CorrelationEntry | null,
+  primaryMetric: string | null,
+): string | null {
+  if (!entry) return null;
+  const metricValue =
+    entry.value ??
+    (primaryMetric ? (entry.metrics[primaryMetric]?.value ?? null) : null);
+  if (typeof metricValue === "number") {
+    return metricValue.toFixed(3);
+  }
+  return null;
+}
 
 export default function DashboardPage() {
   const [baseCoin, setBaseCoin] = useState(coins[0]);
   const [quoteCoin, setQuoteCoin] = useState(coins[1]);
   const [refreshedAt] = useState(() => new Date().toLocaleString());
 
+  const analyticsWindow = "1h";
   const environmentLabel = process.env.NEXT_PUBLIC_APP_ENV ?? "Local";
 
   const summaryText = useMemo(() => {
     return `Monitoring ${baseCoin}/${quoteCoin} for liquidity shifts, spreads, and cross-market volatility to guide the upcoming analytics modules.`;
   }, [baseCoin, quoteCoin]);
+
+  const correlationQuery = useCorrelationQuery(baseCoin, analyticsWindow);
+  const leadLagQuery = useLeadLagQuery(baseCoin, quoteCoin, analyticsWindow);
+  const grangerQuery = useGrangerQuery(baseCoin, quoteCoin, analyticsWindow);
+  const influenceGraphQuery = useInfluenceGraphQuery(
+    baseCoin,
+    quoteCoin,
+    analyticsWindow,
+  );
+  const sentimentQuery = useSentimentQuery(baseCoin, analyticsWindow);
+  const eventsQuery = useEventsQuery({ enabled: false });
 
   const placeholderWidgets = [
     "Market Heatmap",
@@ -100,6 +159,183 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground">{summaryText}</p>
           </CardContent>
         </Card>
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <Card className="border shadow-sm">
+            <CardHeader>
+              <CardTitle>Return vs Sentiment</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                Window:{" "}
+                <span className="font-medium text-foreground">
+                  {analyticsWindow}
+                </span>
+              </p>
+              <p>
+                Value:{" "}
+                <span className="font-medium text-foreground">
+                  {renderMetric(
+                    correlationQuery.isLoading,
+                    correlationQuery.error,
+                    formatCorrelationValue(
+                      correlationQuery.data?.entry ?? null,
+                      correlationQuery.data?.payload.metric ?? null,
+                    ),
+                  )}
+                </span>
+              </p>
+              <p>
+                Freshness:{" "}
+                {renderFreshness(
+                  correlationQuery.data?.payload.freshness.age_minutes,
+                )}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border shadow-sm">
+            <CardHeader>
+              <CardTitle>Lead/Lag</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                Best Lag:{" "}
+                <span className="font-medium text-foreground">
+                  {renderMetric(
+                    leadLagQuery.isLoading,
+                    leadLagQuery.error,
+                    leadLagQuery.data?.edge?.best_lag_minutes != null
+                      ? `${leadLagQuery.data.edge.best_lag_minutes}m`
+                      : null,
+                  )}
+                </span>
+              </p>
+              <p>
+                Strength:{" "}
+                <span className="font-medium text-foreground">
+                  {renderMetric(
+                    leadLagQuery.isLoading,
+                    leadLagQuery.error,
+                    leadLagQuery.data?.edge?.strength?.toFixed(3) ?? null,
+                  )}
+                </span>
+              </p>
+              <p>
+                Updated:{" "}
+                {renderFreshness(
+                  leadLagQuery.data?.payload.freshness.age_minutes,
+                )}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border shadow-sm">
+            <CardHeader>
+              <CardTitle>Granger</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                P-value:{" "}
+                <span className="font-medium text-foreground">
+                  {renderMetric(
+                    grangerQuery.isLoading,
+                    grangerQuery.error,
+                    grangerQuery.data?.edge?.p_value?.toFixed(4) ?? null,
+                  )}
+                </span>
+              </p>
+              <p>
+                Reject Null:{" "}
+                <span className="font-medium text-foreground">
+                  {renderMetric(
+                    grangerQuery.isLoading,
+                    grangerQuery.error,
+                    grangerQuery.data?.edge?.reject_null === null
+                      ? null
+                      : grangerQuery.data?.edge?.reject_null
+                        ? "Yes"
+                        : "No",
+                  )}
+                </span>
+              </p>
+              <p>
+                Updated:{" "}
+                {renderFreshness(
+                  grangerQuery.data?.payload.freshness.age_minutes,
+                )}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border shadow-sm">
+            <CardHeader>
+              <CardTitle>Influence Graph</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                Edge Weight:{" "}
+                <span className="font-medium text-foreground">
+                  {renderMetric(
+                    influenceGraphQuery.isLoading,
+                    influenceGraphQuery.error,
+                    influenceGraphQuery.data?.matchingEdge?.weight?.toFixed(
+                      3,
+                    ) ?? null,
+                  )}
+                </span>
+              </p>
+              <p>
+                Nodes tracked:{" "}
+                {influenceGraphQuery.data?.payload.graph.nodes.length ?? 0}
+              </p>
+              <p>
+                Updated:{" "}
+                {renderFreshness(
+                  influenceGraphQuery.data?.payload.freshness.age_minutes,
+                )}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border shadow-sm">
+            <CardHeader>
+              <CardTitle>Sentiment</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                Observations:{" "}
+                <span className="font-medium text-foreground">
+                  {renderMetric(
+                    sentimentQuery.isLoading,
+                    sentimentQuery.error,
+                    sentimentQuery.data?.series.length ?? null,
+                  )}
+                </span>
+              </p>
+              <p>
+                Updated:{" "}
+                {renderFreshness(sentimentQuery.data?.freshness.age_minutes)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border shadow-sm">
+            <CardHeader>
+              <CardTitle>Events</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                Endpoint wiring ready. Enable when backend is available to
+                surface{" "}
+                <span className="font-medium text-foreground">
+                  {eventsQuery.data?.data.length ?? 0}
+                </span>{" "}
+                events.
+              </p>
+            </CardContent>
+          </Card>
+        </section>
 
         <section>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

@@ -1,7 +1,9 @@
 "use client";
 
-import { createContext } from "react";
+import { useState, createContext } from "react";
 import type { ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 export type AuthContextValue = {
   isAuthenticated: boolean;
@@ -19,18 +21,36 @@ export function resolveDefaultAuthValue(): AuthContextValue {
   };
 }
 
-export function AuthProvider({
+export function AppProviders({
   children,
   value,
 }: {
   children: ReactNode;
   value?: AuthContextValue;
 }) {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 30_000,
+            refetchOnWindowFocus: false,
+          },
+        },
+      }),
+  );
+
   const resolvedValue = value ?? resolveDefaultAuthValue();
 
   return (
-    <AuthContext.Provider value={resolvedValue}>
-      {children}
-    </AuthContext.Provider>
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={resolvedValue}>
+        {children}
+      </AuthContext.Provider>
+      <ReactQueryDevtools initialIsOpen={false} position="bottom" />
+    </QueryClientProvider>
   );
 }
+
+// Backwards-compatible export for any legacy usage.
+export const AuthProvider = AppProviders;
