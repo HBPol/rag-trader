@@ -7,6 +7,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      msw: path.resolve(__dirname, "./vendor/msw/lib/index.js"),
+      "msw/node": path.resolve(__dirname, "./vendor/msw/lib/node.js"),
     },
   },
   test: {

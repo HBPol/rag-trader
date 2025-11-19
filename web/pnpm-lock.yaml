@@ -72,6 +72,9 @@ importers:
       jsdom:
         specifier: 23.2.0
         version: 23.2.0
+      msw:
+        specifier: file:./vendor/msw
+        version: file:vendor/msw
       postcss:
         specifier: 8.4.35
         version: 8.4.35
@@ -95,6 +98,12 @@ importers:
         version: 1.3.1(@types/node@20.11.19)(jsdom@23.2.0)
 
 packages:
+
+  file:vendor/msw:
+    resolution: {directory: vendor/msw, type: directory}
+    name: msw
+    version: 0.0.0-local
+    dev: true
 
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
