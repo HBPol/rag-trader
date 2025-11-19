@@ -44,7 +44,7 @@ function createWrapper(queryClient: QueryClient) {
 describe("analytics queries", () => {
   it("returns correlation payloads and entry", async () => {
     const queryClient = createQueryClient();
-    const { result } = renderHook(
+    const { result, rerender } = renderHook(
       ({ symbol, window }) => useCorrelationQuery(symbol, window),
       {
         wrapper: createWrapper(queryClient),
@@ -66,7 +66,7 @@ describe("analytics queries", () => {
       }),
     ).toBeDefined();
 
-    result.rerender({ symbol: "msft", window: "1w" });
+    rerender({ symbol: "msft", window: "1w" });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(
@@ -99,7 +99,7 @@ describe("analytics queries", () => {
 
   it("returns lead/lag edges and updates cache keys", async () => {
     const queryClient = createQueryClient();
-    const { result } = renderHook(
+    const { result, rerender } = renderHook(
       ({ leader, follower, window }) =>
         useLeadLagQuery(leader, follower, window),
       {
@@ -115,7 +115,7 @@ describe("analytics queries", () => {
     expect(result.current.data?.edge?.leader).toBe("AAPL");
     expect(result.current.data?.edge?.follower).toBe("MSFT");
 
-    result.rerender({ leader: "msft", follower: "aapl", window: "1w" });
+    rerender({ leader: "msft", follower: "aapl", window: "1w" });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(
@@ -127,7 +127,7 @@ describe("analytics queries", () => {
 
   it("yields granger statistics and caches by pair", async () => {
     const queryClient = createQueryClient();
-    const { result } = renderHook(
+    const { result, rerender } = renderHook(
       ({ source, target, window }) => useGrangerQuery(source, target, window),
       {
         wrapper: createWrapper(queryClient),
@@ -140,7 +140,7 @@ describe("analytics queries", () => {
     expect(result.current.data?.payload).toEqual(grangerResponse);
     expect(result.current.data?.edge?.p_value).toBeCloseTo(0.03);
 
-    result.rerender({ source: "msft", target: "aapl", window: "1w" });
+    rerender({ source: "msft", target: "aapl", window: "1w" });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(
@@ -152,7 +152,7 @@ describe("analytics queries", () => {
 
   it("returns influence graph data and matching edges", async () => {
     const queryClient = createQueryClient();
-    const { result } = renderHook(
+    const { result, rerender } = renderHook(
       ({ source, target, window }) =>
         useInfluenceGraphQuery(source, target, window),
       {
@@ -166,7 +166,7 @@ describe("analytics queries", () => {
     expect(result.current.data?.payload).toEqual(influenceGraphResponse);
     expect(result.current.data?.matchingEdge?.target).toBe("MSFT");
 
-    result.rerender({ source: "goog", target: "aapl", window: "1w" });
+    rerender({ source: "goog", target: "aapl", window: "1w" });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(
@@ -178,7 +178,7 @@ describe("analytics queries", () => {
 
   it("resolves sentiment series for each symbol/window", async () => {
     const queryClient = createQueryClient();
-    const { result } = renderHook(
+    const { result, rerender } = renderHook(
       ({ symbol, window }) => useSentimentQuery(symbol, window),
       {
         wrapper: createWrapper(queryClient),
@@ -194,7 +194,7 @@ describe("analytics queries", () => {
       window: "1d",
     });
 
-    result.rerender({ symbol: "msft", window: "1w" });
+    rerender({ symbol: "msft", window: "1w" });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(
