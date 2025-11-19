@@ -160,7 +160,9 @@ export const eventsResponse = {
 };
 
 export const analyticsHandlers = [
-  http.get("/analytics/correlation", () => HttpResponse.json(correlationResponse)),
+  http.get("/analytics/correlation", () =>
+    HttpResponse.json(correlationResponse),
+  ),
   http.get("/analytics/leadlag", () => HttpResponse.json(leadLagResponse)),
   http.get("/analytics/granger", () => HttpResponse.json(grangerResponse)),
   http.get("/analytics/influence-graph", () =>

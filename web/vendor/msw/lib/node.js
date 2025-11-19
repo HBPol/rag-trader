@@ -45,7 +45,8 @@ export function setupServer(...initialHandlers) {
       }
     },
     resetHandlers(...nextHandlers) {
-      handlers = nextHandlers.length > 0 ? [...nextHandlers] : [...initialHandlers];
+      handlers =
+        nextHandlers.length > 0 ? [...nextHandlers] : [...initialHandlers];
     },
     use(...nextHandlers) {
       handlers.push(...nextHandlers);

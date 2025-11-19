@@ -35,7 +35,9 @@ function createQueryClient(config?: QueryClientConfig) {
 
 function createWrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
   };
 }
 
@@ -90,7 +92,9 @@ describe("analytics queries", () => {
     );
 
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(result.current.error?.message).toContain("Request failed with status 500");
+    expect(result.current.error?.message).toContain(
+      "Request failed with status 500",
+    );
   });
 
   it("returns lead/lag edges and updates cache keys", async () => {
@@ -223,6 +227,8 @@ describe("analytics queries", () => {
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(result.current.error?.message).toContain("Request failed with status 500");
+    expect(result.current.error?.message).toContain(
+      "Request failed with status 500",
+    );
   });
 });
