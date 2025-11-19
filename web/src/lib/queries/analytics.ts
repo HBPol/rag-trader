@@ -37,6 +37,7 @@ export function useCorrelationQuery(symbol: string, window: string) {
   return useQuery({
     queryKey: ["analytics", "correlation", normalizeSymbol(symbol), window],
     enabled: Boolean(symbol && window),
+    retry: false,
     queryFn: async () => {
       const payload = correlationResponseSchema.parse(
         await apiFetch<CorrelationResponse>("/analytics/correlation"),
@@ -66,6 +67,7 @@ export function useLeadLagQuery(
       window,
     ],
     enabled: Boolean(leader && follower && window),
+    retry: false,
     queryFn: async () => {
       const payload = leadLagResponseSchema.parse(
         await apiFetch<LeadLagResponse>("/analytics/leadlag"),
@@ -97,6 +99,7 @@ export function useGrangerQuery(
       window,
     ],
     enabled: Boolean(source && target && window),
+    retry: false,
     queryFn: async () => {
       const payload = grangerResponseSchema.parse(
         await apiFetch<GrangerResponse>("/analytics/granger"),
@@ -128,6 +131,7 @@ export function useInfluenceGraphQuery(
       window,
     ],
     enabled: Boolean(window),
+    retry: false,
     queryFn: async () => {
       const payload = influenceGraphResponseSchema.parse(
         await apiFetch<InfluenceGraphResponse>("/analytics/influence-graph"),
@@ -153,6 +157,7 @@ export function useSentimentQuery(symbol: string, window: string) {
   return useQuery({
     queryKey: ["sentiment", normalizeSymbol(symbol), window],
     enabled: Boolean(symbol && window),
+    retry: false,
     queryFn: async () => {
       const params = new URLSearchParams({ symbol, window }).toString();
       const payload = sentimentResponseSchema.parse(
@@ -168,6 +173,7 @@ export function useEventsQuery(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["events"],
     enabled,
+    retry: false,
     queryFn: async () =>
       eventsResponseSchema.parse(await apiFetch<EventsResponse>("/events")),
   });
