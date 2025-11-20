@@ -88,7 +88,10 @@ describe("analytics queries", () => {
   it("handles correlation error responses", async () => {
     server.use(
       http.get("/analytics/correlation", () =>
-        HttpResponse.json({ message: "boom" }, { status: 500 }),
+        HttpResponse.json(
+          { error: "boom" },
+          { status: 500, statusText: "Internal Server Error" },
+        ),
       ),
     );
 
@@ -106,6 +109,7 @@ describe("analytics queries", () => {
     expect(result.current.error?.message).toContain(
       "Request failed with status 500",
     );
+    expect(result.current.error?.message).toContain("Internal Server Error");
   });
 
   it("returns lead/lag edges and updates cache keys", async () => {

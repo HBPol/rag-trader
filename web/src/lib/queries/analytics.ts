@@ -40,7 +40,9 @@ export function useCorrelationQuery(symbol: string, window: string) {
     retry: false,
     queryFn: async () => {
       const payload = correlationResponseSchema.parse(
-        await apiFetch<CorrelationResponse>("/analytics/correlation"),
+        await apiFetch<CorrelationResponse>("/analytics/correlation", {
+          throwOnError: true,
+        }),
       );
       const normalizedSymbol = normalizeSymbol(symbol);
       const entry = payload.data.find(
