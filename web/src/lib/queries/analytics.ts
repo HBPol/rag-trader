@@ -181,7 +181,13 @@ export function useEventsQuery(options?: { enabled?: boolean }) {
         throwOnError: true,
       });
 
-      return eventsResponseSchema.parse(response);
+      const payload = eventsResponseSchema.parse(response);
+
+      if (payload.status.toLowerCase() !== "ok") {
+        throw new Error(payload.message ?? "Failed to fetch events feed");
+      }
+
+      return payload;
     },
   });
 }
