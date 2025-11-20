@@ -54,7 +54,6 @@ const createSentimentResult = (
     isFetching: false,
     isPending: false,
     refetch: vi.fn(),
-    remove: vi.fn(),
     status: "success" as const,
     dataUpdatedAt: 0,
     errorUpdatedAt: 0,
