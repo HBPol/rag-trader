@@ -49,7 +49,7 @@ export function setupServer(...initialHandlers) {
         nextHandlers.length > 0 ? [...nextHandlers] : [...initialHandlers];
     },
     use(...nextHandlers) {
-      handlers.push(...nextHandlers);
+      handlers.unshift(...nextHandlers);
     },
   };
 }

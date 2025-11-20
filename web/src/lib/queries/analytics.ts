@@ -202,7 +202,8 @@ export function useEventsQuery(options?: { enabled?: boolean }) {
         });
       } catch (error) {
         const status = (error as { status?: number }).status;
-        const statusText = (error as { response?: Response }).response?.statusText;
+        const statusText = (error as { response?: Response }).response
+          ?.statusText;
         const message = (error as Error).message ?? "Request failed";
 
         if (typeof status === "number") {
@@ -210,7 +211,9 @@ export function useEventsQuery(options?: { enabled?: boolean }) {
             statusText?.trim() ||
             message.replace(/^Request failed with status \d+:?\s*/i, "").trim();
           const suffix = detail ? `: ${detail}` : "";
-          throw new Error(`Failed to fetch events feed (status ${status}${suffix})`);
+          throw new Error(
+            `Failed to fetch events feed (status ${status}${suffix})`,
+          );
         }
 
         throw new Error(`Failed to fetch events feed: ${message}`);
