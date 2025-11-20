@@ -2,13 +2,14 @@ const DEFAULT_API_BASE_URL = "http://localhost:8000";
 
 export type ApiClientOptions = RequestInit & {
   baseUrl?: string;
+  throwOnError?: boolean;
 };
 
 export async function apiFetch<T = unknown>(
   path: string,
   options: ApiClientOptions = {},
 ): Promise<T> {
-  const { baseUrl, ...init } = options;
+  const { baseUrl, throwOnError = true, ...init } = options;
   const resolvedBaseUrl = (
     baseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL
   )?.replace(/\/$/, "");
@@ -24,9 +25,13 @@ export async function apiFetch<T = unknown>(
 
   if (!response.ok) {
     const message = await safeExtractError(response);
-    throw new Error(
+    const error = new Error(
       `Request failed with status ${response.status}${message ? `: ${message}` : ""}`,
     );
+    if (throwOnError) {
+      throw error;
+    }
+    return Promise.reject(error);
   }
 
   return response.json() as Promise<T>;
