@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { AuthProvider } from "@/app/providers";
+import { AppProviders } from "@/app/providers";
 
 export const metadata: Metadata = {
   title: "RAGTrader",
@@ -21,7 +21,7 @@ export default function RootLayout({
           "min-h-screen bg-background font-sans antialiased text-foreground",
         )}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

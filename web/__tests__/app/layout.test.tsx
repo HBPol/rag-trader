@@ -2,6 +2,9 @@ import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 vi.mock("@/app/providers", () => ({
+  AppProviders: ({ children }: { children: ReactNode }) => (
+    <div data-testid="auth-provider">{children}</div>
+  ),
   AuthProvider: ({ children }: { children: ReactNode }) => (
     <div data-testid="auth-provider">{children}</div>
   ),

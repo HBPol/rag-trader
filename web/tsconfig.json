@@ -16,7 +16,9 @@
     "types": ["vitest/globals", "@testing-library/jest-dom"],
     "baseUrl": "./",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "msw": ["./vendor/msw/lib/index.d.ts"],
+      "msw/*": ["./vendor/msw/lib/*.d.ts"]
     }
   },
   "include": ["next-env.d.ts", "src/**/*", "__tests__/**/*"],

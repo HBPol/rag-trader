@@ -106,12 +106,13 @@ jobs:
           --cov-report=term --cov-fail-under=80
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v4.4.1
         with:
           files: ./${{ matrix.package }}/coverage.xml
           flags: ${{ matrix.package }}
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
+          cli-version: latest
 
   node-quality:
     name: Frontend Quality Checks
@@ -147,12 +148,13 @@ jobs:
         run: pnpm test -- --coverage
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v4.4.1
         with:
           files: ./web/coverage/lcov.info
           flags: web
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
+          cli-version: latest
 
   compose-smoke:
     name: Compose Smoke Tests
