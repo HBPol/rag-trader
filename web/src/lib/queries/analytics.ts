@@ -194,9 +194,27 @@ export function useEventsQuery(options?: { enabled?: boolean }) {
     enabled,
     retry: false,
     queryFn: async () => {
-      const response = await apiFetch<EventsResponse>("/events", {
-        throwOnError: true,
-      });
+      let response: EventsResponse;
+
+      try {
+        response = await apiFetch<EventsResponse>("/events", {
+          throwOnError: true,
+        });
+      } catch (error) {
+        const status = (error as { status?: number }).status;
+        const statusText = (error as { response?: Response }).response?.statusText;
+        const message = (error as Error).message ?? "Request failed";
+
+        if (typeof status === "number") {
+          const detail =
+            statusText?.trim() ||
+            message.replace(/^Request failed with status \d+:?\s*/i, "").trim();
+          const suffix = detail ? `: ${detail}` : "";
+          throw new Error(`Failed to fetch events feed (status ${status}${suffix})`);
+        }
+
+        throw new Error(`Failed to fetch events feed: ${message}`);
+      }
 
       const payload = eventsResponseSchema.parse(response);
 

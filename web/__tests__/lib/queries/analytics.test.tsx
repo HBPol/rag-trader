@@ -271,8 +271,8 @@ describe("analytics queries", () => {
     await waitFor(() => expect(result.current.isError).toBe(true), {
       timeout: 2000,
     });
-    expect(result.current.error?.message).toContain(
-      "Request failed with status 500",
+    expect(result.current.error?.message).toBe(
+      "Failed to fetch events feed (status 500: oops)",
     );
   });
 });
