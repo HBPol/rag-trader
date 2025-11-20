@@ -4,14 +4,13 @@ import { vi } from "vitest";
 import SentimentPriceChart from "@/app/dashboard/SentimentPriceChart";
 import { useSentimentQuery } from "@/lib/queries/analytics";
 import type { SentimentResponse } from "@/lib/schemas/sentiment";
+import type { UseQueryResult } from "@tanstack/react-query";
 
 vi.mock("@/lib/queries/analytics", () => ({
   useSentimentQuery: vi.fn(),
 }));
 
 const mockedUseSentimentQuery = vi.mocked(useSentimentQuery);
-
-type QueryResult = ReturnType<typeof useSentimentQuery>;
 
 const basePayload: SentimentResponse = {
   status: "ok",
@@ -39,34 +38,69 @@ const basePayload: SentimentResponse = {
   freshness: { age_minutes: 5 },
 };
 
-const baseResult = {
-  data: basePayload,
-  error: null,
-  isError: false,
-  isLoading: false,
-  isSuccess: true,
-  isFetching: false,
-  isPending: false,
-  refetch: vi.fn(),
-  remove: vi.fn(),
-  status: "success",
-  dataUpdatedAt: 0,
-  errorUpdatedAt: 0,
-  failureCount: 0,
-  errorUpdateCount: 0,
-  failureReason: null,
-  fetchStatus: "idle",
-  isFetched: true,
-  isFetchedAfterMount: true,
-  isInitialLoading: false,
-  isLoadingError: false,
-  isPlaceholderData: false,
-  isPaused: false,
-  isRefetchError: false,
-  isRefetching: false,
-  isRefetchingAfterMount: false,
-  isStale: false,
-} as unknown as QueryResult;
+type SentimentResultState = "success" | "loadingError" | "refetchError";
+
+const createSentimentResult = (
+  state: SentimentResultState = "success",
+  payload: SentimentResponse = basePayload,
+  error: Error = new Error("sentiment query failed"),
+) => {
+  const base = {
+    data: payload,
+    error: null,
+    isError: false,
+    isLoading: false,
+    isSuccess: true,
+    isFetching: false,
+    isPending: false,
+    refetch: vi.fn(),
+    remove: vi.fn(),
+    status: "success" as const,
+    dataUpdatedAt: 0,
+    errorUpdatedAt: 0,
+    failureCount: 0,
+    errorUpdateCount: 0,
+    failureReason: null,
+    fetchStatus: "idle" as const,
+    isFetched: true,
+    isFetchedAfterMount: true,
+    isInitialLoading: false,
+    isLoadingError: false,
+    isPlaceholderData: false,
+    isPaused: false,
+    isRefetchError: false,
+    isRefetching: false,
+    isRefetchingAfterMount: false,
+    isStale: false,
+  } satisfies UseQueryResult<SentimentResponse>;
+
+  if (state === "loadingError") {
+    return {
+      ...base,
+      data: undefined,
+      error,
+      isError: true,
+      isSuccess: false,
+      isLoadingError: true,
+      status: "error" as const,
+    } satisfies UseQueryResult<SentimentResponse>;
+  }
+
+  if (state === "refetchError") {
+    return {
+      ...base,
+      error,
+      isError: true,
+      isSuccess: false,
+      isRefetchError: true,
+      status: "error" as const,
+    } satisfies UseQueryResult<SentimentResponse>;
+  }
+
+  return base;
+};
+
+const baseResult = createSentimentResult();
 
 function renderChart() {
   return render(<SentimentPriceChart symbol="BTC" />);
@@ -108,16 +142,16 @@ describe("SentimentPriceChart", () => {
 
   it("handles empty and error states gracefully", () => {
     mockedUseSentimentQuery
-      .mockReturnValueOnce({
-        ...baseResult,
-        data: { ...basePayload, series: [] },
-      })
-      .mockReturnValueOnce({
-        ...baseResult,
-        data: undefined,
-        error: new Error("upstream failed"),
-        isError: true,
-      });
+      .mockReturnValueOnce(
+        createSentimentResult("success", { ...basePayload, series: [] }),
+      )
+      .mockReturnValueOnce(
+        createSentimentResult(
+          "refetchError",
+          basePayload,
+          new Error("upstream failed"),
+        ),
+      );
 
     renderChart();
     expect(
