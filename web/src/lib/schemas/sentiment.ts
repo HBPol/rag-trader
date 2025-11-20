@@ -5,6 +5,7 @@ export const sentimentPointSchema = z.object({
   polarity: z.number().nullable(),
   confidence: z.number().nullable(),
   zscore: z.number().nullable(),
+  price_usd: z.number().nullable().optional(),
   aspects: z.array(z.string()),
 });
 

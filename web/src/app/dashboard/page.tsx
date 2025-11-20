@@ -14,6 +14,7 @@ import {
   useSentimentQuery,
 } from "@/lib/queries/analytics";
 import type { CorrelationEntry } from "@/lib/schemas/correlation";
+import SentimentPriceChart from "./SentimentPriceChart";
 
 const coins = ["BTC", "ETH", "SOL", "USDT", "USDC", "ARB", "DOGE"];
 
@@ -161,6 +162,8 @@ export default function DashboardPage() {
         </Card>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <SentimentPriceChart symbol={baseCoin} />
+
           <Card className="border shadow-sm">
             <CardHeader>
               <CardTitle>Return vs Sentiment</CardTitle>
