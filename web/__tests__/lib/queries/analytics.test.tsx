@@ -27,9 +27,18 @@ import {
 import { server } from "../../../vitest.setup";
 
 function createQueryClient(config?: QueryClientConfig) {
+  const defaultOptions: QueryClientConfig["defaultOptions"] = {
+    queries: {
+      retry: false,
+      retryDelay: 0,
+      ...(config?.defaultOptions?.queries ?? {}),
+    },
+    ...config?.defaultOptions,
+  };
+
   return new QueryClient({
-    defaultOptions: { queries: { retry: false } },
     ...config,
+    defaultOptions,
   });
 }
 
@@ -91,7 +100,9 @@ describe("analytics queries", () => {
       },
     );
 
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    await waitFor(() => expect(result.current.isError).toBe(true), {
+      timeout: 2000,
+    });
     expect(result.current.error?.message).toContain(
       "Request failed with status 500",
     );
@@ -226,7 +237,9 @@ describe("analytics queries", () => {
       wrapper: createWrapper(createQueryClient()),
     });
 
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    await waitFor(() => expect(result.current.isError).toBe(true), {
+      timeout: 2000,
+    });
     expect(result.current.error?.message).toContain(
       "Request failed with status 500",
     );
