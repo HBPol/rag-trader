@@ -1,4 +1,4 @@
-import { HttpResponse, http } from "../../../vendor/msw/lib/index.js";
+import { http, HttpResponse } from "msw";
 
 export const correlationResponse = {
   status: "ok",
@@ -118,6 +118,7 @@ export const sentimentResponse = {
       polarity: 0.12,
       confidence: 0.9,
       zscore: 1.1,
+      price_usd: 189.32,
       aspects: ["demand", "growth"],
     },
     {
@@ -125,6 +126,7 @@ export const sentimentResponse = {
       polarity: -0.05,
       confidence: 0.7,
       zscore: -0.4,
+      price_usd: 187.91,
       aspects: ["risk"],
     },
   ],
