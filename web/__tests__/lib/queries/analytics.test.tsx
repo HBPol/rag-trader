@@ -112,6 +112,33 @@ describe("analytics queries", () => {
     expect(result.current.error?.message).toContain("Internal Server Error");
   });
 
+  it("surfaces status text when correlation requests fail", async () => {
+    server.use(
+      http.get("/analytics/correlation", () =>
+        HttpResponse.json(
+          { error: "boom" },
+          { status: 500, statusText: "Internal Server Error" },
+        ),
+      ),
+    );
+
+    const { result } = renderHook(
+      ({ symbol, window }) => useCorrelationQuery(symbol, window),
+      {
+        wrapper: createWrapper(createQueryClient()),
+        initialProps: { symbol: "msft", window: "1w" },
+      },
+    );
+
+    await waitFor(() => expect(result.current.isError).toBe(true), {
+      timeout: 2000,
+    });
+
+    expect(result.current.error?.message).toBe(
+      "Request failed with status 500: Internal Server Error",
+    );
+  });
+
   it("returns lead/lag edges and updates cache keys", async () => {
     const queryClient = createQueryClient();
     const { result, rerender } = renderHook(

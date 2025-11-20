@@ -39,11 +39,28 @@ export function useCorrelationQuery(symbol: string, window: string) {
     enabled: Boolean(symbol && window),
     retry: false,
     queryFn: async () => {
-      const payload = correlationResponseSchema.parse(
-        await apiFetch<CorrelationResponse>("/analytics/correlation", {
-          throwOnError: true,
-        }),
-      );
+      let payload: CorrelationResponse;
+
+      try {
+        payload = correlationResponseSchema.parse(
+          await apiFetch<CorrelationResponse>("/analytics/correlation", {
+            throwOnError: true,
+          }),
+        );
+      } catch (error) {
+        const status = (error as { status?: number }).status;
+        const statusText = (error as { response?: Response }).response
+          ?.statusText;
+
+        if (typeof status === "number") {
+          const message = statusText
+            ? `Request failed with status ${status}: ${statusText}`
+            : `Request failed with status ${status}`;
+          throw new Error(message);
+        }
+
+        throw error;
+      }
       const normalizedSymbol = normalizeSymbol(symbol);
       const entry = payload.data.find(
         (item) =>
