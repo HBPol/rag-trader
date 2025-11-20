@@ -174,7 +174,12 @@ export function useEventsQuery(options?: { enabled?: boolean }) {
     queryKey: ["events"],
     enabled,
     retry: false,
-    queryFn: async () =>
-      eventsResponseSchema.parse(await apiFetch<EventsResponse>("/events")),
+    queryFn: async () => {
+      const response = await apiFetch<EventsResponse>("/events", {
+        throwOnError: true,
+      });
+
+      return eventsResponseSchema.parse(response);
+    },
   });
 }

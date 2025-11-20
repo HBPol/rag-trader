@@ -28,9 +28,12 @@ export async function apiFetch<T = unknown>(
     const error = new Error(
       `Request failed with status ${response.status}${message ? `: ${message}` : ""}`,
     );
+    Object.assign(error, { status: response.status, response });
+
     if (throwOnError) {
       throw error;
     }
+
     return Promise.reject(error);
   }
 
