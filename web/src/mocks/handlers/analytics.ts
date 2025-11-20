@@ -1,4 +1,4 @@
-import { HttpResponse, http } from "../../../vendor/msw/lib/index.js";
+import { http, HttpResponse } from "msw";
 
 export const correlationResponse = {
   status: "ok",
