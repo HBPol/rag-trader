@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import DashboardPage from "@/app/dashboard/page";
 import { AuthProvider } from "@/app/providers";
 import { formatFreshness } from "@/app/dashboard/SentimentPriceChart";
+import { renderFreshness } from "@/app/dashboard/freshness";
 
 const widgetPlaceholders = [
   "Market Heatmap",
@@ -73,5 +74,22 @@ describe("formatFreshness", () => {
   it("formats hour-level ages for values of an hour or more", () => {
     expect(formatFreshness(60)).toBe("1.0 hrs ago");
     expect(formatFreshness(120)).toBe("2.0 hrs ago");
+  });
+});
+
+describe("renderFreshness", () => {
+  it("handles undefined, null, and NaN values", () => {
+    expect(renderFreshness(undefined)).toBe("Unknown");
+    expect(renderFreshness(null)).toBe("Unknown");
+    expect(renderFreshness(NaN)).toBe("Unknown");
+  });
+
+  it("formats sub-minute values", () => {
+    expect(renderFreshness(0.5)).toBe("<1 min ago");
+  });
+
+  it("formats minute and hour values", () => {
+    expect(renderFreshness(59)).toBe("59.0 mins ago");
+    expect(renderFreshness(120)).toBe("2.0 hrs ago");
   });
 });
