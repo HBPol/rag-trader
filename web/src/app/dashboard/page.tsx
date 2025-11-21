@@ -15,6 +15,7 @@ import {
 } from "@/lib/queries/analytics";
 import type { CorrelationEntry } from "@/lib/schemas/correlation";
 import SentimentPriceChart from "./SentimentPriceChart";
+import { renderFreshness } from "./freshness";
 
 const coins = ["BTC", "ETH", "SOL", "USDT", "USDC", "ARB", "DOGE"];
 
@@ -27,19 +28,6 @@ function renderMetric(
   if (error) return "Unavailable";
   if (value === null || value === undefined) return "No data";
   return value;
-}
-
-function renderFreshness(ageMinutes?: number | null): string {
-  if (
-    ageMinutes === undefined ||
-    ageMinutes === null ||
-    !Number.isFinite(ageMinutes)
-  ) {
-    return "Unknown";
-  }
-  if (ageMinutes < 1) return "<1 min ago";
-  if (ageMinutes < 60) return `${ageMinutes.toFixed(1)} mins ago`;
-  return `${(ageMinutes / 60).toFixed(1)} hrs ago`;
 }
 
 function formatCorrelationValue(

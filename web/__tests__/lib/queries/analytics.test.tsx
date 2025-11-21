@@ -6,7 +6,7 @@ import {
 import { renderHook, waitFor } from "@testing-library/react";
 import { HttpResponse, http } from "../../../vendor/msw/lib/index.js";
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   useCorrelationQuery,
@@ -25,6 +25,7 @@ import {
   sentimentResponse,
 } from "@/mocks/handlers/analytics";
 import { server } from "../../../vitest.setup";
+import * as apiClient from "@/lib/api/client";
 
 function createQueryClient(config?: QueryClientConfig) {
   const defaultOptions: QueryClientConfig["defaultOptions"] = {
@@ -51,6 +52,10 @@ function createWrapper(queryClient: QueryClient) {
 }
 
 describe("analytics queries", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("returns correlation payloads and entry", async () => {
     const queryClient = createQueryClient();
     const { result, rerender } = renderHook(
@@ -273,6 +278,45 @@ describe("analytics queries", () => {
     });
     expect(result.current.error?.message).toBe(
       "Failed to fetch events feed (status 500: oops)",
+    );
+  });
+
+  it("formats apiFetch errors that include status codes", async () => {
+    vi.spyOn(apiClient, "apiFetch").mockRejectedValue(
+      Object.assign(new Error("Request failed with status 503"), {
+        status: 503,
+        response: { statusText: "Service Unavailable" } as Response,
+      }),
+    );
+
+    const { result } = renderHook(() => useEventsQuery(), {
+      wrapper: createWrapper(createQueryClient()),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true), {
+      timeout: 2000,
+    });
+
+    expect(result.current.error?.message).toBe(
+      "Failed to fetch events feed (status 503: Service Unavailable)",
+    );
+  });
+
+  it("surfaces apiFetch error messages when status codes are missing", async () => {
+    vi.spyOn(apiClient, "apiFetch").mockRejectedValue(
+      new Error("Unexpected network failure"),
+    );
+
+    const { result } = renderHook(() => useEventsQuery(), {
+      wrapper: createWrapper(createQueryClient()),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true), {
+      timeout: 2000,
+    });
+
+    expect(result.current.error?.message).toBe(
+      "Failed to fetch events feed: Unexpected network failure",
     );
   });
 });

@@ -1,34 +1,42 @@
 # syntax=docker/dockerfile:1.4
 
-FROM node:20-alpine AS deps
+FROM node:20-alpine AS base
+ENV PNPM_HOME=/root/.local/share/pnpm
+ENV PATH="$PNPM_HOME:$PATH"
+
+FROM base AS deps
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY package.json ./
+RUN corepack enable
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY vendor ./vendor
-RUN npm install
+RUN pnpm install --frozen-lockfile
 
-FROM node:20-alpine AS builder
+FROM base AS builder
 WORKDIR /app
 ARG NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+COPY --from=deps /root/.local/share/pnpm/store /root/.local/share/pnpm/store
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN mkdir -p public && npm run build
+RUN corepack enable
+RUN mkdir -p public && pnpm run build
 
-FROM node:20-alpine AS runner
+FROM base AS runner
 WORKDIR /app
 ARG NEXT_PUBLIC_API_BASE_URL
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     WEB_PORT=5173 \
     NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
-
+COPY --from=deps /root/.local/share/pnpm/store /root/.local/share/pnpm/store
 COPY --from=deps /app/node_modules ./node_modules
-RUN npm prune --omit=dev
+COPY pnpm-lock.yaml package.json ./
+COPY --from=builder /app/vendor ./vendor
+RUN corepack enable && pnpm prune --prod
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
-COPY package.json ./
 
 EXPOSE 5173
 
