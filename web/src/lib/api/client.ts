@@ -11,7 +11,9 @@ export async function apiFetch<T = unknown>(
 ): Promise<T> {
   const { baseUrl, throwOnError = true, ...init } = options;
   const resolvedBaseUrl = (
-    baseUrl ?? process.env.NEXT_PUBLIC_API_BASE_URL
+    baseUrl ??
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    process.env.API_BASE_URL
   )?.replace(/\/$/, "");
   const target = `${resolvedBaseUrl || DEFAULT_API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 

@@ -69,7 +69,6 @@ const createSentimentResult = (
     isPaused: false,
     isRefetchError: false,
     isRefetching: false,
-    isRefetchingAfterMount: false,
     isStale: false,
   } satisfies UseQueryResult<SentimentResponse>;
 

@@ -51,13 +51,15 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://api:8000
     container_name: ragtrader-web
     restart: unless-stopped
     env_file:
       - .env
     environment:
       - ENV=${ENV:-dev}
-      - API_BASE_URL=http://api:8000
+      - NEXT_PUBLIC_API_BASE_URL=http://api:8000
     ports:
       - "${WEB_PORT:-5173}:5173"
     depends_on:
