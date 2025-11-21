@@ -9,7 +9,7 @@ import type { SentimentPoint } from "@/lib/schemas/sentiment";
 
 const windows = ["1h", "4h", "24h", "7d"] as const;
 
-function formatFreshness(ageMinutes?: number | null): string {
+export function formatFreshness(ageMinutes?: number | null): string {
   if (ageMinutes === undefined || ageMinutes === null) return "Unknown";
   if (!Number.isFinite(ageMinutes)) return "Unknown";
   if (ageMinutes < 1) return "<1 min ago";
