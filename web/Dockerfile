@@ -33,6 +33,7 @@ ENV NODE_ENV=production \
 COPY --from=deps /root/.local/share/pnpm/store /root/.local/share/pnpm/store
 COPY --from=deps /app/node_modules ./node_modules
 COPY pnpm-lock.yaml package.json ./
+COPY --from=builder /app/vendor ./vendor
 RUN corepack enable && pnpm prune --prod
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
