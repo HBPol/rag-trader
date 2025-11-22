@@ -19,8 +19,19 @@
       "@/*": ["./src/*"],
       "msw": ["./vendor/msw/lib/index.d.ts"],
       "msw/*": ["./vendor/msw/lib/*.d.ts"]
-    }
+    },
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["next-env.d.ts", "src/**/*", "__tests__/**/*"],
+  "include": [
+    "next-env.d.ts",
+    "src/**/*",
+    "__tests__/**/*",
+    ".next/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

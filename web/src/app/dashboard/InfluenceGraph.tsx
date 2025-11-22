@@ -21,7 +21,7 @@ type Point = { x: number; y: number };
 type InfluenceGraphProps = {
   source: string;
   target: string;
-  window: string;
+  windowSize: string;
 };
 
 function normalizeSymbol(value: string): string {
@@ -135,7 +135,7 @@ function runForceLayout(
 export default function InfluenceGraph({
   source,
   target,
-  window,
+  windowSize,
 }: InfluenceGraphProps) {
   const graphContainerRef = useRef<HTMLDivElement | null>(null);
   const [dimensions, setDimensions] = useState<{
@@ -147,7 +147,11 @@ export default function InfluenceGraph({
   const isPanning = useRef(false);
   const lastPointer = useRef<Point | null>(null);
 
-  const influenceGraphQuery = useInfluenceGraphQuery(source, target, window);
+  const influenceGraphQuery = useInfluenceGraphQuery(
+    source,
+    target,
+    windowSize,
+  );
   const nodes = influenceGraphQuery.data?.payload.graph.nodes ?? [];
   const edges = influenceGraphQuery.data?.payload.graph.edges ?? [];
   const maxAbsWeight = useMemo(
@@ -179,8 +183,12 @@ export default function InfluenceGraph({
       return () => observer.disconnect();
     }
 
-    const id = window.setInterval(updateSize, 500);
-    return () => window.clearInterval(id);
+    const intervalId = globalThis.window?.setInterval(updateSize, 500);
+    return () => {
+      if (intervalId !== undefined) {
+        globalThis.window?.clearInterval(intervalId);
+      }
+    };
   }, []);
 
   const layout = useMemo(
@@ -191,7 +199,7 @@ export default function InfluenceGraph({
   useEffect(() => {
     setPan({ x: 0, y: 0 });
     setZoom(1);
-  }, [source, target, window]);
+  }, [source, target, windowSize]);
 
   const handleWheel: React.WheelEventHandler<SVGSVGElement> = (event) => {
     event.preventDefault();
@@ -278,7 +286,7 @@ export default function InfluenceGraph({
           </span>
           <span className="rounded-full bg-muted px-3 py-1">
             Pair: {normalizeSymbol(source)} → {normalizeSymbol(target)} (
-            {window})
+            {windowSize})
           </span>
           {influenceGraphQuery.data?.matchingEdge ? (
             <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">
@@ -335,7 +343,7 @@ export default function InfluenceGraph({
                         normalizeSymbol(source) &&
                       normalizeSymbol(edge.target) ===
                         normalizeSymbol(target) &&
-                      edge.window === window;
+                      edge.window === windowSize;
 
                     return (
                       <g key={`${edge.source}-${edge.target}-${edge.window}`}>

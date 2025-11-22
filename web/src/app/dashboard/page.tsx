@@ -261,7 +261,7 @@ export default function DashboardPage() {
           <InfluenceGraph
             source={baseCoin}
             target={quoteCoin}
-            window={analyticsWindow}
+            windowSize={analyticsWindow}
           />
 
           <Card className="border shadow-sm">
