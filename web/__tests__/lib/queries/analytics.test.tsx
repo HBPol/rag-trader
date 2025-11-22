@@ -204,21 +204,21 @@ describe("analytics queries", () => {
         useInfluenceGraphQuery(source, target, window),
       {
         wrapper: createWrapper(queryClient),
-        initialProps: { source: "aapl", target: "msft", window: "1d" },
+        initialProps: { source: "btc", target: "eth", window: "1h" },
       },
     );
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data?.payload).toEqual(influenceGraphResponse);
-    expect(result.current.data?.matchingEdge?.target).toBe("MSFT");
+    expect(result.current.data?.matchingEdge?.target).toBe("ETH");
 
-    rerender({ source: "goog", target: "aapl", window: "1w" });
+    rerender({ source: "eth", target: "btc", window: "4h" });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(
       queryClient.getQueryCache().find({
-        queryKey: ["analytics", "influence-graph", "GOOG", "AAPL", "1w"],
+        queryKey: ["analytics", "influence-graph", "ETH", "BTC", "4h"],
       }),
     ).toBeDefined();
   });

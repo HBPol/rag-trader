@@ -9,11 +9,11 @@ import {
   useCorrelationQuery,
   useEventsQuery,
   useGrangerQuery,
-  useInfluenceGraphQuery,
   useSentimentQuery,
 } from "@/lib/queries/analytics";
 import type { CorrelationEntry } from "@/lib/schemas/correlation";
 import Correlogram from "./Correlogram";
+import InfluenceGraph from "./InfluenceGraph";
 import LeadLagHeatmap from "./LeadLagHeatmap";
 import SentimentPriceChart from "./SentimentPriceChart";
 import { renderFreshness } from "./freshness";
@@ -61,11 +61,6 @@ export default function DashboardPage() {
 
   const correlationQuery = useCorrelationQuery(baseCoin, analyticsWindow);
   const grangerQuery = useGrangerQuery(baseCoin, quoteCoin, analyticsWindow);
-  const influenceGraphQuery = useInfluenceGraphQuery(
-    baseCoin,
-    quoteCoin,
-    analyticsWindow,
-  );
   const sentimentQuery = useSentimentQuery(baseCoin, analyticsWindow);
   const eventsQuery = useEventsQuery({ enabled: false });
 
@@ -263,35 +258,11 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="border shadow-sm">
-            <CardHeader>
-              <CardTitle>Influence Graph</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>
-                Edge Weight:{" "}
-                <span className="font-medium text-foreground">
-                  {renderMetric(
-                    influenceGraphQuery.isLoading,
-                    influenceGraphQuery.error,
-                    influenceGraphQuery.data?.matchingEdge?.weight?.toFixed(
-                      3,
-                    ) ?? null,
-                  )}
-                </span>
-              </p>
-              <p>
-                Nodes tracked:{" "}
-                {influenceGraphQuery.data?.payload.graph.nodes.length ?? 0}
-              </p>
-              <p>
-                Updated:{" "}
-                {renderFreshness(
-                  influenceGraphQuery.data?.payload.freshness.age_minutes,
-                )}
-              </p>
-            </CardContent>
-          </Card>
+          <InfluenceGraph
+            source={baseCoin}
+            target={quoteCoin}
+            window={analyticsWindow}
+          />
 
           <Card className="border shadow-sm">
             <CardHeader>
