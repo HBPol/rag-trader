@@ -104,6 +104,38 @@ export function useLeadLagQuery(
   });
 }
 
+export function useLeadLagMatrixQuery(
+  window: string,
+  leader?: string | null,
+  follower?: string | null,
+) {
+  const normalizedWindow = window?.trim();
+  const normalizedLeader = leader ? normalizeSymbol(leader) : null;
+  const normalizedFollower = follower ? normalizeSymbol(follower) : null;
+
+  return useQuery({
+    queryKey: [
+      "analytics",
+      "leadlag",
+      "matrix",
+      normalizedWindow,
+      normalizedLeader,
+      normalizedFollower,
+    ],
+    enabled: Boolean(normalizedWindow),
+    retry: false,
+    queryFn: async () => {
+      const payload = leadLagResponseSchema.parse(
+        await apiFetch<LeadLagResponse>("/analytics/leadlag"),
+      );
+      const entries = payload.data.filter(
+        (entry) => entry.window === normalizedWindow,
+      );
+      return { payload, entries } as const;
+    },
+  });
+}
+
 export function useGrangerQuery(
   source: string,
   target: string,

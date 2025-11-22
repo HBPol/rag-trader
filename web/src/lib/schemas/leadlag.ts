@@ -6,6 +6,7 @@ export const leadLagEntrySchema = z.object({
   window: z.string(),
   best_lag_minutes: z.number().nullable(),
   strength: z.number().nullable(),
+  sample_size: z.number().nullable().optional(),
   computed_ts: z.string().nullable(),
 });
 

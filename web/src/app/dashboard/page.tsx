@@ -10,14 +10,15 @@ import {
   useEventsQuery,
   useGrangerQuery,
   useInfluenceGraphQuery,
-  useLeadLagQuery,
   useSentimentQuery,
 } from "@/lib/queries/analytics";
 import type { CorrelationEntry } from "@/lib/schemas/correlation";
+import LeadLagHeatmap from "./LeadLagHeatmap";
 import SentimentPriceChart from "./SentimentPriceChart";
 import { renderFreshness } from "./freshness";
 
 const coins = ["BTC", "ETH", "SOL", "USDT", "USDC", "ARB", "DOGE"];
+const analyticsWindows = ["1h", "4h", "1d"] as const;
 
 function renderMetric(
   isLoading: boolean,
@@ -47,9 +48,10 @@ function formatCorrelationValue(
 export default function DashboardPage() {
   const [baseCoin, setBaseCoin] = useState(coins[0]);
   const [quoteCoin, setQuoteCoin] = useState(coins[1]);
+  const [analyticsWindow, setAnalyticsWindow] = useState<
+    (typeof analyticsWindows)[number]
+  >(analyticsWindows[0]);
   const [refreshedAt] = useState(() => new Date().toLocaleString());
-
-  const analyticsWindow = "1h";
   const environmentLabel = process.env.NEXT_PUBLIC_APP_ENV ?? "Local";
 
   const summaryText = useMemo(() => {
@@ -57,7 +59,6 @@ export default function DashboardPage() {
   }, [baseCoin, quoteCoin]);
 
   const correlationQuery = useCorrelationQuery(baseCoin, analyticsWindow);
-  const leadLagQuery = useLeadLagQuery(baseCoin, quoteCoin, analyticsWindow);
   const grangerQuery = useGrangerQuery(baseCoin, quoteCoin, analyticsWindow);
   const influenceGraphQuery = useInfluenceGraphQuery(
     baseCoin,
@@ -140,6 +141,25 @@ export default function DashboardPage() {
                       ))}
                     </select>
                   </label>
+                  <label className="flex flex-1 flex-col text-xs font-medium text-muted-foreground">
+                    Analytics window
+                    <select
+                      className="mt-1 w-full rounded-md border border-input bg-background p-2 text-sm text-foreground"
+                      value={analyticsWindow}
+                      onChange={(event) =>
+                        setAnalyticsWindow(
+                          event.target
+                            .value as (typeof analyticsWindows)[number],
+                        )
+                      }
+                    >
+                      {analyticsWindows.map((window) => (
+                        <option key={window} value={window}>
+                          {window}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
               </div>
             </div>
@@ -150,6 +170,17 @@ export default function DashboardPage() {
         </Card>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="md:col-span-2 xl:col-span-3">
+            <LeadLagHeatmap
+              symbols={coins}
+              leader={baseCoin}
+              follower={quoteCoin}
+              window={analyticsWindow}
+              onLeaderChange={setBaseCoin}
+              onFollowerChange={setQuoteCoin}
+              onWindowChange={setAnalyticsWindow}
+            />
+          </div>
           <SentimentPriceChart symbol={baseCoin} />
 
           <Card className="border shadow-sm">
@@ -180,42 +211,6 @@ export default function DashboardPage() {
                 Freshness:{" "}
                 {renderFreshness(
                   correlationQuery.data?.payload.freshness.age_minutes,
-                )}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border shadow-sm">
-            <CardHeader>
-              <CardTitle>Lead/Lag</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>
-                Best Lag:{" "}
-                <span className="font-medium text-foreground">
-                  {renderMetric(
-                    leadLagQuery.isLoading,
-                    leadLagQuery.error,
-                    leadLagQuery.data?.edge?.best_lag_minutes != null
-                      ? `${leadLagQuery.data.edge.best_lag_minutes}m`
-                      : null,
-                  )}
-                </span>
-              </p>
-              <p>
-                Strength:{" "}
-                <span className="font-medium text-foreground">
-                  {renderMetric(
-                    leadLagQuery.isLoading,
-                    leadLagQuery.error,
-                    leadLagQuery.data?.edge?.strength?.toFixed(3) ?? null,
-                  )}
-                </span>
-              </p>
-              <p>
-                Updated:{" "}
-                {renderFreshness(
-                  leadLagQuery.data?.payload.freshness.age_minutes,
                 )}
               </p>
             </CardContent>
