@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { correlogramSchema } from "./correlogram";
+
 export const leadLagEntrySchema = z.object({
   leader: z.string(),
   follower: z.string(),
@@ -8,6 +10,7 @@ export const leadLagEntrySchema = z.object({
   strength: z.number().nullable(),
   sample_size: z.number().nullable().optional(),
   computed_ts: z.string().nullable(),
+  correlogram: correlogramSchema.optional(),
 });
 
 export const leadLagResponseSchema = z.object({

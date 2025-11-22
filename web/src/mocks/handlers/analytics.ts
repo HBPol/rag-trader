@@ -44,6 +44,16 @@ export const leadLagResponse = {
       strength: 0.82,
       sample_size: 240,
       computed_ts: "2024-01-05T00:00:00Z",
+      correlogram: {
+        best_lag_minutes: 15,
+        buckets: [
+          { lag_minutes: -30, correlation: -0.12, label: "-30m" },
+          { lag_minutes: -15, correlation: 0.24, label: "-15m" },
+          { lag_minutes: 0, correlation: 0.48, label: "0m" },
+          { lag_minutes: 15, correlation: 0.82, label: "+15m" },
+          { lag_minutes: 30, correlation: 0.63, label: "+30m" },
+        ],
+      },
     },
     {
       leader: "ETH",
@@ -53,6 +63,16 @@ export const leadLagResponse = {
       strength: 0.41,
       sample_size: 240,
       computed_ts: "2024-01-05T00:00:00Z",
+      correlogram: {
+        best_lag_minutes: 10,
+        buckets: [
+          { lag_minutes: -30, correlation: 0.16, label: "-30m" },
+          { lag_minutes: -15, correlation: 0.22, label: "-15m" },
+          { lag_minutes: 0, correlation: 0.38, label: "0m" },
+          { lag_minutes: 10, correlation: 0.41, label: "+10m" },
+          { lag_minutes: 20, correlation: 0.27, label: "+20m" },
+        ],
+      },
     },
     {
       leader: "BTC",
@@ -98,6 +118,16 @@ export const leadLagResponse = {
       strength: 0.63,
       sample_size: 96,
       computed_ts: "2024-01-06T04:00:00Z",
+      correlogram: {
+        best_lag_minutes: 45,
+        buckets: [
+          { lag_minutes: -60, correlation: -0.22, label: "-60m" },
+          { lag_minutes: -30, correlation: 0.18, label: "-30m" },
+          { lag_minutes: 0, correlation: 0.39, label: "0m" },
+          { lag_minutes: 30, correlation: 0.55, label: "+30m" },
+          { lag_minutes: 45, correlation: 0.63, label: "+45m" },
+        ],
+      },
     },
     {
       leader: "ETH",

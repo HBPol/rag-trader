@@ -13,6 +13,7 @@ import {
   useSentimentQuery,
 } from "@/lib/queries/analytics";
 import type { CorrelationEntry } from "@/lib/schemas/correlation";
+import Correlogram from "./Correlogram";
 import LeadLagHeatmap from "./LeadLagHeatmap";
 import SentimentPriceChart from "./SentimentPriceChart";
 import { renderFreshness } from "./freshness";
@@ -169,8 +170,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <div className="md:col-span-2 xl:col-span-3">
+        <section className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
             <LeadLagHeatmap
               symbols={coins}
               leader={baseCoin}
@@ -181,6 +182,14 @@ export default function DashboardPage() {
               onWindowChange={setAnalyticsWindow}
             />
           </div>
+          <Correlogram
+            leader={baseCoin}
+            follower={quoteCoin}
+            window={analyticsWindow}
+          />
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <SentimentPriceChart symbol={baseCoin} />
 
           <Card className="border shadow-sm">
