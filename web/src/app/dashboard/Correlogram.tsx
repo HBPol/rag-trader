@@ -29,7 +29,10 @@ export default function Correlogram({
 }: CorrelogramProps) {
   const leadLagQuery = useLeadLagQuery(leader, follower, window);
   const correlogram = leadLagQuery.data?.edge?.correlogram;
-  const buckets = correlogram?.buckets ?? [];
+  const buckets = useMemo(
+    () => correlogram?.buckets ?? [],
+    [correlogram?.buckets],
+  );
   const bestLag =
     correlogram?.best_lag_minutes ?? leadLagQuery.data?.edge?.best_lag_minutes;
 

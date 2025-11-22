@@ -82,9 +82,7 @@ export type LeadLagHeatmapProps<Window extends string = string> = {
   window: Window;
   onLeaderChange: (value: string) => void;
   onFollowerChange: (value: string) => void;
-  onWindowChange:
-    | ((value: Window) => void)
-    | Dispatch<SetStateAction<Window>>;
+  onWindowChange: ((value: Window) => void) | Dispatch<SetStateAction<Window>>;
 };
 
 export default function LeadLagHeatmap<Window extends string = string>({
