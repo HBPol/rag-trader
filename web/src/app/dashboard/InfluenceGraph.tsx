@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useInfluenceGraphQuery } from "@/lib/queries/analytics";
 import type { InfluenceGraphEdge } from "@/lib/schemas/influenceGraph";
 import { renderFreshness } from "./freshness";
+import "./influence-graph.css";
 
 type LayoutNode = {
   id: string;
@@ -30,6 +32,50 @@ function normalizeSymbol(value: string): string {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+const PULSE_DELTA_THRESHOLD = 0.05;
+const PULSE_INTENSITY_DELTA_RANGE = 0.25;
+const PULSE_RECENCY_MINUTES = 240;
+
+function getEdgeKey(
+  edge: Pick<InfluenceGraphEdge, "source" | "target" | "window">,
+) {
+  return `${edge.source}-${edge.target}-${edge.window}`;
+}
+
+function minutesSince(
+  timestamp: string | null | undefined,
+  now: number,
+): number {
+  if (!timestamp) return Number.NaN;
+  const parsed = Date.parse(timestamp);
+  if (Number.isNaN(parsed)) return Number.NaN;
+  return (now - parsed) / 60000;
+}
+
+function derivePulseStrength(edge: InfluenceGraphEdge, now: number): number {
+  const currentWeight = edge.weight;
+  const previousWeight = edge.previous_weight;
+  if (
+    currentWeight === null ||
+    currentWeight === undefined ||
+    previousWeight === null ||
+    previousWeight === undefined
+  ) {
+    return 0;
+  }
+
+  const delta = currentWeight - previousWeight;
+  if (!Number.isFinite(delta) || delta < PULSE_DELTA_THRESHOLD) return 0;
+
+  const ageMinutes = minutesSince(edge.computed_ts, now);
+  if (Number.isFinite(ageMinutes) && ageMinutes > PULSE_RECENCY_MINUTES) {
+    return 0;
+  }
+
+  const normalized = delta / PULSE_INTENSITY_DELTA_RANGE;
+  return clamp(normalized, 0.35, 1);
 }
 
 function weightToStroke(
@@ -144,6 +190,10 @@ export default function InfluenceGraph({
   }>({ width: 760, height: 480 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [pulsingEdges, setPulsingEdges] = useState<Map<string, number>>(
+    () => new Map(),
+  );
   const isPanning = useRef(false);
   const lastPointer = useRef<Point | null>(null);
 
@@ -170,6 +220,53 @@ export default function InfluenceGraph({
       ),
     [edges],
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setPrefersReducedMotion(mediaQuery.matches);
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      setPrefersReducedMotion(event.matches);
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener("change", handleChange);
+    } else {
+      mediaQuery.addListener?.(handleChange);
+    }
+
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener("change", handleChange);
+      } else {
+        mediaQuery.removeListener?.(handleChange);
+      }
+    };
+  }, []);
+
+  const pulseStrengthByEdge = useMemo(() => {
+    const now = Date.now();
+    return edges.reduce((map, edge) => {
+      const strength = derivePulseStrength(edge, now);
+      if (strength > 0) {
+        map.set(getEdgeKey(edge), strength);
+      }
+      return map;
+    }, new Map<string, number>());
+  }, [edges]);
+
+  useEffect(() => {
+    const frameId = globalThis.window?.requestAnimationFrame(() => {
+      setPulsingEdges(pulseStrengthByEdge);
+    });
+
+    return () => {
+      if (frameId !== undefined) {
+        globalThis.window?.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [pulseStrengthByEdge]);
 
   useEffect(() => {
     const element = graphContainerRef.current;
@@ -344,6 +441,16 @@ export default function InfluenceGraph({
                       edge.weight,
                       maxAbsWeight,
                     );
+                    const edgeKey = getEdgeKey(edge);
+                    const pulseStrength = pulsingEdges.get(edgeKey) ?? 0;
+                    const shouldPulse =
+                      pulseStrength > 0 && !prefersReducedMotion;
+                    const pulseStyle: CSSProperties | undefined = shouldPulse
+                      ? {
+                          ["--edge-pulse-strength" as string]: pulseStrength,
+                          ["--edge-pulse-opacity" as string]: 0.8,
+                        }
+                      : undefined;
                     const isSelected =
                       normalizeSymbol(edge.source) ===
                         normalizeSymbol(source) &&
@@ -359,6 +466,10 @@ export default function InfluenceGraph({
                           y1={from.y}
                           x2={to.x}
                           y2={to.y}
+                          className={
+                            shouldPulse ? "influence-edge--pulse" : undefined
+                          }
+                          style={pulseStyle}
                           stroke={
                             isSelected
                               ? "hsl(var(--primary))"

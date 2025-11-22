@@ -10,6 +10,7 @@ export const influenceGraphEdgeSchema = z.object({
   granger_p_value: z.number().nullable().optional(),
   granger_reject_null: z.boolean().nullable().optional(),
   weight: z.number().nullable().optional(),
+  previous_weight: z.number().nullable().optional(),
   computed_ts: z.string().nullable().optional(),
 });
 

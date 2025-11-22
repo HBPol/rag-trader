@@ -1,0 +1,26 @@
+.influence-edge--pulse {
+  animation: influence-edge-pulse 1.6s ease-in-out infinite;
+  stroke-opacity: var(--edge-pulse-opacity, 0.8);
+  filter: drop-shadow(
+    0 0 calc(5px * var(--edge-pulse-strength, 1)) hsl(var(--primary))
+  );
+}
+
+@keyframes influence-edge-pulse {
+  0% {
+    stroke-opacity: calc(var(--edge-pulse-opacity, 0.8) * 0.7);
+  }
+  50% {
+    stroke-opacity: 1;
+  }
+  100% {
+    stroke-opacity: var(--edge-pulse-opacity, 0.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .influence-edge--pulse {
+    animation: none;
+    filter: none;
+  }
+}
