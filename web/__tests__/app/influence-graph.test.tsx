@@ -18,7 +18,7 @@ function renderWithProviders(children: ReactNode, queryClient: QueryClient) {
 function InfluenceGraphHarness() {
   const [base, setBase] = useState("BTC");
   const [quote, setQuote] = useState("ETH");
-  const [window, setWindow] = useState("1h");
+  const [windowSize, setWindowSize] = useState("1h");
   const symbols = ["BTC", "ETH", "SOL", "DOGE", "USDT"];
 
   return (
@@ -56,8 +56,8 @@ function InfluenceGraphHarness() {
           <span className="text-xs text-muted-foreground">Window</span>
           <select
             aria-label="Influence window"
-            value={window}
-            onChange={(event) => setWindow(event.target.value)}
+            value={windowSize}
+            onChange={(event) => setWindowSize(event.target.value)}
           >
             {["1h", "4h"].map((option) => (
               <option key={option} value={option}>
@@ -67,7 +67,7 @@ function InfluenceGraphHarness() {
           </select>
         </label>
       </div>
-      <InfluenceGraph source={base} target={quote} window={window} />
+      <InfluenceGraph source={base} target={quote} windowSize={windowSize} />
     </div>
   );
 }
@@ -78,7 +78,7 @@ describe("InfluenceGraph", () => {
       defaultOptions: { queries: { retry: false } },
     });
     const { container } = renderWithProviders(
-      <InfluenceGraph source="BTC" target="ETH" window="1h" />,
+      <InfluenceGraph source="BTC" target="ETH" windowSize="1h" />,
       queryClient,
     );
 
@@ -99,7 +99,7 @@ describe("InfluenceGraph", () => {
       defaultOptions: { queries: { retry: false } },
     });
     renderWithProviders(
-      <InfluenceGraph source="BTC" target="ETH" window="1h" />,
+      <InfluenceGraph source="BTC" target="ETH" windowSize="1h" />,
       queryClient,
     );
 
