@@ -1,5 +1,6 @@
 "use client";
 
+import type { Dispatch, SetStateAction } from "react";
 import { Fragment, useMemo } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,17 +75,19 @@ function cellTooltip(
   return `${leader} → ${follower}\nLag: ${lagText}\nStrength: ${strengthText}\nSample size: ${sampleText}\nFreshness: ${renderFreshness(freshnessMinutes)}`;
 }
 
-export type LeadLagHeatmapProps = {
+export type LeadLagHeatmapProps<Window extends string = string> = {
   symbols?: string[];
   leader: string;
   follower: string;
-  window: string;
+  window: Window;
   onLeaderChange: (value: string) => void;
   onFollowerChange: (value: string) => void;
-  onWindowChange: (value: string) => void;
+  onWindowChange:
+    | ((value: Window) => void)
+    | Dispatch<SetStateAction<Window>>;
 };
 
-export default function LeadLagHeatmap({
+export default function LeadLagHeatmap<Window extends string = string>({
   symbols,
   leader,
   follower,
@@ -92,7 +95,7 @@ export default function LeadLagHeatmap({
   onLeaderChange,
   onFollowerChange,
   onWindowChange,
-}: LeadLagHeatmapProps) {
+}: LeadLagHeatmapProps<Window>) {
   const leadLagQuery = useLeadLagMatrixQuery(window, leader, follower);
 
   const normalizedSymbols = useMemo(() => {
@@ -175,7 +178,9 @@ export default function LeadLagHeatmap({
                 aria-label="Lead/lag window"
                 className="rounded-md border border-input bg-background p-2"
                 value={window}
-                onChange={(event) => onWindowChange(event.target.value)}
+                onChange={(event) =>
+                  onWindowChange(event.target.value as Window)
+                }
               >
                 {Array.from(
                   new Set([
