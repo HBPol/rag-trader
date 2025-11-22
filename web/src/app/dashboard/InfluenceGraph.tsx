@@ -152,8 +152,14 @@ export default function InfluenceGraph({
     target,
     windowSize,
   );
-  const nodes = influenceGraphQuery.data?.payload.graph.nodes ?? [];
-  const edges = influenceGraphQuery.data?.payload.graph.edges ?? [];
+  const nodes = useMemo(
+    () => influenceGraphQuery.data?.payload.graph.nodes ?? [],
+    [influenceGraphQuery.data?.payload.graph?.nodes],
+  );
+  const edges = useMemo(
+    () => influenceGraphQuery.data?.payload.graph.edges ?? [],
+    [influenceGraphQuery.data?.payload.graph?.edges],
+  );
   const maxAbsWeight = useMemo(
     () =>
       Math.max(
