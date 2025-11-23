@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   useCorrelationQuery,
-  useEventsQuery,
   useGrangerQuery,
   useSentimentQuery,
 } from "@/lib/queries/analytics";
 import type { CorrelationEntry } from "@/lib/schemas/correlation";
 import Correlogram from "./Correlogram";
+import EventCards from "./EventCards";
 import InfluenceGraph from "./InfluenceGraph";
 import LeadLagHeatmap from "./LeadLagHeatmap";
 import SentimentPriceChart from "./SentimentPriceChart";
@@ -62,7 +62,6 @@ export default function DashboardPage() {
   const correlationQuery = useCorrelationQuery(baseCoin, analyticsWindow);
   const grangerQuery = useGrangerQuery(baseCoin, quoteCoin, analyticsWindow);
   const sentimentQuery = useSentimentQuery(baseCoin, analyticsWindow);
-  const eventsQuery = useEventsQuery({ enabled: false });
 
   const placeholderWidgets = [
     "Market Heatmap",
@@ -286,21 +285,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="border shadow-sm">
-            <CardHeader>
-              <CardTitle>Events</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>
-                Endpoint wiring ready. Enable when backend is available to
-                surface{" "}
-                <span className="font-medium text-foreground">
-                  {eventsQuery.data?.data.length ?? 0}
-                </span>{" "}
-                events.
-              </p>
-            </CardContent>
-          </Card>
+          <EventCards />
         </section>
 
         <section>
