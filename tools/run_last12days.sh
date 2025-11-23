@@ -34,9 +34,10 @@ python -m ragtrader_pipelines.content \
 # -----------------------------
 echo "[2/3] Fetching OHLCV data (1h bars)..."
 python -m ragtrader_pipelines.coinbase \
-  --symbols BTC-USD,BTC-GBP,ETH-GBP,ETH-USD \
+  --symbols BTC,ETH \
   --granularity MIN_60 \
   --lookback-minutes "${LOOKBACK_MINUTES}" \
+  --quote-currency USD \
   --database-url "postgresql+psycopg://ragtrader:ragtrader@localhost:5432/ragtrader"
 
 

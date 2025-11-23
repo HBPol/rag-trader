@@ -99,8 +99,9 @@ Scheduler:
 
 ```bash
 python -m ragtrader_pipelines.coinbase \
-  --symbols BTC-USD,ETH-USD \
+  --symbols BTC,ETH \
   --granularity MIN_60 \
+  --quote-currency USD \
   --lookback-minutes 360 \
   --database-url "postgresql+psycopg://user:pass@localhost:5432/ragtrader"
 ```

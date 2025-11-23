@@ -142,6 +142,7 @@ class CoinbaseOhlcvIngestion:
         symbols: Iterable[str],
         granularity: Granularity,
         lookback: timedelta,
+        quote_currency: str = "USD",
     ) -> None:
         if lookback <= timedelta(0):  # pragma: no cover - sanity check
             msg = "Lookback must be greater than zero"
@@ -149,9 +150,26 @@ class CoinbaseOhlcvIngestion:
         end = _ensure_aware(self._clock())
         start = end - lookback
 
+        products: dict[str, str] = {}
         for symbol in symbols:
-            raw = self._client.fetch_candles(symbol, granularity.value, start, end)
-            records = self._transform(symbol, granularity, raw)
+            normalized = symbol.strip().upper()
+            if not normalized:
+                continue
+            if "-" in normalized:
+                base, quote = normalized.split("-", 1)
+                base = base.strip()
+                quote = quote.strip() or quote_currency
+            else:
+                base = normalized
+                quote = quote_currency
+            if not base:
+                continue
+            product_id = f"{base}-{quote}"
+            products[product_id] = base
+
+        for product_id, base_symbol in products.items():
+            raw = self._client.fetch_candles(product_id, granularity.value, start, end)
+            records = self._transform(base_symbol, granularity, raw)
             if records:
                 self._repository.upsert_many(records)
 
@@ -263,8 +281,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the Coinbase OHLCV ingestion job")
     parser.add_argument(
         "--symbols",
-        default="BTC-USD,ETH-USD",
-        help="Comma-separated list of product symbols",
+        default="BTC,ETH",
+        help="Comma-separated list of product or base symbols",
     )
     parser.add_argument(
         "--granularity",
@@ -277,6 +295,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=int,
         default=360,
         help="Number of minutes to look back when fetching candles",
+    )
+    parser.add_argument(
+        "--quote-currency",
+        default="USD",
+        help=("Quote currency to append when base symbols are provided (default: USD)"),
     )
     parser.add_argument(
         "--database-url",
@@ -306,7 +329,12 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI wi
     client = CoinbaseClient()
     job = CoinbaseOhlcvIngestion(client=client, repository=repository)
     try:
-        job.run(symbols=symbols, granularity=granularity, lookback=lookback)
+        job.run(
+            symbols=symbols,
+            granularity=granularity,
+            lookback=lookback,
+            quote_currency=args.quote_currency,
+        )
     finally:
         client.close()
     return 0
