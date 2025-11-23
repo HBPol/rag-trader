@@ -1,1 +1,17 @@
 symbol,feature_name,ts,value
+BTC,correlation:return_vs_sentiment:pearson:1h,2025-11-22 20:00:00.000000 +00:00,0.804974179849
+BTC,correlation:return_vs_sentiment:pearson:1h,2025-11-22 21:00:00.000000 +00:00,0.969368602035
+BTC,correlation:return_vs_sentiment:pearson:1h,2025-11-22 22:00:00.000000 +00:00,0.294732336496
+BTC,correlation:return_vs_sentiment:pearson:1h,2025-11-22 23:00:00.000000 +00:00,-0.961151293838
+BTC,correlation:return_vs_sentiment:pearson:1h,2025-11-23 00:00:00.000000 +00:00,-0.959805213370
+BTC,correlation:return_vs_sentiment:spearman:1h,2025-11-22 20:00:00.000000 +00:00,1.000000000000
+BTC,correlation:return_vs_sentiment:spearman:1h,2025-11-22 21:00:00.000000 +00:00,0.500000000000
+BTC,correlation:return_vs_sentiment:spearman:1h,2025-11-22 22:00:00.000000 +00:00,0.500000000000
+BTC,correlation:return_vs_sentiment:spearman:1h,2025-11-22 23:00:00.000000 +00:00,-1.000000000000
+BTC,correlation:return_vs_sentiment:spearman:1h,2025-11-23 00:00:00.000000 +00:00,-1.000000000000
+ETH,correlation:return_vs_sentiment:pearson:1h,2025-11-22 22:00:00.000000 +00:00,0.618471564167
+ETH,correlation:return_vs_sentiment:pearson:1h,2025-11-22 23:00:00.000000 +00:00,-0.913331949144
+ETH,correlation:return_vs_sentiment:pearson:1h,2025-11-23 00:00:00.000000 +00:00,-0.642230545184
+ETH,correlation:return_vs_sentiment:spearman:1h,2025-11-22 22:00:00.000000 +00:00,0.500000000000
+ETH,correlation:return_vs_sentiment:spearman:1h,2025-11-22 23:00:00.000000 +00:00,-1.000000000000
+ETH,correlation:return_vs_sentiment:spearman:1h,2025-11-23 00:00:00.000000 +00:00,-0.500000000000
