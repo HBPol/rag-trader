@@ -11,6 +11,7 @@ import {
   useSentimentQuery,
 } from "@/lib/queries/analytics";
 import type { CorrelationEntry } from "@/lib/schemas/correlation";
+import ExplainabilityChip from "./ExplainabilityChip";
 import Correlogram from "./Correlogram";
 import EventCards from "./EventCards";
 import InfluenceGraph from "./InfluenceGraph";
@@ -209,6 +210,11 @@ export default function DashboardPage() {
                     ),
                   )}
                 </span>
+                <ExplainabilityChip
+                  className="ml-2 align-middle"
+                  metricId={`correlation:${baseCoin}:${analyticsWindow}`}
+                  label="Correlation"
+                />
               </p>
               <p>
                 Freshness:{" "}

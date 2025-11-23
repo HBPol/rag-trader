@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLeadLagQuery } from "@/lib/queries/analytics";
 import type { CorrelogramBucket } from "@/lib/schemas/correlogram";
+import ExplainabilityChip from "./ExplainabilityChip";
 
 type CorrelogramProps = {
   leader: string;
@@ -70,6 +71,11 @@ export default function Correlogram({
           >
             {badgeContent}
           </span>
+          <ExplainabilityChip
+            metricId={`best-lag:${leader}:${follower}:${window}`}
+            label="Best lag"
+            className="ml-1"
+          />
         </div>
       </CardHeader>
       <CardContent>

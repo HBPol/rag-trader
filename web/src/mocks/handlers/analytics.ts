@@ -310,6 +310,38 @@ export const sentimentResponse = {
   freshness: { age_minutes: 8 },
 };
 
+export const explanationsResponse = {
+  status: "ok",
+  data: [
+    {
+      id: "correlation:BTC:1h",
+      rationale:
+        "Correlation is elevated due to synchronized flows across BTC spot and perp markets during this window.",
+      source: {
+        label: "Desk note",
+        url: "https://example.com/correlation-note",
+      },
+    },
+    {
+      id: "best-lag:BTC:ETH:1h",
+      rationale: "BTC tends to lead ETH by 15 minutes when funding diverges.",
+      source: {
+        label: "Cross-asset monitor",
+        url: "https://example.com/leadlag",
+      },
+    },
+    {
+      id: "influence-legend:BTC:ETH:1h",
+      rationale:
+        "Edge widths mirror absolute influence weights; thicker arrows highlight stronger lead/lag conviction.",
+      source: {
+        label: "Graph guide",
+        url: "https://example.com/graph-guide",
+      },
+    },
+  ],
+};
+
 export const eventsResponse = {
   status: "ok",
   data: [
@@ -367,4 +399,15 @@ export const analyticsHandlers = [
     });
   }),
   http.get("/events", () => HttpResponse.json(eventsResponse)),
+  http.get("/explanations", (req) => {
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
+    const match = explanationsResponse.data.find((entry) => entry.id === id);
+
+    if (!match) {
+      return HttpResponse.json({ message: "Not found" }, { status: 404 });
+    }
+
+    return HttpResponse.json(explanationsResponse);
+  }),
 ];

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useInfluenceGraphQuery } from "@/lib/queries/analytics";
 import type { InfluenceGraphEdge } from "@/lib/schemas/influenceGraph";
 import { renderFreshness } from "./freshness";
+import ExplainabilityChip from "./ExplainabilityChip";
 import "./influence-graph.css";
 
 type LayoutNode = {
@@ -544,6 +545,11 @@ export default function InfluenceGraph({
                   </div>
                 ))}
               </div>
+              <ExplainabilityChip
+                metricId={`influence-legend:${source}:${target}:${windowSize}`}
+                label="Influence"
+                className="shrink-0"
+              />
               <span>
                 Zoom with scroll or buttons. Drag to pan. Edge width scales with
                 absolute weight.
