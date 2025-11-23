@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import AuthGate from "@/components/AuthGate";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,13 @@ import {
   useSentimentQuery,
 } from "@/lib/queries/analytics";
 import type { CorrelationEntry } from "@/lib/schemas/correlation";
+import {
+  markAndMeasureNextFrame,
+  markMetric,
+  markMetricUnsafe,
+  NFR_THRESHOLDS,
+  reportFreshnessTimestamp,
+} from "@/lib/metrics";
 import ExplainabilityChip from "./ExplainabilityChip";
 import Correlogram from "./Correlogram";
 import EventCards from "./EventCards";
@@ -64,6 +71,21 @@ export default function DashboardPage() {
   const grangerQuery = useGrangerQuery(baseCoin, quoteCoin, analyticsWindow);
   const sentimentQuery = useSentimentQuery(baseCoin, analyticsWindow);
 
+  useEffect(() => {
+    markMetric("dashboard:load:start", {
+      baseCoin,
+      quoteCoin,
+      analyticsWindow,
+    });
+    markAndMeasureNextFrame({
+      startMark: "dashboard:load:start",
+      endMark: "dashboard:load:end",
+      measureName: "dashboard:load",
+      thresholdMs: NFR_THRESHOLDS.loadMs,
+      detail: { baseCoin, quoteCoin, analyticsWindow },
+    });
+  }, []);
+
   const placeholderWidgets = [
     "Market Heatmap",
     "Liquidity Funnels",
@@ -74,9 +96,65 @@ export default function DashboardPage() {
   ];
 
   const handleSwap = () => {
+    markMetricUnsafe("dashboard:swap:start", { baseCoin, quoteCoin });
     setBaseCoin(quoteCoin);
     setQuoteCoin(baseCoin);
+
+    markAndMeasureNextFrame({
+      startMark: "dashboard:swap:start",
+      endMark: "dashboard:swap:end",
+      measureName: "dashboard:swap",
+      thresholdMs: NFR_THRESHOLDS.swapMs,
+      detail: {
+        baseCoin,
+        quoteCoin,
+      },
+    });
   };
+
+  const handleWindowChange = (
+    nextWindow: (typeof analyticsWindows)[number],
+  ) => {
+    markMetricUnsafe("dashboard:window-change:start", {
+      previousWindow: analyticsWindow,
+      nextWindow,
+    });
+    setAnalyticsWindow(nextWindow);
+
+    markAndMeasureNextFrame({
+      startMark: "dashboard:window-change:start",
+      endMark: "dashboard:window-change:end",
+      measureName: "dashboard:window-change",
+      thresholdMs: NFR_THRESHOLDS.windowChangeMs,
+      detail: {
+        previousWindow: analyticsWindow,
+        nextWindow,
+      },
+    });
+  };
+
+  useEffect(() => {
+    const freshnessMinutes =
+      correlationQuery.data?.payload.freshness.age_minutes;
+    reportFreshnessTimestamp("correlation", freshnessMinutes, {
+      baseCoin,
+      quoteCoin,
+      analyticsWindow,
+    });
+  }, [
+    analyticsWindow,
+    baseCoin,
+    correlationQuery.data?.payload.freshness.age_minutes,
+    quoteCoin,
+  ]);
+
+  useEffect(() => {
+    reportFreshnessTimestamp(
+      "sentiment",
+      sentimentQuery.data?.freshness.age_minutes,
+      { symbol: baseCoin, analyticsWindow },
+    );
+  }, [analyticsWindow, baseCoin, sentimentQuery.data?.freshness.age_minutes]);
 
   return (
     <AuthGate>
@@ -103,6 +181,7 @@ export default function DashboardPage() {
                     Base coin
                     <select
                       className="mt-1 w-full rounded-md border border-input bg-background p-2 text-sm text-foreground"
+                      aria-label="Dashboard base coin"
                       value={baseCoin}
                       onChange={(event) => setBaseCoin(event.target.value)}
                     >
@@ -127,6 +206,7 @@ export default function DashboardPage() {
                     Quote coin
                     <select
                       className="mt-1 w-full rounded-md border border-input bg-background p-2 text-sm text-foreground"
+                      aria-label="Dashboard quote coin"
                       value={quoteCoin}
                       onChange={(event) => setQuoteCoin(event.target.value)}
                     >
@@ -141,9 +221,10 @@ export default function DashboardPage() {
                     Analytics window
                     <select
                       className="mt-1 w-full rounded-md border border-input bg-background p-2 text-sm text-foreground"
+                      aria-label="Dashboard analytics window"
                       value={analyticsWindow}
                       onChange={(event) =>
-                        setAnalyticsWindow(
+                        handleWindowChange(
                           event.target
                             .value as (typeof analyticsWindows)[number],
                         )

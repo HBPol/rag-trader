@@ -1,11 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSentimentQuery } from "@/lib/queries/analytics";
 import type { SentimentPoint } from "@/lib/schemas/sentiment";
+import {
+  markAndMeasureNextFrame,
+  markMetricUnsafe,
+  measureMetric,
+  NFR_THRESHOLDS,
+  reportFreshnessTimestamp,
+} from "@/lib/metrics";
 
 const windows = ["1h", "4h", "24h", "7d"] as const;
 
@@ -144,6 +151,57 @@ export default function SentimentPriceChart({
     (point) => point.priceThousands !== null || point.zscore !== null,
   );
 
+  useEffect(() => {
+    markMetricUnsafe("dashboard:sentiment:render:start", { symbol, window });
+  }, [symbol, window]);
+
+  useEffect(() => {
+    if (sentimentQuery.data?.freshness.age_minutes !== undefined) {
+      reportFreshnessTimestamp(
+        "sentiment:chart",
+        sentimentQuery.data.freshness.age_minutes,
+        {
+          symbol,
+          window,
+        },
+      );
+    }
+  }, [sentimentQuery.data?.freshness.age_minutes, symbol, window]);
+
+  useEffect(() => {
+    if (!hasData) return;
+
+    markMetricUnsafe("dashboard:sentiment:render:end", {
+      symbol,
+      window,
+      points: chartPoints.length,
+    });
+
+    measureMetric(
+      "dashboard:sentiment:render",
+      "dashboard:sentiment:render:start",
+      "dashboard:sentiment:render:end",
+      NFR_THRESHOLDS.graphRenderMs,
+    );
+  }, [chartPoints.length, hasData, symbol, window]);
+
+  const handleWindowClick = (value: (typeof windows)[number]) => {
+    markMetricUnsafe("dashboard:window-change:start", {
+      previousWindow: window,
+      nextWindow: value,
+      source: "sentiment-chart",
+    });
+    setWindow(value);
+
+    markAndMeasureNextFrame({
+      startMark: "dashboard:window-change:start",
+      endMark: "dashboard:window-change:end",
+      measureName: "dashboard:window-change",
+      thresholdMs: NFR_THRESHOLDS.windowChangeMs,
+      detail: { previousWindow: window, nextWindow: value },
+    });
+  };
+
   return (
     <Card className="border shadow-sm" data-testid="sentiment-chart-card">
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -168,7 +226,7 @@ export default function SentimentPriceChart({
               variant={value === window ? "default" : "outline"}
               size="sm"
               aria-pressed={value === window}
-              onClick={() => setWindow(value)}
+              onClick={() => handleWindowClick(value)}
             >
               {value}
             </Button>
