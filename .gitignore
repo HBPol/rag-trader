@@ -28,7 +28,7 @@ web/.next/
 web/coverage/
 
 # Local DB dumps for testing/dev
-data_sample/
+# db_dump/
 
 # Others...
 __pycache__/
