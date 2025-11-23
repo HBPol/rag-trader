@@ -38,7 +38,7 @@ python -m ragtrader_pipelines.coinbase \
   --granularity MIN_60 \
   --lookback-minutes "${LOOKBACK_MINUTES}" \
   --quote-currency USD \
-  --database-url "postgresql+psycopg://ragtrader:ragtrader@localhost:5432/ragtrader"
+  --database-url "$DATABASE_URL"
 
 
 # -----------------------------
@@ -53,7 +53,7 @@ python -m ragtrader_pipelines.analytics_job \
   --price-interval 1h \
   --sentiment-window 6 \
   --max-lag-minutes 60 \
-  --database-url "postgresql+psycopg://ragtrader:ragtrader@localhost:5432/ragtrader"
+  --database-url "$DATABASE_URL"
 
 echo "========================================"
 echo "Done! All pipelines executed successfully."
