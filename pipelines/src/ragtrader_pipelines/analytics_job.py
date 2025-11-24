@@ -53,6 +53,10 @@ def _normalize_symbols(symbols: Iterable[str]) -> list[str]:
         normalized = symbol.strip().upper()
         if not normalized:
             continue
+        base = normalized.split("-", 1)[0]
+        normalized = base.strip()
+        if not normalized:
+            continue
         if normalized in seen:
             continue
         seen.add(normalized)

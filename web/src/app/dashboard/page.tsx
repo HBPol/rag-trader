@@ -1,23 +1,33 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import AuthGate from "@/components/AuthGate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   useCorrelationQuery,
-  useEventsQuery,
   useGrangerQuery,
-  useInfluenceGraphQuery,
-  useLeadLagQuery,
   useSentimentQuery,
 } from "@/lib/queries/analytics";
 import type { CorrelationEntry } from "@/lib/schemas/correlation";
+import {
+  markAndMeasureNextFrame,
+  markMetric,
+  markMetricUnsafe,
+  NFR_THRESHOLDS,
+  reportFreshnessTimestamp,
+} from "@/lib/metrics";
+import ExplainabilityChip from "./ExplainabilityChip";
+import Correlogram from "./Correlogram";
+import EventCards from "./EventCards";
+import InfluenceGraph from "./InfluenceGraph";
+import LeadLagHeatmap from "./LeadLagHeatmap";
 import SentimentPriceChart from "./SentimentPriceChart";
 import { renderFreshness } from "./freshness";
 
 const coins = ["BTC", "ETH", "SOL", "USDT", "USDC", "ARB", "DOGE"];
+const analyticsWindows = ["1h", "4h", "1d"] as const;
 
 function renderMetric(
   isLoading: boolean,
@@ -47,9 +57,10 @@ function formatCorrelationValue(
 export default function DashboardPage() {
   const [baseCoin, setBaseCoin] = useState(coins[0]);
   const [quoteCoin, setQuoteCoin] = useState(coins[1]);
+  const [analyticsWindow, setAnalyticsWindow] = useState<
+    (typeof analyticsWindows)[number]
+  >(analyticsWindows[0]);
   const [refreshedAt] = useState(() => new Date().toLocaleString());
-
-  const analyticsWindow = "1h";
   const environmentLabel = process.env.NEXT_PUBLIC_APP_ENV ?? "Local";
 
   const summaryText = useMemo(() => {
@@ -57,15 +68,23 @@ export default function DashboardPage() {
   }, [baseCoin, quoteCoin]);
 
   const correlationQuery = useCorrelationQuery(baseCoin, analyticsWindow);
-  const leadLagQuery = useLeadLagQuery(baseCoin, quoteCoin, analyticsWindow);
   const grangerQuery = useGrangerQuery(baseCoin, quoteCoin, analyticsWindow);
-  const influenceGraphQuery = useInfluenceGraphQuery(
-    baseCoin,
-    quoteCoin,
-    analyticsWindow,
-  );
   const sentimentQuery = useSentimentQuery(baseCoin, analyticsWindow);
-  const eventsQuery = useEventsQuery({ enabled: false });
+
+  useEffect(() => {
+    markMetric("dashboard:load:start", {
+      baseCoin,
+      quoteCoin,
+      analyticsWindow,
+    });
+    markAndMeasureNextFrame({
+      startMark: "dashboard:load:start",
+      endMark: "dashboard:load:end",
+      measureName: "dashboard:load",
+      thresholdMs: NFR_THRESHOLDS.loadMs,
+      detail: { baseCoin, quoteCoin, analyticsWindow },
+    });
+  }, [baseCoin, quoteCoin, analyticsWindow]);
 
   const placeholderWidgets = [
     "Market Heatmap",
@@ -77,9 +96,65 @@ export default function DashboardPage() {
   ];
 
   const handleSwap = () => {
+    markMetricUnsafe("dashboard:swap:start", { baseCoin, quoteCoin });
     setBaseCoin(quoteCoin);
     setQuoteCoin(baseCoin);
+
+    markAndMeasureNextFrame({
+      startMark: "dashboard:swap:start",
+      endMark: "dashboard:swap:end",
+      measureName: "dashboard:swap",
+      thresholdMs: NFR_THRESHOLDS.swapMs,
+      detail: {
+        baseCoin,
+        quoteCoin,
+      },
+    });
   };
+
+  const handleWindowChange = (
+    nextWindow: (typeof analyticsWindows)[number],
+  ) => {
+    markMetricUnsafe("dashboard:window-change:start", {
+      previousWindow: analyticsWindow,
+      nextWindow,
+    });
+    setAnalyticsWindow(nextWindow);
+
+    markAndMeasureNextFrame({
+      startMark: "dashboard:window-change:start",
+      endMark: "dashboard:window-change:end",
+      measureName: "dashboard:window-change",
+      thresholdMs: NFR_THRESHOLDS.windowChangeMs,
+      detail: {
+        previousWindow: analyticsWindow,
+        nextWindow,
+      },
+    });
+  };
+
+  useEffect(() => {
+    const freshnessMinutes =
+      correlationQuery.data?.payload.freshness.age_minutes;
+    reportFreshnessTimestamp("correlation", freshnessMinutes, {
+      baseCoin,
+      quoteCoin,
+      analyticsWindow,
+    });
+  }, [
+    analyticsWindow,
+    baseCoin,
+    correlationQuery.data?.payload.freshness.age_minutes,
+    quoteCoin,
+  ]);
+
+  useEffect(() => {
+    reportFreshnessTimestamp(
+      "sentiment",
+      sentimentQuery.data?.freshness.age_minutes,
+      { symbol: baseCoin, analyticsWindow },
+    );
+  }, [analyticsWindow, baseCoin, sentimentQuery.data?.freshness.age_minutes]);
 
   return (
     <AuthGate>
@@ -106,6 +181,7 @@ export default function DashboardPage() {
                     Base coin
                     <select
                       className="mt-1 w-full rounded-md border border-input bg-background p-2 text-sm text-foreground"
+                      aria-label="Dashboard base coin"
                       value={baseCoin}
                       onChange={(event) => setBaseCoin(event.target.value)}
                     >
@@ -130,12 +206,33 @@ export default function DashboardPage() {
                     Quote coin
                     <select
                       className="mt-1 w-full rounded-md border border-input bg-background p-2 text-sm text-foreground"
+                      aria-label="Dashboard quote coin"
                       value={quoteCoin}
                       onChange={(event) => setQuoteCoin(event.target.value)}
                     >
                       {coins.map((coin) => (
                         <option key={coin} value={coin}>
                           {coin}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-1 flex-col text-xs font-medium text-muted-foreground">
+                    Analytics window
+                    <select
+                      className="mt-1 w-full rounded-md border border-input bg-background p-2 text-sm text-foreground"
+                      aria-label="Dashboard analytics window"
+                      value={analyticsWindow}
+                      onChange={(event) =>
+                        handleWindowChange(
+                          event.target
+                            .value as (typeof analyticsWindows)[number],
+                        )
+                      }
+                    >
+                      {analyticsWindows.map((window) => (
+                        <option key={window} value={window}>
+                          {window}
                         </option>
                       ))}
                     </select>
@@ -148,6 +245,25 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground">{summaryText}</p>
           </CardContent>
         </Card>
+
+        <section className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <LeadLagHeatmap
+              symbols={coins}
+              leader={baseCoin}
+              follower={quoteCoin}
+              window={analyticsWindow}
+              onLeaderChange={setBaseCoin}
+              onFollowerChange={setQuoteCoin}
+              onWindowChange={setAnalyticsWindow}
+            />
+          </div>
+          <Correlogram
+            leader={baseCoin}
+            follower={quoteCoin}
+            window={analyticsWindow}
+          />
+        </section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <SentimentPriceChart symbol={baseCoin} />
@@ -175,47 +291,16 @@ export default function DashboardPage() {
                     ),
                   )}
                 </span>
+                <ExplainabilityChip
+                  className="ml-2 align-middle"
+                  metricId={`correlation:${baseCoin}:${analyticsWindow}`}
+                  label="Correlation"
+                />
               </p>
               <p>
                 Freshness:{" "}
                 {renderFreshness(
                   correlationQuery.data?.payload.freshness.age_minutes,
-                )}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border shadow-sm">
-            <CardHeader>
-              <CardTitle>Lead/Lag</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>
-                Best Lag:{" "}
-                <span className="font-medium text-foreground">
-                  {renderMetric(
-                    leadLagQuery.isLoading,
-                    leadLagQuery.error,
-                    leadLagQuery.data?.edge?.best_lag_minutes != null
-                      ? `${leadLagQuery.data.edge.best_lag_minutes}m`
-                      : null,
-                  )}
-                </span>
-              </p>
-              <p>
-                Strength:{" "}
-                <span className="font-medium text-foreground">
-                  {renderMetric(
-                    leadLagQuery.isLoading,
-                    leadLagQuery.error,
-                    leadLagQuery.data?.edge?.strength?.toFixed(3) ?? null,
-                  )}
-                </span>
-              </p>
-              <p>
-                Updated:{" "}
-                {renderFreshness(
-                  leadLagQuery.data?.payload.freshness.age_minutes,
                 )}
               </p>
             </CardContent>
@@ -259,35 +344,11 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="border shadow-sm">
-            <CardHeader>
-              <CardTitle>Influence Graph</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>
-                Edge Weight:{" "}
-                <span className="font-medium text-foreground">
-                  {renderMetric(
-                    influenceGraphQuery.isLoading,
-                    influenceGraphQuery.error,
-                    influenceGraphQuery.data?.matchingEdge?.weight?.toFixed(
-                      3,
-                    ) ?? null,
-                  )}
-                </span>
-              </p>
-              <p>
-                Nodes tracked:{" "}
-                {influenceGraphQuery.data?.payload.graph.nodes.length ?? 0}
-              </p>
-              <p>
-                Updated:{" "}
-                {renderFreshness(
-                  influenceGraphQuery.data?.payload.freshness.age_minutes,
-                )}
-              </p>
-            </CardContent>
-          </Card>
+          <InfluenceGraph
+            source={baseCoin}
+            target={quoteCoin}
+            windowSize={analyticsWindow}
+          />
 
           <Card className="border shadow-sm">
             <CardHeader>
@@ -311,21 +372,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="border shadow-sm">
-            <CardHeader>
-              <CardTitle>Events</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>
-                Endpoint wiring ready. Enable when backend is available to
-                surface{" "}
-                <span className="font-medium text-foreground">
-                  {eventsQuery.data?.data.length ?? 0}
-                </span>{" "}
-                events.
-              </p>
-            </CardContent>
-          </Card>
+          <EventCards />
         </section>
 
         <section>

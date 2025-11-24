@@ -41,7 +41,7 @@ def test_upsert_many_seeds_instruments_and_candles(migrated_engine: Engine) -> N
     repository = SqlAlchemyCandleRepository(migrated_engine)
     records = [
         OhlcvRecord(
-            symbol="BTC-USD",
+            symbol="BTC",
             interval="1h",
             ts=datetime(2024, 1, 1, 0, 0, tzinfo=UTC),
             open=Decimal("100.0"),
@@ -58,7 +58,7 @@ def test_upsert_many_seeds_instruments_and_candles(migrated_engine: Engine) -> N
         instrument_rows = (
             conn.execute(
                 text("SELECT symbol, name FROM instruments WHERE symbol = :symbol"),
-                {"symbol": "BTC-USD"},
+                {"symbol": "BTC"},
             )
             .mappings()
             .all()
@@ -69,13 +69,13 @@ def test_upsert_many_seeds_instruments_and_candles(migrated_engine: Engine) -> N
                     "SELECT symbol, interval, ts, open, high, low, close, volume "
                     "FROM ohlcv WHERE symbol = :symbol"
                 ),
-                {"symbol": "BTC-USD"},
+                {"symbol": "BTC"},
             )
             .mappings()
             .all()
         )
 
-    assert instrument_rows == [{"symbol": "BTC-USD", "name": "BTC-USD"}]
+    assert instrument_rows == [{"symbol": "BTC", "name": "BTC"}]
     assert len(ohlcv_rows) == 1
     candle = ohlcv_rows[0]
     assert candle["interval"] == "1h"

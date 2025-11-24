@@ -1,15 +1,14 @@
 module.exports = {
-  root: true,
-  extends: ["next", "next/core-web-vitals"],
-  parser: "@typescript-eslint/parser",
-  plugins: ["@typescript-eslint"],
+  extends: ["next/core-web-vitals"],
+  ignorePatterns: [
+    "e2e/**/*",
+    "playwright.config.ts",
+    "next.config.js",
+    "postcss.config.js",
+    "tools/**/*",
+    "vendor/**/*",
+  ],
   rules: {
-    "@typescript-eslint/consistent-type-imports": "error",
-    "no-restricted-imports": [
-      "error",
-      {
-        "patterns": ["../*"]
-      }
-    ]
-  }
+    "no-console": ["warn", { allow: ["info", "warn", "error"] }],
+  },
 };

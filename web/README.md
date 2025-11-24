@@ -15,6 +15,25 @@ pnpm test -- --coverage
 Install dependencies (`pnpm install`) before running the Vitest coverage gate so the command matches
 the CI job that uploads `coverage/lcov.info` to Codecov.
 
+### Lighthouse CI workflow
+
+- Build the production bundle before auditing:
+
+  ```bash
+  pnpm build
+  ```
+
+- Run Lighthouse CI with the shared config to collect fresh reports and enforce the 0.85
+  performance/accessibility thresholds:
+
+  ```bash
+  pnpm lhci
+  ```
+
+  The `lhci` script starts the production server on port 3000 using `lighthouse.config.cjs`,
+  runs the autorun flow, and writes HTML/JSON reports to `.lighthouseci/` for inspection.
+  A non-zero exit code indicates the audited scores fell below the configured assertions.
+
 ## UI toolkit and styling conventions
 
 - We use Tailwind CSS + shadcn/ui primitives that live under

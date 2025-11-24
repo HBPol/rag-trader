@@ -151,7 +151,7 @@ describe("analytics queries", () => {
         useLeadLagQuery(leader, follower, window),
       {
         wrapper: createWrapper(queryClient),
-        initialProps: { leader: "aapl", follower: "msft", window: "1d" },
+        initialProps: { leader: "btc", follower: "eth", window: "1h" },
       },
     );
 
@@ -159,15 +159,15 @@ describe("analytics queries", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.payload).toEqual(leadLagResponse);
-    expect(result.current.data?.edge?.leader).toBe("AAPL");
-    expect(result.current.data?.edge?.follower).toBe("MSFT");
+    expect(result.current.data?.edge?.leader).toBe("BTC");
+    expect(result.current.data?.edge?.follower).toBe("ETH");
 
-    rerender({ leader: "msft", follower: "aapl", window: "1w" });
+    rerender({ leader: "eth", follower: "btc", window: "4h" });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(
       queryClient.getQueryCache().find({
-        queryKey: ["analytics", "leadlag", "MSFT", "AAPL", "1w"],
+        queryKey: ["analytics", "leadlag", "ETH", "BTC", "4h"],
       }),
     ).toBeDefined();
   });
@@ -204,21 +204,21 @@ describe("analytics queries", () => {
         useInfluenceGraphQuery(source, target, window),
       {
         wrapper: createWrapper(queryClient),
-        initialProps: { source: "aapl", target: "msft", window: "1d" },
+        initialProps: { source: "btc", target: "eth", window: "1h" },
       },
     );
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data?.payload).toEqual(influenceGraphResponse);
-    expect(result.current.data?.matchingEdge?.target).toBe("MSFT");
+    expect(result.current.data?.matchingEdge?.target).toBe("ETH");
 
-    rerender({ source: "goog", target: "aapl", window: "1w" });
+    rerender({ source: "eth", target: "btc", window: "4h" });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(
       queryClient.getQueryCache().find({
-        queryKey: ["analytics", "influence-graph", "GOOG", "AAPL", "1w"],
+        queryKey: ["analytics", "influence-graph", "ETH", "BTC", "4h"],
       }),
     ).toBeDefined();
   });

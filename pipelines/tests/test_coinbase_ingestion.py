@@ -46,7 +46,7 @@ def test_job_requests_expected_time_window() -> None:
     repo = StubRepository()
     job = CoinbaseOhlcvIngestion(client=client, repository=repo, clock=lambda: now)
 
-    job.run(symbols=["BTC-USD"], granularity=Granularity.MIN_60, lookback=lookback)
+    job.run(symbols=["BTC"], granularity=Granularity.MIN_60, lookback=lookback)
 
     assert client.calls == [
         (
@@ -93,7 +93,7 @@ def test_job_deduplicates_records_before_writing() -> None:
     "record",
     [
         OhlcvRecord(
-            symbol="BTC-USD",
+            symbol="BTC",
             interval="1h",
             ts=datetime(2024, 1, 1, tzinfo=UTC),
             open=Decimal("100"),

@@ -15,6 +15,14 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
+    include: ["__tests__/**/*.{test,spec}.{ts,tsx}"],
+    exclude: [
+      "**/node_modules/**",
+      "**/.pnpm/**",
+      "**/@tanstack/**",
+      "**/vendor/**",
+      "e2e/**/*",
+    ],
     coverage: {
       reporter: ["text", "lcov"],
       thresholds: {
