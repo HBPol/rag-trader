@@ -84,7 +84,7 @@ export default function DashboardPage() {
       thresholdMs: NFR_THRESHOLDS.loadMs,
       detail: { baseCoin, quoteCoin, analyticsWindow },
     });
-  }, []);
+  }, [baseCoin, quoteCoin, analyticsWindow]);
 
   const placeholderWidgets = [
     "Market Heatmap",
