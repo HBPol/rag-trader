@@ -3,7 +3,7 @@ module.exports = {
     collect: {
       numberOfRuns: 1,
       startServerCommand: "pnpm start -- --hostname 0.0.0.0 --port 3000",
-      startServerReadyPattern: "started server on",
+      startServerReadyPattern: "ready - started server|Ready in",
       url: ["http://localhost:3000/"],
       settings: {
         formFactor: "desktop",
