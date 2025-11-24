@@ -1,14 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
-import type { ReactNode } from "react";
-
-vi.mock("@/app/providers", () => ({
-  AppProviders: ({ children }: { children: ReactNode }) => (
-    <div data-testid="auth-provider">{children}</div>
-  ),
-  AuthProvider: ({ children }: { children: ReactNode }) => (
-    <div data-testid="auth-provider">{children}</div>
-  ),
-}));
+import { render, screen } from "@testing-library/react";
 
 type LayoutModule = typeof import("../../src/app/layout");
 let RootLayout: LayoutModule["default"];
@@ -21,7 +11,7 @@ beforeAll(async () => {
 });
 
 describe("RootLayout", () => {
-  it("renders the html language attribute, body classes, and wraps children in the AuthProvider", () => {
+  it("renders the html language attribute, body classes, and children", () => {
     const childText = "Sample child content";
     const { container } = render(
       <RootLayout>
@@ -41,8 +31,8 @@ describe("RootLayout", () => {
       "text-foreground",
     );
 
-    const provider = screen.getByTestId("auth-provider");
-    expect(within(provider).getByText(childText)).toBeInTheDocument();
+    expect(screen.getByText(childText)).toBeInTheDocument();
+    expect(screen.queryByTestId("auth-provider")).not.toBeInTheDocument();
   });
 
   it("exposes the expected metadata", () => {
