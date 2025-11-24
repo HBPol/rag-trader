@@ -40,7 +40,9 @@ export default function Home() {
               flow.
             </div>
             <Button asChild className="w-full sm:w-auto">
-              <Link href="/dashboard">Enter dashboard</Link>
+              <Link href="/dashboard" prefetch={false}>
+                Enter dashboard
+              </Link>
             </Button>
           </div>
         </CardContent>
