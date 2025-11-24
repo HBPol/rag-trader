@@ -3,7 +3,6 @@
 import { useState, createContext } from "react";
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 export type AuthContextValue = {
   isAuthenticated: boolean;
@@ -28,6 +27,11 @@ export function AppProviders({
   children: ReactNode;
   value?: AuthContextValue;
 }) {
+  const Devtools =
+    process.env.NODE_ENV !== "production"
+      ? require("@tanstack/react-query-devtools").ReactQueryDevtools
+      : null;
+
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -47,7 +51,7 @@ export function AppProviders({
       <AuthContext.Provider value={resolvedValue}>
         {children}
       </AuthContext.Provider>
-      <ReactQueryDevtools initialIsOpen={false} position="bottom" />
+      {Devtools ? <Devtools initialIsOpen={false} position="bottom" /> : null}
     </QueryClientProvider>
   );
 }
