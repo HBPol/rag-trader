@@ -1,6 +1,4 @@
 "use client";
-
-import Link from "next/link";
 import {
   useEffect,
   useId,
@@ -208,14 +206,14 @@ export default function ExplainabilityChip({
             {explanation?.source ? (
               <p className="text-[11px] text-muted-foreground">
                 Source:{" "}
-                <Link
-                  href={explanation.source.url}
+                <a
+                  href={explanation.source.url ?? undefined}
                   className="font-semibold text-primary underline underline-offset-2"
                   target="_blank"
                   rel="noreferrer"
                 >
                   {explanation.source.label}
-                </Link>
+                </a>
               </p>
             ) : explanationQuery.isError ? (
               <p className="text-[11px] text-destructive" aria-live="polite">
