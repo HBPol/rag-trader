@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint && node tools/lighthouse-threshold-check.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lhci": "pnpm dlx @lhci/cli@0.14.0 autorun --config=./lighthouse.config.cjs"
   },
   "dependencies": {
     "@tanstack/react-query": "5.51.1",
