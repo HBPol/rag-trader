@@ -1,8 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState, createContext } from "react";
 import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const Devtools =
+  process.env.NODE_ENV === "development"
+    ? dynamic(
+        () =>
+          import("@tanstack/react-query-devtools").then(
+            (mod) => mod.ReactQueryDevtools,
+          ),
+        { ssr: false },
+      )
+    : null;
 
 export type AuthContextValue = {
   isAuthenticated: boolean;
@@ -27,11 +39,6 @@ export function AppProviders({
   children: ReactNode;
   value?: AuthContextValue;
 }) {
-  const Devtools =
-    process.env.NODE_ENV !== "production"
-      ? require("@tanstack/react-query-devtools").ReactQueryDevtools
-      : null;
-
   const [queryClient] = useState(
     () =>
       new QueryClient({
