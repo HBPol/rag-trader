@@ -150,24 +150,12 @@ jobs:
       - name: Build Next.js app
         run: pnpm build
 
-      - name: Check for Next.js build output
-        if: ${{ always() }}
-        id: check_web_build
-        run: |
-          if [ -d .next ]; then
-            echo "Next.js build directory found; proceeding to upload."
-            echo "has_build=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Next.js build directory missing; skipping artifact upload."
-            echo "has_build=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Upload web build artifacts
-        if: ${{ always() && steps.check_web_build.outputs.has_build == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: web-next-build
           path: .next
+          if-no-files-found: error
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4.4.1
