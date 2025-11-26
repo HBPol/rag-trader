@@ -150,15 +150,11 @@ jobs:
       - name: Build Next.js app
         run: pnpm build
 
-      - name: Lighthouse CI audit
-        run: pnpm lhci
-
-      - name: Upload Lighthouse CI artifacts
-        if: ${{ always() }}
+      - name: Upload web build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: lighthouse-ci-web
-          path: web/.lighthouseci
+          name: web-next-build
+          path: web/.next
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4.4.1
@@ -213,3 +209,45 @@ jobs:
         # The web Dockerfile copies package.json from the build context, so we
         # must keep the context rooted at web/ instead of the repository root.
         run: docker build -t ragtrader-web:ci -f web/Dockerfile web
+
+  lighthouse:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+    needs:
+      - node-quality
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Download web build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: web-next-build
+          path: web
+
+      - name: Lighthouse CI audit
+        run: pnpm lhci || pnpm lhci
+
+      - name: Upload Lighthouse CI artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-ci-web
+          path: web/.lighthouseci
