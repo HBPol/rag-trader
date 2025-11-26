@@ -172,6 +172,29 @@ def _coerce_positive_int(value: str | None, *, default: int) -> int:
     return parsed
 
 
+def _parse_cors_origins(value: Sequence[str] | str | None) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        raw_items = value.split(",")
+    else:
+        raw_items = list(value)
+
+    normalized: list[str] = []
+    for item in raw_items:
+        candidate = item.strip()
+        if not candidate:
+            continue
+        parsed = urlparse(candidate)
+        if not parsed.scheme or not parsed.netloc:
+            raise SettingsValidationError(
+                "CORS origins must be fully qualified URLs (including scheme)."
+            )
+        normalized.append(candidate)
+
+    return tuple(dict.fromkeys(normalized))
+
+
 def _parse_analytics_pairs_value(value: Sequence[str] | str | None) -> tuple[str, ...]:
     if value is None:
         raw_items: list[str] = []
@@ -402,6 +425,7 @@ class ApiSettings:
     env: str
     app_name: str
     version: str
+    cors_origins: tuple[str, ...]
     postgres_dsn: str | None
     qdrant_url: str
     qdrant_api_key: str | None
@@ -422,6 +446,7 @@ class ApiSettings:
         env: str | None = None,
         app_name: str | None = None,
         version: str | None = None,
+        cors_origins: Sequence[str] | None = None,
         postgres_dsn: str | None | object = _MISSING,
         qdrant_url: str | None = None,
         qdrant_api_key: str | None = None,
@@ -455,6 +480,18 @@ class ApiSettings:
             if version is not None
             else env_vars.get("RAGTRADER_API_VERSION", "0.1.0")
         )
+        parsed_cors_origins = _parse_cors_origins(cors_origins)
+        if not parsed_cors_origins:
+            parsed_cors_origins = _parse_cors_origins(
+                env_vars.get("RAGTRADER_API_CORS_ORIGINS")
+            )
+        if not parsed_cors_origins and raw_env == "dev":
+            parsed_cors_origins = ("http://localhost:5173",)
+        if raw_env != "dev" and not parsed_cors_origins:
+            raise SettingsValidationError(
+                "Configure at least one CORS origin via RAGTRADER_API_CORS_ORIGINS"
+                " for non-development environments."
+            )
 
         raw_require_db = (
             require_database
@@ -549,6 +586,7 @@ class ApiSettings:
         self.env = raw_env
         self.app_name = raw_app_name
         self.version = raw_version
+        self.cors_origins = parsed_cors_origins
         self.postgres_dsn = validated_postgres
         self.qdrant_url = validated_qdrant
         self.qdrant_api_key = qdrant_key
