@@ -154,7 +154,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: web-next-build
-          path: .next
+          path: web/.next
           if-no-files-found: error
 
       - name: Upload coverage to Codecov
