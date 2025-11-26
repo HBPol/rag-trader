@@ -23,8 +23,8 @@ the CI job that uploads `coverage/lcov.info` to Codecov.
   pnpm build
   ```
 
-- Run Lighthouse CI with the shared config to collect fresh reports and enforce the 0.85
-  performance/accessibility thresholds:
+- Run Lighthouse CI with the shared config to collect fresh reports and enforce the desktop
+  performance (≥0.85) and accessibility (≥0.90) thresholds:
 
   ```bash
   pnpm lhci
@@ -33,6 +33,18 @@ the CI job that uploads `coverage/lcov.info` to Codecov.
   The `lhci` script starts the production server on port 3000 using `lighthouse.config.cjs`,
   runs the autorun flow, and writes HTML/JSON reports to `.lighthouseci/` for inspection.
   A non-zero exit code indicates the audited scores fell below the configured assertions.
+  The config fixes the form factor to **desktop**, uses **3 runs** per URL to smooth variance,
+  and applies Lighthouse throttling (`throttlingMethod: "simulate"`) with a ~40ms RTT,
+  10Mbps throughput, and `cpuSlowdownMultiplier: 2` to mirror CI.
+
+#### How to run locally
+
+Use the same CI flow locally to reproduce scores and view the `.lighthouseci` artifacts:
+
+```bash
+pnpm build && pnpm lhci
+open .lighthouseci/*.html # or explore the JSON reports in .lighthouseci/
+```
 
 ## UI toolkit and styling conventions
 
