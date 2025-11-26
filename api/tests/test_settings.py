@@ -205,6 +205,20 @@ def test_default_cors_origins_in_dev(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_cors_origins_required_outside_dev(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("RAGTRADER_API_ENV", "prod")
+    monkeypatch.setenv("RAGTRADER_API_CORS_ORIGINS", "")
+
+    with pytest.raises(SettingsValidationError):
+        ApiSettings(
+            postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
+            qdrant_url="http://localhost:6333",
+            require_database=False,
+            require_vector_store=False,
+        )
+
+
+def test_cors_origins_required_in_staging(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RAGTRADER_API_ENV", "staging")
+    monkeypatch.delenv("RAGTRADER_API_CORS_ORIGINS", raising=False)
 
     with pytest.raises(SettingsValidationError):
         ApiSettings(

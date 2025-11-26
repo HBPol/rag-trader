@@ -482,9 +482,9 @@ class ApiSettings:
         )
         parsed_cors_origins = _parse_cors_origins(cors_origins)
         if not parsed_cors_origins:
-            parsed_cors_origins = _parse_cors_origins(
-                env_vars.get("RAGTRADER_API_CORS_ORIGINS")
-            )
+            raw_cors_from_env = env_vars.get("RAGTRADER_API_CORS_ORIGINS")
+            if raw_cors_from_env:
+                parsed_cors_origins = _parse_cors_origins(raw_cors_from_env)
         if not parsed_cors_origins and raw_env == "dev":
             parsed_cors_origins = ("http://localhost:5173",)
         if raw_env != "dev" and not parsed_cors_origins:

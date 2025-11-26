@@ -40,7 +40,9 @@ def create_fastapi_app() -> FastAPI:
         try:
             mini_app = create_app(settings=settings)
         except TypeError as exc:
-            if "unexpected keyword argument" not in str(exc) or "settings" not in str(exc):
+            if "unexpected keyword argument" not in str(exc) or "settings" not in str(
+                exc
+            ):
                 raise
             mini_app = create_app()
     else:
