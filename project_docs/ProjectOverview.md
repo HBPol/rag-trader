@@ -74,6 +74,7 @@ RAGTrader is a crypto analytics and prototyping platform that fuses price data f
 - **Monorepo** layout (`/web`, `/api`, `/pipelines`).
 - **GitFlow** branching: `main`, `develop`, feature branches (`feature/*`), and `hotfix/*` when needed.
 - CI runs lint, type checks, tests, coverage gates, Docker build, and **external reachability smoke tests** (Coinbase/CoinDesk Data API/Qdrant).
+- **Frontend quality gates:** Lighthouse CI audits the desktop experience with simulated throttling (40ms RTT, ~10Mbps throughput, CPU slowdown 2×), **3 runs per URL**, and asserts performance ≥0.85 and accessibility ≥0.90. Reports are stored in `.lighthouseci/` for review.
 - Dev/Prod parity: compose files mirror production; secrets in dev via `.env`.
 
 ### Runbook: Dev vs Prod
