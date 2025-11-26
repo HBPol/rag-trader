@@ -27,6 +27,10 @@ web/node_modules/
 web/.next/
 web/coverage/
 
+# Lighthouse reports
+web/.lighthouseci/
+
+
 # Local DB dumps for testing/dev
 # db_dump/
 
