@@ -14,7 +14,7 @@ RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app
-ARG NEXT_PUBLIC_API_BASE_URL
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
 COPY --from=deps /root/.local/share/pnpm/store /root/.local/share/pnpm/store
@@ -25,7 +25,7 @@ RUN mkdir -p public && pnpm run build
 
 FROM base AS runner
 WORKDIR /app
-ARG NEXT_PUBLIC_API_BASE_URL
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     WEB_PORT=5173 \

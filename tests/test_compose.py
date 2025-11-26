@@ -29,6 +29,7 @@ REQUIRED_ENV_VARS = {
     "RAGTRADER_API_POSTGRES_DSN",
     "RAGTRADER_API_QDRANT_URL",
     "QDRANT_URL",
+    "NEXT_PUBLIC_API_BASE_URL",
 }
 
 
@@ -140,6 +141,18 @@ def test_api_service_forwards_database_and_qdrant_settings(
         override_env["RAGTRADER_API_USE_QDRANT_CLOUD"]
         == "${RAGTRADER_API_USE_QDRANT_CLOUD:-false}"
     )
+
+
+def test_web_service_forwards_browser_accessible_api_url(
+    compose_configs: dict[str, dict[str, Any]],
+) -> None:
+    web_config = compose_configs["docker-compose.yml"]["services"]["web"]
+    build_args = web_config["build"]["args"]
+    environment = environment_to_dict(web_config["environment"])
+
+    expected = "${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}"
+    assert build_args["NEXT_PUBLIC_API_BASE_URL"] == expected
+    assert environment["NEXT_PUBLIC_API_BASE_URL"] == expected
 
 
 @pytest.mark.smoke

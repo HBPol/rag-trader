@@ -316,6 +316,7 @@ open http://localhost:5173
 > - You can create or reuse a managed cluster in [Qdrant Cloud](https://qdrant.tech/cloud/) to obtain the `QDRANT_URL` and API key values referenced in `.env.example`. Set `RAGTRADER_API_QDRANT_API_KEY` (preferred) or `QDRANT_API_KEY` to satisfy the cloud credential requirement.
 > - The override stack is opt-in: include `-f docker-compose.qdrant.yml` when you want the co-located Qdrant container, or omit it to keep pointing at Qdrant Cloud.
 > - The API loads variables from `.env` (or a path provided via `RAGTRADER_API_ENV_FILE`) automatically, while still honouring any explicit environment variables you export.
+> - The web container reads `NEXT_PUBLIC_API_BASE_URL` at build time. Leave it as `http://localhost:8000` for local Docker so browser requests reach the host API, or override it in `.env` when deploying the frontend against a remote API endpoint.
 
 Once the services report healthy, exercise the FastAPI service at
 `http://localhost:8000/docs` or `http://localhost:8000/healthz` and browse the web frontend on
@@ -348,8 +349,10 @@ other orchestrator:
 
 Both images honour the environment variables defined in
 `.env.example` (such as `API_PORT`, `WEB_PORT`, `RAGTRADER_API_POSTGRES_DSN`, and
-`VITE_API_BASE_URL`) so you can tailor behaviour via `.env` or Compose
-overrides without rebuilding the containers.
+`NEXT_PUBLIC_API_BASE_URL`) so you can tailor behaviour via `.env` or Compose
+overrides without rebuilding the containers. Ensure `NEXT_PUBLIC_API_BASE_URL`
+resolves from the browser (for local Docker it should stay
+`http://localhost:8000`).
 
 ## Compose Smoke Tests
 

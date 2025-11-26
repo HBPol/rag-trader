@@ -138,7 +138,7 @@ docker push gcr.io/$PROJECT_ID/ragtrader-web:$TAG
 # deploy
 gcloud run deploy ragtrader-api   --image gcr.io/$PROJECT_ID/ragtrader-api:$TAG   --region $REGION   --set-env-vars=ENV=prod,QDRANT_URL=<cloud-endpoint>,COINBASE_API_BASE=https://api.exchange.coinbase.com   --set-secrets=QDRANT_API_KEY=QDRANT_API_KEY:latest,DATABASE_URL=DATABASE_URL:latest
 
-gcloud run deploy ragtrader-web   --image gcr.io/$PROJECT_ID/ragtrader-web:$TAG   --region $REGION   --set-env-vars=ENV=prod,API_BASE_URL=<api-url>
+gcloud run deploy ragtrader-web   --image gcr.io/$PROJECT_ID/ragtrader-web:$TAG   --region $REGION   --set-env-vars=ENV=prod,NEXT_PUBLIC_API_BASE_URL=<api-url>
 
 # (optional) scheduler for polling
 # service account ragtrader-scheduler needs Cloud Run Invoker + Secrets Manager Accessor
