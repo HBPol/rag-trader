@@ -241,7 +241,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: web-next-build
-          path: web
+          path: web/.next
 
       - name: Lighthouse CI audit
         run: pnpm lhci || pnpm lhci
