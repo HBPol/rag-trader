@@ -219,3 +219,43 @@ def test_fastapi_routes_propagate_analytics_errors(
             assert "unavailable" in payload.get("message", "").lower()
 
     asyncio.run(run_test())
+
+
+def test_create_fastapi_app_handles_settingsless_create_app(
+    server_module: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def run_test() -> None:
+        class StubMiniApp:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, str]] = []
+                self.responses = {
+                    ("GET", "/healthz"): Response(status_code=200, json={"ok": True})
+                }
+
+            def dispatch(self, method: str, path: str) -> Response:
+                key = (method, path)
+                self.calls.append(key)
+                return self.responses[key]
+
+        stub = StubMiniApp()
+
+        def stub_create_app() -> StubMiniApp:
+            return stub
+
+        monkeypatch.setattr(server_module, "create_app", stub_create_app)
+
+        fastapi_app = server_module.create_fastapi_app()
+        routes = {
+            route.path: route
+            for route in fastapi_app.router.routes
+            if isinstance(route, APIRoute)
+        }
+
+        response = await routes["/healthz"].endpoint()
+
+        assert stub.calls == [("GET", "/healthz")]
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 200
+        assert json.loads(response.body.decode("utf-8")) == {"ok": True}
+
+    asyncio.run(run_test())

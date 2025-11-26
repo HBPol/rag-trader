@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from urllib.parse import urlencode
 
 from fastapi import FastAPI
@@ -23,7 +24,27 @@ def create_fastapi_app() -> FastAPI:
     """Instantiate the FastAPI app wired to the internal mini-app."""
 
     settings = get_settings()
-    mini_app = create_app(settings=settings)
+    try:
+        signature = inspect.signature(create_app)
+    except (TypeError, ValueError):
+        signature = None
+
+    accepts_settings = True
+    if signature is not None:
+        parameters = signature.parameters.values()
+        accepts_settings = "settings" in signature.parameters or any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters
+        )
+
+    if accepts_settings:
+        try:
+            mini_app = create_app(settings=settings)
+        except TypeError as exc:
+            if "unexpected keyword argument" not in str(exc) or "settings" not in str(exc):
+                raise
+            mini_app = create_app()
+    else:
+        mini_app = create_app()
     fastapi_app = FastAPI(title="RAGTrader API")
 
     fastapi_app.add_middleware(
