@@ -61,12 +61,20 @@ def test_settings_load_from_environment(monkeypatch: pytest.MonkeyPatch) -> None
     )
     monkeypatch.setenv("RAGTRADER_API_QDRANT_URL", "https://example-qdrant")
     monkeypatch.setenv("RAGTRADER_API_QDRANT_API_KEY", "key")
+    monkeypatch.setenv(
+        "RAGTRADER_API_CORS_ORIGINS",
+        "https://frontend.example.com,https://alt-frontend.example.com",
+    )
 
     settings = ApiSettings()
 
     assert settings.env == "staging"
     assert isinstance(settings.postgres_dsn, str)
     assert settings.postgres_dsn.startswith("postgresql+psycopg")
+    assert settings.cors_origins == (
+        "https://frontend.example.com",
+        "https://alt-frontend.example.com",
+    )
 
 
 def test_settings_infer_analytics_symbols_from_pairs(
@@ -180,6 +188,45 @@ def test_get_settings_returns_cached_instance(monkeypatch: pytest.MonkeyPatch) -
 
     assert first is second
     assert first.readiness_checks()["vector_store"] is True
+
+
+def test_default_cors_origins_in_dev(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("RAGTRADER_API_CORS_ORIGINS", raising=False)
+
+    settings = ApiSettings(
+        postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
+        qdrant_url="http://localhost:6333",
+        require_database=False,
+        require_vector_store=False,
+    )
+
+    assert settings.cors_origins == ("http://localhost:5173",)
+
+
+def test_cors_origins_required_outside_dev(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RAGTRADER_API_ENV", "prod")
+    monkeypatch.setenv("RAGTRADER_API_CORS_ORIGINS", "")
+
+    with pytest.raises(SettingsValidationError):
+        ApiSettings(
+            postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
+            qdrant_url="http://localhost:6333",
+            require_database=False,
+            require_vector_store=False,
+        )
+
+
+def test_cors_origins_required_in_staging(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RAGTRADER_API_ENV", "staging")
+    monkeypatch.delenv("RAGTRADER_API_CORS_ORIGINS", raising=False)
+
+    with pytest.raises(SettingsValidationError):
+        ApiSettings(
+            postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
+            qdrant_url="http://localhost:6333",
+            require_database=False,
+            require_vector_store=False,
+        )
 
 
 def test_settings_require_api_key_for_cloud(

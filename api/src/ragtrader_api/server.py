@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import inspect
 from urllib.parse import urlencode
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .app import Response as MiniResponse
 from .app import create_app
+from .settings import get_settings
 
 
 def _adapt_response(payload: MiniResponse) -> JSONResponse:
@@ -20,8 +23,39 @@ def _adapt_response(payload: MiniResponse) -> JSONResponse:
 def create_fastapi_app() -> FastAPI:
     """Instantiate the FastAPI app wired to the internal mini-app."""
 
-    mini_app = create_app()
+    settings = get_settings()
+    try:
+        signature = inspect.signature(create_app)
+    except (TypeError, ValueError):
+        signature = None
+
+    accepts_settings = True
+    if signature is not None:
+        parameters = signature.parameters.values()
+        accepts_settings = "settings" in signature.parameters or any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters
+        )
+
+    if accepts_settings:
+        try:
+            mini_app = create_app(settings=settings)
+        except TypeError as exc:
+            if "unexpected keyword argument" not in str(exc) or "settings" not in str(
+                exc
+            ):
+                raise
+            mini_app = create_app()
+    else:
+        mini_app = create_app()
     fastapi_app = FastAPI(title="RAGTrader API")
+
+    fastapi_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.cors_origins),
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["*"],
+    )
 
     @fastapi_app.get("/healthz")
     async def healthz() -> JSONResponse:  # pragma: no cover - via integration tests
