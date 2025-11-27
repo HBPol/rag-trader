@@ -34,7 +34,7 @@ python -m ragtrader_pipelines.content \
 # -----------------------------
 echo "[2/3] Fetching OHLCV data (1h bars)..."
 python -m ragtrader_pipelines.coinbase \
-  --symbols BTC,ETH \
+  --symbols ADA,ARB,BTC,DOGE,ETH,MATIC,SOL,USDT,XRP \
   --granularity MIN_60 \
   --lookback-minutes "${LOOKBACK_MINUTES}" \
   --quote-currency USD \
@@ -48,7 +48,7 @@ echo "[3/3] Running analytics job (FR-6 to FR-9)..."
 python -m ragtrader_pipelines.analytics_job \
   --start "$START" \
   --end "$END" \
-  --symbols BTC,ETH \
+  --symbols ADA,ARB,BTC,DOGE,ETH,MATIC,SOL,USDT,XRP \
   --windows 1h,4h \
   --price-interval 1h \
   --sentiment-window 6 \
