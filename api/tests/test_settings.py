@@ -65,6 +65,7 @@ def test_settings_load_from_environment(monkeypatch: pytest.MonkeyPatch) -> None
         "RAGTRADER_API_CORS_ORIGINS",
         "https://frontend.example.com,https://alt-frontend.example.com",
     )
+    monkeypatch.setenv("RAGTRADER_API_QDRANT_COLLECTION", "custom-collection")
 
     settings = ApiSettings()
 
@@ -75,6 +76,7 @@ def test_settings_load_from_environment(monkeypatch: pytest.MonkeyPatch) -> None
         "https://frontend.example.com",
         "https://alt-frontend.example.com",
     )
+    assert settings.qdrant_collection == "custom-collection"
 
 
 def test_settings_infer_analytics_symbols_from_pairs(
@@ -90,6 +92,21 @@ def test_settings_infer_analytics_symbols_from_pairs(
     )
 
     assert settings.analytics_symbols == ("BTC", "ETH", "SOL")
+
+
+def test_settings_require_collection_when_vector_store_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("RAGTRADER_API_QDRANT_URL", "https://qdrant.cloud")
+
+    with pytest.raises(SettingsValidationError):
+        ApiSettings(
+            postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
+            qdrant_url="https://qdrant.cloud",
+            qdrant_collection="  ",
+            require_database=False,
+            require_vector_store=True,
+        )
 
 
 def test_settings_infer_postgres_dsn_from_components(

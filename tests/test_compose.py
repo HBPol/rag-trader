@@ -28,6 +28,7 @@ REQUIRED_ENV_VARS = {
     "POSTGRES_PASSWORD",
     "RAGTRADER_API_POSTGRES_DSN",
     "RAGTRADER_API_QDRANT_URL",
+    "RAGTRADER_API_QDRANT_COLLECTION",
     "QDRANT_URL",
     "NEXT_PUBLIC_API_BASE_URL",
 }
@@ -112,6 +113,7 @@ def test_env_example_defines_required_variables(env_example: dict[str, str]) -> 
     assert "${POSTGRES_PORT}" in dsn
     assert "${POSTGRES_DB}" in dsn
     assert env_example["RAGTRADER_API_QDRANT_URL"] == "${QDRANT_URL}"
+    assert env_example["RAGTRADER_API_QDRANT_COLLECTION"] == "rag-docs"
 
 
 def test_compose_ports_use_env_overrides(
@@ -132,6 +134,10 @@ def test_api_service_forwards_database_and_qdrant_settings(
     )
     assert "${RAGTRADER_API_POSTGRES_DSN" in base_env["RAGTRADER_API_POSTGRES_DSN"]
     assert "${RAGTRADER_API_QDRANT_URL" in base_env["RAGTRADER_API_QDRANT_URL"]
+    assert (
+        base_env["RAGTRADER_API_QDRANT_COLLECTION"]
+        == "${RAGTRADER_API_QDRANT_COLLECTION:-rag-docs}"
+    )
 
     override_env = environment_to_dict(
         compose_configs[QDRANT_COMPOSE_FILE]["services"]["api"]["environment"]

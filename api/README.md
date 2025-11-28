@@ -77,11 +77,14 @@ settings = ApiSettings(
     postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
     qdrant_url="https://YOUR-CLUSTER.example",
     qdrant_api_key="<api key>",
+    qdrant_collection="rag-docs",  # or override via RAGTRADER_API_QDRANT_COLLECTION
 )
 
 repository = VectorStoreRepository(settings)
-repository.create_collection("documents", vectors_config={"size": 768, "distance": "Cosine"})
-repository.upsert_points("documents", points=[{"id": 1, "vector": [...], "payload": {...}}])
+repository.create_collection(None, vectors_config={"size": 768, "distance": "Cosine"})
+repository.upsert_points(
+    None, points=[{"id": 1, "vector": [...], "payload": {...}}]
+)
 ```
 
 Use `RAGTRADER_API_USE_QDRANT_CLOUD=false` and omit the API key to target a

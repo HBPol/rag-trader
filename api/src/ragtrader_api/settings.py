@@ -429,6 +429,7 @@ class ApiSettings:
     postgres_dsn: str | None
     qdrant_url: str
     qdrant_api_key: str | None
+    qdrant_collection: str
     use_qdrant_cloud: bool
     require_database: bool
     require_vector_store: bool
@@ -450,6 +451,7 @@ class ApiSettings:
         postgres_dsn: str | None | object = _MISSING,
         qdrant_url: str | None = None,
         qdrant_api_key: str | None = None,
+        qdrant_collection: str | None = None,
         use_qdrant_cloud: bool | None = None,
         require_database: bool | None = None,
         require_vector_store: bool | None = None,
@@ -583,6 +585,19 @@ class ApiSettings:
                 "Qdrant API key is required when use_qdrant_cloud is enabled."
             )
 
+        raw_collection = (
+            qdrant_collection
+            if qdrant_collection is not None
+            else env_vars.get("RAGTRADER_API_QDRANT_COLLECTION", "rag-docs")
+        )
+        if raw_require_vector and (
+            raw_collection is None or not raw_collection.strip()
+        ):
+            raise SettingsValidationError(
+                "Qdrant collection name required when require_vector_store is enabled."
+            )
+        parsed_collection = (raw_collection or "").strip()
+
         self.env = raw_env
         self.app_name = raw_app_name
         self.version = raw_version
@@ -590,6 +605,7 @@ class ApiSettings:
         self.postgres_dsn = validated_postgres
         self.qdrant_url = validated_qdrant
         self.qdrant_api_key = qdrant_key
+        self.qdrant_collection = parsed_collection
         self.use_qdrant_cloud = raw_use_qdrant_cloud
         self.require_database = raw_require_db
         self.require_vector_store = raw_require_vector
@@ -659,6 +675,7 @@ class ApiSettings:
             "vector_store": (not self.require_vector_store)
             or (
                 bool(self.qdrant_url)
+                and bool(self.qdrant_collection)
                 and (not self.use_qdrant_cloud or bool(self.qdrant_api_key))
             ),
         }
