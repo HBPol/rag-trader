@@ -116,7 +116,13 @@ docker compose exec api env PYTHONPATH=src pytest --cov=ragtrader_api --cov-repo
 docker compose exec web pnpm test -- --coverage
 ```
 
-To use **self-hosted Qdrant** in dev, add the `qdrant` service to `docker-compose.yml` and set `QDRANT_URL=http://qdrant:6333`.
+To use **self-hosted Qdrant** in dev without editing the base compose file, run the override stack used in README:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.qdrant.yml up -d --build
+```
+
+The override sets `RAGTRADER_API_USE_QDRANT_CLOUD=false` by default so the API points at the co-located Qdrant container (`QDRANT_URL=http://qdrant:6333`) for the tested local workflow.
 
 **Production (Cloud Run example)**  
 Build images with immutable tags (git SHA), push, and deploy:
