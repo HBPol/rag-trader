@@ -7,7 +7,7 @@ from pydantic import ValidationError
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.extend([str(REPO_ROOT / "api" / "src"), str(REPO_ROOT / "pipelines" / "src")])
 
-from ragtrader_api.strategy.schema import (
+from ragtrader_api.strategy.schema import (  # noqa: E402
     ExitRule,
     StrategySchema,
     validate_strategy_payload,
