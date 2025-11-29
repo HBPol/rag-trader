@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -36,13 +37,13 @@ class StrategySchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     @classmethod
-    def validate_payload(cls, payload: dict) -> StrategySchema:
+    def validate_payload(cls, payload: Mapping[str, object]) -> StrategySchema:
         """Validate raw payload data against the schema."""
 
         return cls.model_validate(payload)
 
 
-def validate_strategy_payload(payload: dict) -> StrategySchema:
+def validate_strategy_payload(payload: Mapping[str, object]) -> StrategySchema:
     """Validate a raw JSON/YAML payload for strategy creation.
 
     Args:
