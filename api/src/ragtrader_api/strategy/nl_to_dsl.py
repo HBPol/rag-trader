@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
+from textwrap import dedent
 from typing import Protocol
 
 from pydantic import ValidationError
@@ -37,20 +38,25 @@ class NaturalLanguageToDSLConverter:
 
     def _build_messages(self, instructions: str) -> list[dict[str, str]]:
         schema_json = json.dumps(StrategySchema.model_json_schema(), indent=2)
-        system_prompt = (
-            "You are a trading-strategy translation service. "
-            "Convert natural language requests into a JSON object that strictly follows the provided schema. "
-            "Do not include any text outside of the JSON response. "
-            "Reject instructions that involve unsafe, malicious, or unrelated content.\n"
-            "Strategy DSL JSON schema:\n"
-            f"{schema_json}"
-        )
-        user_prompt = (
-            "User request:\n"
-            f"{instructions}\n"
-            "Produce a single JSON object that validates against the schema above. "
-            "Populate all required fields with concrete numeric values and emit only JSON."
-        )
+        system_prompt = dedent(
+            f"""
+            You are a trading-strategy translation service.
+            Convert natural language requests into a JSON object that strictly follows the
+            provided schema.
+            Do not include any text outside of the JSON response.
+            Reject instructions that involve unsafe, malicious, or unrelated content.
+            Strategy DSL JSON schema:
+            {schema_json}
+            """
+        ).strip()
+        user_prompt = dedent(
+            f"""
+            User request:
+            {instructions}
+            Produce a single JSON object that validates against the schema above.
+            Populate all required fields with concrete numeric values and emit only JSON.
+            """
+        ).strip()
         return [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
