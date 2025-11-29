@@ -233,9 +233,24 @@ def test_basic_auth_accepts_valid_credentials() -> None:
     assert response.json() == strategy.model_dump()
 
 
+def test_basic_auth_rejects_invalid_credentials() -> None:
+    strategy = StrategySchema.model_validate(_strategy_payload())
+    client, _, _ = _client(converter_result=strategy)
+
+    response = client.post(
+        "/strategy/nl-to-dsl",
+        json={"instructions": "long btc"},
+        auth=("admin", "wrong"),
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Authentication required"
+    assert response.headers.get("WWW-Authenticate") == "Basic"
+
+
 def test_rate_limiting_applies_across_requests() -> None:
     strategy = StrategySchema.model_validate(_strategy_payload())
-    client, _, _ = _client(converter_result=strategy, rate_limit=1, window_seconds=3600)
+    client, _, _ = _client(converter_result=strategy, rate_limit=1, window_seconds=1)
 
     first = client.post(
         "/strategy/nl-to-dsl",
@@ -250,3 +265,60 @@ def test_rate_limiting_applies_across_requests() -> None:
 
     assert first.status_code == 200
     assert second.status_code == 429
+
+
+def test_backtest_serializes_mapping_equity_curves() -> None:
+    strategy = StrategySchema.model_validate(_strategy_payload())
+    result = _FakeBacktestResult(
+        equity_curve={"2024-01-01": 100_000.0, "2024-01-02": 101_500.0},
+        metrics={"total_return": 0.015},
+    )
+    client, _, _ = _client(converter_result=strategy, backtest_result=result)
+
+    response = client.post(
+        "/strategy/backtests",
+        json={"strategy": _strategy_payload()},
+        auth=("admin", "changeme"),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["equity_curve"] == [
+        {"ts": "2024-01-01", "value": 100000.0},
+        {"ts": "2024-01-02", "value": 101500.0},
+    ]
+    metrics_response = client.get(
+        f"/strategy/backtests/{payload['backtest_id']}/metrics",
+        auth=("admin", "changeme"),
+    )
+    equity_response = client.get(
+        f"/strategy/backtests/{payload['backtest_id']}/equity",
+        auth=("admin", "changeme"),
+    )
+
+    assert metrics_response.status_code == 200
+    assert metrics_response.json()["metrics"] == result.metrics
+    assert equity_response.status_code == 200
+    assert equity_response.json()["equity_curve"] == payload["equity_curve"]
+
+
+def test_backtest_serializes_sequence_equity_curves() -> None:
+    strategy = StrategySchema.model_validate(_strategy_payload())
+    result = _FakeBacktestResult(
+        equity_curve=[{"ts": "2024-01-01", "value": 100_000.0}, ["2024-01-02", 102_000]],
+        metrics={"total_return": 0.02},
+    )
+    client, _, _ = _client(converter_result=strategy, backtest_result=result)
+
+    response = client.post(
+        "/strategy/backtests",
+        json={"strategy": _strategy_payload()},
+        auth=("admin", "changeme"),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["equity_curve"] == [
+        {"ts": "2024-01-01", "value": 100000.0},
+        {"ts": "2024-01-02", "value": 102000.0},
+    ]
