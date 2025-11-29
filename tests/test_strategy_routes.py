@@ -6,6 +6,10 @@ from dataclasses import dataclass
 from fastapi.testclient import TestClient
 
 from ragtrader_api.routes.strategy import create_strategy_app
+from ragtrader_api.strategy.nl_to_dsl import (
+    StrategyConversionError,
+    UnsafeContentError,
+)
 from ragtrader_api.strategy.schema import StrategySchema
 
 
@@ -38,13 +42,15 @@ class _FakeBacktester:
 
 
 class _FakeConverter:
-    def __init__(self, strategy: StrategySchema) -> None:
-        self.strategy = strategy
+    def __init__(self, result: StrategySchema | Exception) -> None:
+        self.result = result
         self.calls: list[str] = []
 
     def convert(self, instructions: str) -> StrategySchema:
         self.calls.append(instructions)
-        return self.strategy
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
 
 
 def _strategy_payload() -> dict[str, object]:
@@ -62,17 +68,35 @@ def _strategy_payload() -> dict[str, object]:
     }
 
 
-def test_nl_to_dsl_route_translates_and_validates() -> None:
-    strategy = StrategySchema.model_validate(_strategy_payload())
-    converter = _FakeConverter(strategy)
+def _client(
+    *,
+    converter_result: StrategySchema | Exception,
+    backtest_result: _FakeBacktestResult | None = None,
+    rate_limit: int = 30,
+    window_seconds: int = 60,
+) -> tuple[TestClient, _FakeConverter, _FakeBacktester]:
+    strategy = (
+        converter_result
+        if isinstance(converter_result, StrategySchema)
+        else StrategySchema.model_validate(_strategy_payload())
+    )
+    converter = _FakeConverter(converter_result)
+    backtester = _FakeBacktester(
+        backtest_result or _FakeBacktestResult(equity_curve=[], metrics={})
+    )
     app = create_strategy_app(
         converter_provider=lambda: converter,
-        backtester_provider=lambda: _FakeBacktester(
-            _FakeBacktestResult(equity_curve=[], metrics={})
-        ),
+        backtester_provider=lambda: backtester,
+        rate_limit=rate_limit,
+        window_seconds=window_seconds,
     )
+    return TestClient(app), converter, backtester
 
-    client = TestClient(app)
+
+def test_nl_to_dsl_route_translates_and_validates() -> None:
+    strategy = StrategySchema.model_validate(_strategy_payload())
+    client, converter, _ = _client(converter_result=strategy)
+
     response = client.post(
         "/strategy/nl-to-dsl",
         json={"instructions": "long btc on bullish sentiment"},
@@ -84,19 +108,45 @@ def test_nl_to_dsl_route_translates_and_validates() -> None:
     assert converter.calls == ["long btc on bullish sentiment"]
 
 
+def test_nl_to_dsl_reports_conversion_errors() -> None:
+    error = StrategyConversionError("could not understand request")
+    client, converter, _ = _client(converter_result=error)
+
+    response = client.post(
+        "/strategy/nl-to-dsl",
+        json={"instructions": "???"},
+        auth=("admin", "changeme"),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == str(error)
+    assert converter.calls == ["???"]
+
+
+def test_nl_to_dsl_reports_unsafe_requests() -> None:
+    error = UnsafeContentError("unsafe content detected")
+    client, converter, _ = _client(converter_result=error)
+
+    response = client.post(
+        "/strategy/nl-to-dsl",
+        json={"instructions": "malicious"},
+        auth=("admin", "changeme"),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == str(error)
+    assert converter.calls == ["malicious"]
+
+
 def test_backtest_runs_and_results_are_cached() -> None:
     strategy = StrategySchema.model_validate(_strategy_payload())
     result = _FakeBacktestResult(
         equity_curve=[("2024-01-01T00:00:00", 100_000.0)],
         metrics={"total_return": 0.15, "sharpe": 1.2},
     )
-    backtester = _FakeBacktester(result)
-    converter = _FakeConverter(strategy)
-    app = create_strategy_app(
-        converter_provider=lambda: converter,
-        backtester_provider=lambda: backtester,
+    client, converter, backtester = _client(
+        converter_result=strategy, backtest_result=result
     )
-    client = TestClient(app)
 
     response = client.post(
         "/strategy/backtests",
@@ -113,7 +163,7 @@ def test_backtest_runs_and_results_are_cached() -> None:
     backtest_id = payload["backtest_id"]
     assert payload["metrics"] == result.metrics
     assert payload["equity_curve"] == [{"ts": "2024-01-01T00:00:00", "value": 100000.0}]
-
+    assert converter.calls == []
     assert backtester.calls[-1] == {
         "strategy": strategy,
         "slippage_bps": 15.0,
@@ -136,18 +186,42 @@ def test_backtest_runs_and_results_are_cached() -> None:
     }
 
 
-def test_rate_limiting_and_auth_enforced() -> None:
-    strategy = StrategySchema.model_validate(_strategy_payload())
-    converter = _FakeConverter(strategy)
-    app = create_strategy_app(
-        converter_provider=lambda: converter,
-        backtester_provider=lambda: _FakeBacktester(
-            _FakeBacktestResult(equity_curve=[], metrics={})
-        ),
-        rate_limit=1,
-        window_seconds=3600,
+def test_backtest_fetch_routes_return_404_for_missing_entries() -> None:
+    client, _, _ = _client(
+        converter_result=StrategySchema.model_validate(_strategy_payload())
     )
-    client = TestClient(app)
+    missing_id = "does-not-exist"
+
+    metrics = client.get(
+        f"/strategy/backtests/{missing_id}/metrics", auth=("admin", "changeme")
+    )
+    equity = client.get(
+        f"/strategy/backtests/{missing_id}/equity", auth=("admin", "changeme")
+    )
+
+    assert metrics.status_code == 404
+    assert equity.status_code == 404
+    assert metrics.json() == {"detail": "Backtest not found"}
+    assert equity.json() == {"detail": "Backtest not found"}
+
+
+def test_basic_auth_is_enforced() -> None:
+    strategy = StrategySchema.model_validate(_strategy_payload())
+    client, _, _ = _client(converter_result=strategy)
+
+    response = client.post(
+        "/strategy/nl-to-dsl",
+        json={"instructions": "long btc"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Authentication required"
+    assert response.headers.get("WWW-Authenticate") == "Basic"
+
+
+def test_rate_limiting_applies_across_requests() -> None:
+    strategy = StrategySchema.model_validate(_strategy_payload())
+    client, _, _ = _client(converter_result=strategy, rate_limit=1, window_seconds=3600)
 
     first = client.post(
         "/strategy/nl-to-dsl",
@@ -159,11 +233,6 @@ def test_rate_limiting_and_auth_enforced() -> None:
         json={"instructions": "again"},
         auth=("admin", "changeme"),
     )
-    unauthorized = client.post(
-        "/strategy/nl-to-dsl",
-        json={"instructions": "again"},
-    )
 
     assert first.status_code == 200
     assert second.status_code == 429
-    assert unauthorized.status_code == 401
