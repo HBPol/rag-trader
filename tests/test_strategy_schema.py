@@ -1,3 +1,4 @@
+import copy
 import pathlib
 import sys
 
@@ -24,6 +25,42 @@ def _valid_payload():
         "size_fraction": 0.25,
         "exits": [{"kind": "take_profit", "value": 1.8}],
     }
+
+
+@pytest.fixture
+def valid_payload():
+    return _valid_payload()
+
+
+def test_validate_strategy_payload_accepts_complete_payload(valid_payload):
+    result = validate_strategy_payload(valid_payload)
+
+    assert isinstance(result, StrategySchema)
+    assert result.exits == [ExitRule(kind="take_profit", value=1.8)]
+
+
+def test_validate_strategy_payload_requires_instrument(valid_payload):
+    payload = copy.deepcopy(valid_payload)
+    payload.pop("instrument")
+
+    with pytest.raises(ValidationError):
+        validate_strategy_payload(payload)
+
+
+def test_strategy_schema_validate_payload_requires_exits(valid_payload):
+    payload = copy.deepcopy(valid_payload)
+    payload.pop("exits")
+
+    with pytest.raises(ValidationError):
+        StrategySchema.validate_payload(payload)
+
+
+def test_strategy_schema_validate_payload_rejects_unknown_fields(valid_payload):
+    payload = copy.deepcopy(valid_payload)
+    payload["unexpected"] = True
+
+    with pytest.raises(ValidationError):
+        StrategySchema.validate_payload(payload)
 
 
 def test_valid_strategy_schema_accepts_expected_payload():
