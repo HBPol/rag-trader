@@ -12,7 +12,6 @@ from ragtrader_api.strategy.nl_to_dsl import (
 )
 from ragtrader_api.strategy.schema import StrategySchema
 
-
 _USERNAME = "admin"
 _PASSWORD = "changeme"
 

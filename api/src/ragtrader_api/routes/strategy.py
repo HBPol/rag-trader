@@ -12,7 +12,15 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Annotated, Any, Protocol, TypeAlias, cast
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic
 from fastapi.types import _MiddlewareFactory
@@ -210,7 +218,9 @@ def _serialize_equity(curve: Any) -> list[EquityPoint]:
 
 def create_strategy_router(
     *,
-    converter_provider: Callable[[], NaturalLanguageToDSLConverter] = _default_converter_provider,
+    converter_provider: Callable[
+        [], NaturalLanguageToDSLConverter
+    ] = _default_converter_provider,
     backtester_provider: Callable[[], Backtester] = _default_backtester_provider,
 ) -> APIRouter:
     """Build the strategy router with injectable dependencies."""
@@ -293,7 +303,9 @@ def create_strategy_app(
     password: str | None = None,  # noqa: S107
     rate_limit: int = 30,
     window_seconds: int = 60,
-    converter_provider: Callable[[], NaturalLanguageToDSLConverter] = _default_converter_provider,
+    converter_provider: Callable[
+        [], NaturalLanguageToDSLConverter
+    ] = _default_converter_provider,
     backtester_provider: Callable[[], Backtester] = _default_backtester_provider,
 ) -> FastAPI:
     """Create a standalone FastAPI app for strategy workflows.
