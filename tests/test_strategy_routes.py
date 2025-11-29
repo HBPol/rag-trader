@@ -219,6 +219,20 @@ def test_basic_auth_is_enforced() -> None:
     assert response.headers.get("WWW-Authenticate") == "Basic"
 
 
+def test_basic_auth_accepts_valid_credentials() -> None:
+    strategy = StrategySchema.model_validate(_strategy_payload())
+    client, _, _ = _client(converter_result=strategy)
+
+    response = client.post(
+        "/strategy/nl-to-dsl",
+        json={"instructions": "long btc"},
+        auth=("admin", "changeme"),
+    )
+
+    assert response.status_code == 200
+    assert response.json() == strategy.model_dump()
+
+
 def test_rate_limiting_applies_across_requests() -> None:
     strategy = StrategySchema.model_validate(_strategy_payload())
     client, _, _ = _client(converter_result=strategy, rate_limit=1, window_seconds=3600)
