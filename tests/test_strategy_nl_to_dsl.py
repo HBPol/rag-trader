@@ -17,16 +17,13 @@ from ragtrader_api.strategy.schema import StrategySchema  # noqa: E402
 
 def _valid_payload() -> dict[str, object]:
     return {
-        "instrument": "AAPL",
-        "sentiment_zscore": 1.1,
-        "lead_lag": 5,
+        "instrument": "SPY",
+        "sentiment_zscore": 0.1,
+        "lead_lag": 0,
         "action": "long",
-        "atr_stop": 2.5,
-        "size_fraction": 0.3,
-        "exits": [
-            {"kind": "take_profit", "value": 1.5},
-            {"kind": "stop_loss", "value": 0.75},
-        ],
+        "atr_stop": 1.0,
+        "size_fraction": 0.5,
+        "exits": [{"kind": "take_profit", "value": 1.0}],
     }
 
 
@@ -47,8 +44,26 @@ def _assert_messages(converter: NaturalLanguageToDSLConverter, llm: CapturingCha
     assert llm.messages == converter._build_messages(instructions)
     assert llm.messages[0]["role"] == "system"
     assert "Strategy DSL JSON schema" in llm.messages[0]["content"]
+    assert json.dumps(StrategySchema.model_json_schema(), indent=2) in llm.messages[0][
+        "content"
+    ]
     assert llm.messages[1]["role"] == "user"
     assert instructions in llm.messages[1]["content"]
+
+
+def test_build_messages_includes_schema_and_user_prompt():
+    instructions = "Trade SPY using sentiment"
+    converter = NaturalLanguageToDSLConverter(CapturingChatModel("{}"))
+
+    messages = converter._build_messages(instructions)
+
+    assert messages[0]["role"] == "system"
+    assert "Strategy DSL JSON schema" in messages[0]["content"]
+    assert json.dumps(StrategySchema.model_json_schema(), indent=2) in messages[0][
+        "content"
+    ]
+    assert messages[1]["role"] == "user"
+    assert instructions in messages[1]["content"]
 
 
 def test_convert_returns_valid_strategy_schema_and_builds_messages():
@@ -59,7 +74,7 @@ def test_convert_returns_valid_strategy_schema_and_builds_messages():
     result = converter.convert(instructions)
 
     assert isinstance(result, StrategySchema)
-    assert result.instrument == "AAPL"
+    assert result.instrument == "SPY"
     assert result.exits[0].kind == "take_profit"
     _assert_messages(converter, llm, instructions)
 
