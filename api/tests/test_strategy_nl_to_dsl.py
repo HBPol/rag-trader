@@ -1,18 +1,13 @@
 import json
-import pathlib
-import sys
 
 import pytest
 
-REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-sys.path.extend([str(REPO_ROOT / "api" / "src"), str(REPO_ROOT / "pipelines" / "src")])
-
-from ragtrader_api.strategy.nl_to_dsl import (  # noqa: E402
+from ragtrader_api.strategy.nl_to_dsl import (
     NaturalLanguageToDSLConverter,
     StrategyConversionError,
     UnsafeContentError,
 )
-from ragtrader_api.strategy.schema import StrategySchema  # noqa: E402
+from ragtrader_api.strategy.schema import StrategySchema
 
 
 def _valid_payload() -> dict[str, object]:
@@ -40,8 +35,10 @@ class CapturingChatModel:
 
 
 def _assert_messages(
-    converter: NaturalLanguageToDSLConverter, llm: CapturingChatModel, instructions: str
-):
+    converter: NaturalLanguageToDSLConverter,
+    llm: CapturingChatModel,
+    instructions: str,
+) -> None:
     assert llm.messages is not None
     assert llm.messages == converter._build_messages(instructions)
     assert llm.messages[0]["role"] == "system"
