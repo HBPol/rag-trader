@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import base64
+import importlib
 import os
 import secrets
 import time
 import uuid
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Annotated, Any, Protocol, cast
+from typing import Annotated, Any, Protocol, TypeAlias, cast
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -46,8 +47,7 @@ class Backtester(Protocol):
     ) -> BacktestResultProtocol: ...
 
 
-ConverterProvider = Callable[[], NaturalLanguageToDSLConverter]
-BacktesterProvider = Callable[[], Backtester]
+EquityPoint: TypeAlias = dict[str, float | str]
 
 
 security = HTTPBasic()
@@ -171,14 +171,17 @@ def _default_backtester_provider() -> Backtester:
     )
 
 
-def _serialize_equity(curve: Any) -> list[dict[str, Any]]:
+def _serialize_equity(curve: Any) -> list[EquityPoint]:
     try:
-        import pandas as pd  # type: ignore
-    except Exception:  # pragma: no cover - pandas may not be installed
-        pd = None  # type: ignore
+        pd_module = importlib.import_module("pandas")
+    except ImportError:  # pragma: no cover - pandas may not be installed
+        pd_module = None
+    except Exception:  # pragma: no cover - pandas import failed unexpectedly
+        pd_module = None
 
-    points: list[dict[str, Any]] = []
-    if pd is not None and isinstance(curve, pd.Series):
+    points: list[EquityPoint] = []
+    series_type = getattr(pd_module, "Series", None) if pd_module is not None else None
+    if series_type is not None and isinstance(curve, series_type):
         for ts, value in curve.items():
             ts_value = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
             points.append({"ts": ts_value, "value": float(value)})
@@ -207,8 +210,8 @@ def _serialize_equity(curve: Any) -> list[dict[str, Any]]:
 
 def create_strategy_router(
     *,
-    converter_provider: ConverterProvider = _default_converter_provider,
-    backtester_provider: BacktesterProvider = _default_backtester_provider,
+    converter_provider: Callable[[], NaturalLanguageToDSLConverter] = _default_converter_provider,
+    backtester_provider: Callable[[], Backtester] = _default_backtester_provider,
 ) -> APIRouter:
     """Build the strategy router with injectable dependencies."""
 
@@ -290,8 +293,8 @@ def create_strategy_app(
     password: str | None = None,  # noqa: S107
     rate_limit: int = 30,
     window_seconds: int = 60,
-    converter_provider: ConverterProvider = _default_converter_provider,
-    backtester_provider: BacktesterProvider = _default_backtester_provider,
+    converter_provider: Callable[[], NaturalLanguageToDSLConverter] = _default_converter_provider,
+    backtester_provider: Callable[[], Backtester] = _default_backtester_provider,
 ) -> FastAPI:
     """Create a standalone FastAPI app for strategy workflows.
 
