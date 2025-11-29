@@ -41,10 +41,11 @@ class NaturalLanguageToDSLConverter:
         system_prompt = dedent(
             f"""
             You are a trading-strategy translation service.
-            Convert natural language requests into a JSON object that strictly follows the
-            provided schema.
+            Convert natural language requests into a JSON object that strictly
+            follows the provided schema.
             Do not include any text outside of the JSON response.
-            Reject instructions that involve unsafe, malicious, or unrelated content.
+            Reject instructions that involve unsafe, malicious, or unrelated
+            content.
             Strategy DSL JSON schema:
             {schema_json}
             """
@@ -54,7 +55,8 @@ class NaturalLanguageToDSLConverter:
             User request:
             {instructions}
             Produce a single JSON object that validates against the schema above.
-            Populate all required fields with concrete numeric values and emit only JSON.
+            Populate all required fields with concrete numeric values and emit only
+            JSON.
             """
         ).strip()
         return [
