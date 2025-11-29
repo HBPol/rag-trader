@@ -6,9 +6,9 @@ import base64
 import secrets
 import time
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Annotated, Any, Protocol
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -41,6 +41,10 @@ class Backtester(Protocol):
         slippage_bps: float = 0.0,
         fee_bps: float = 0.0,
     ) -> BacktestResultProtocol: ...
+
+
+ConverterProvider = Callable[[], NaturalLanguageToDSLConverter]
+BacktesterProvider = Callable[[], Backtester]
 
 
 security = HTTPBasic()
@@ -178,7 +182,7 @@ def _serialize_equity(curve: Any) -> list[dict[str, Any]]:
             points.append({"ts": str(ts), "value": float(value)})
         return points
 
-    if isinstance(curve, Sequence) and not isinstance(curve, (str, bytes, bytearray)):
+    if isinstance(curve, Sequence) and not isinstance(curve, str | bytes | bytearray):
         for item in curve:
             if isinstance(item, Mapping):
                 ts_value = item.get("ts") or item.get("timestamp")
@@ -196,8 +200,8 @@ def _serialize_equity(curve: Any) -> list[dict[str, Any]]:
 
 def create_strategy_router(
     *,
-    converter_provider=_default_converter_provider,
-    backtester_provider=_default_backtester_provider,
+    converter_provider: ConverterProvider = _default_converter_provider,
+    backtester_provider: BacktesterProvider = _default_backtester_provider,
 ) -> APIRouter:
     """Build the strategy router with injectable dependencies."""
 
@@ -212,7 +216,7 @@ def create_strategy_router(
     @router.post("/nl-to-dsl")
     async def nl_to_dsl(
         payload: _StrategyRequest,
-        converter: NaturalLanguageToDSLConverter = Depends(get_converter),
+        converter: Annotated[NaturalLanguageToDSLConverter, Depends(get_converter)],
     ) -> Mapping[str, Any]:
         try:
             strategy = converter.convert(payload.instructions)
@@ -233,7 +237,7 @@ def create_strategy_router(
     @router.post("/backtests")
     async def run_backtest(
         payload: _BacktestRequest,
-        backtester: Backtester = Depends(get_backtester),
+        backtester: Annotated[Backtester, Depends(get_backtester)],
     ) -> Mapping[str, Any]:
         result = backtester.run_backtest(
             payload.strategy,
@@ -276,20 +280,24 @@ def create_strategy_router(
 def create_strategy_app(
     *,
     username: str = "admin",
-    password: str = "changeme",
+    password: str = "changeme",  # noqa: S107
     rate_limit: int = 30,
     window_seconds: int = 60,
-    converter_provider=_default_converter_provider,
-    backtester_provider=_default_backtester_provider,
+    converter_provider: ConverterProvider = _default_converter_provider,
+    backtester_provider: BacktesterProvider = _default_backtester_provider,
 ) -> FastAPI:
     """Create a standalone FastAPI app for strategy workflows."""
 
     app = FastAPI(title="RAGTrader Strategy API")
     app.add_middleware(
-        RateLimitMiddleware,
+        RateLimitMiddleware,  # type: ignore[arg-type]
         limiter=RateLimiter(limit=rate_limit, window_seconds=window_seconds),
     )
-    app.add_middleware(BasicAuthMiddleware, username=username, password=password)
+    app.add_middleware(
+        BasicAuthMiddleware,  # type: ignore[arg-type]
+        username=username,
+        password=password,
+    )
     router = create_strategy_router(
         converter_provider=converter_provider,
         backtester_provider=backtester_provider,
