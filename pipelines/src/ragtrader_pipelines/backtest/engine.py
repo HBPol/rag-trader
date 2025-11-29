@@ -103,7 +103,8 @@ class BacktestEngine:
         drawdown = (equity_curve / running_peak) - 1
         max_drawdown = float(drawdown.min())
 
-        log_returns = np.log(equity_curve / equity_curve.shift()).dropna()
+        returns = equity_curve.pct_change().dropna()
+        log_returns = np.log1p(returns)
         if log_returns.std(ddof=1) == 0:  # pragma: no cover - defensive guard
             sharpe = 0.0
         else:
