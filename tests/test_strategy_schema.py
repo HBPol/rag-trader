@@ -39,6 +39,19 @@ def test_validate_strategy_payload_accepts_complete_payload(valid_payload):
     assert result.exits == [ExitRule(kind="take_profit", value=1.8)]
 
 
+def test_strategy_schema_validate_payload_accepts_complete_payload(valid_payload):
+    result = StrategySchema.validate_payload(valid_payload)
+
+    assert isinstance(result, StrategySchema)
+    assert result.instrument == "AAPL"
+    assert result.sentiment_zscore == 1.5
+    assert result.lead_lag == 3
+    assert result.action == "long"
+    assert result.atr_stop == 2.0
+    assert result.size_fraction == 0.25
+    assert result.exits == [ExitRule(kind="take_profit", value=1.8)]
+
+
 def test_validate_strategy_payload_requires_instrument(valid_payload):
     payload = copy.deepcopy(valid_payload)
     payload.pop("instrument")
@@ -61,6 +74,14 @@ def test_strategy_schema_validate_payload_rejects_unknown_fields(valid_payload):
 
     with pytest.raises(ValidationError):
         StrategySchema.validate_payload(payload)
+
+
+def test_validate_strategy_payload_rejects_unknown_exit_fields(valid_payload):
+    payload = copy.deepcopy(valid_payload)
+    payload["exits"][0]["extra"] = "not allowed"
+
+    with pytest.raises(ValidationError):
+        validate_strategy_payload(payload)
 
 
 def test_valid_strategy_schema_accepts_expected_payload():
