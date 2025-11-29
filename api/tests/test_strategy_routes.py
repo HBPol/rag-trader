@@ -79,11 +79,7 @@ def _client(
     rate_limit: int = 30,
     window_seconds: int = 60,
 ) -> tuple[TestClient, _FakeConverter, _FakeBacktester]:
-    strategy = (
-        converter_result
-        if isinstance(converter_result, StrategySchema)
-        else StrategySchema.model_validate(_strategy_payload())
-    )
+    StrategySchema.model_validate(_strategy_payload())
     converter = _FakeConverter(converter_result)
     backtester = _FakeBacktester(
         backtest_result or _FakeBacktestResult(equity_curve=[], metrics={})
