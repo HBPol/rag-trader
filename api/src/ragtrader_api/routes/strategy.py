@@ -9,11 +9,12 @@ import time
 import uuid
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Annotated, Any, Protocol
+from typing import Annotated, Any, Protocol, cast
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic
+from fastapi.types import _MiddlewareFactory
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import RequestResponseEndpoint
@@ -309,12 +310,18 @@ def create_strategy_app(
         )
 
     app = FastAPI(title="RAGTrader Strategy API")
-    app.add_middleware(
-        RateLimitMiddleware,  # type: ignore[arg-type]
-        limiter=RateLimiter(limit=rate_limit, window_seconds=window_seconds),
+    rate_limit_middleware: _MiddlewareFactory[Any] = cast(
+        _MiddlewareFactory[Any], RateLimitMiddleware
     )
     app.add_middleware(
-        BasicAuthMiddleware,  # type: ignore[arg-type]
+        rate_limit_middleware,
+        limiter=RateLimiter(limit=rate_limit, window_seconds=window_seconds),
+    )
+    basic_auth_middleware: _MiddlewareFactory[Any] = cast(
+        _MiddlewareFactory[Any], BasicAuthMiddleware
+    )
+    app.add_middleware(
+        basic_auth_middleware,
         username=resolved_username,
         password=resolved_password,
     )
