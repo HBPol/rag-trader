@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import os
 import secrets
 import time
 import uuid
@@ -284,14 +285,28 @@ def create_strategy_router(
 
 def create_strategy_app(
     *,
-    username: str = "admin",
-    password: str = "changeme",  # noqa: S107
+    username: str | None = None,
+    password: str | None = None,  # noqa: S107
     rate_limit: int = 30,
     window_seconds: int = 60,
     converter_provider: ConverterProvider = _default_converter_provider,
     backtester_provider: BacktesterProvider = _default_backtester_provider,
 ) -> FastAPI:
-    """Create a standalone FastAPI app for strategy workflows."""
+    """Create a standalone FastAPI app for strategy workflows.
+
+    The application requires basic-auth credentials for all strategy endpoints.
+    Credentials may be provided directly via the ``username`` and ``password``
+    arguments or read from the ``RAGTRADER_STRATEGY_USERNAME`` and
+    ``RAGTRADER_STRATEGY_PASSWORD`` environment variables.
+    """
+
+    resolved_username = username or os.getenv("RAGTRADER_STRATEGY_USERNAME")
+    resolved_password = password or os.getenv("RAGTRADER_STRATEGY_PASSWORD")
+    if not resolved_username or not resolved_password:
+        raise ValueError(
+            "Basic auth credentials must be provided via arguments or the "
+            "RAGTRADER_STRATEGY_USERNAME/RAGTRADER_STRATEGY_PASSWORD environment variables."
+        )
 
     app = FastAPI(title="RAGTrader Strategy API")
     app.add_middleware(
@@ -300,8 +315,8 @@ def create_strategy_app(
     )
     app.add_middleware(
         BasicAuthMiddleware,  # type: ignore[arg-type]
-        username=username,
-        password=password,
+        username=resolved_username,
+        password=resolved_password,
     )
     router = create_strategy_router(
         converter_provider=converter_provider,

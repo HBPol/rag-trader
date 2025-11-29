@@ -142,6 +142,14 @@ deactivate
 > configure an internal mirror / wheelhouse) before running the `pip install`
 > step, or pre-install the build requirements manually.
 
+### Strategy API authentication
+
+The strategy routes enforce HTTP basic auth and no longer ship with default
+credentials. Provide `RAGTRADER_STRATEGY_USERNAME` and
+`RAGTRADER_STRATEGY_PASSWORD` in your environment (for example via `.env`) or
+pass `username` / `password` explicitly when instantiating
+`ragtrader_api.routes.strategy.create_strategy_app`.
+
 #### Regenerating `web/pnpm-lock.yaml` locally
 
 When network access to the npm registry is unavailable in the remote development

@@ -13,6 +13,10 @@ from ragtrader_api.strategy.nl_to_dsl import (
 from ragtrader_api.strategy.schema import StrategySchema
 
 
+_USERNAME = "admin"
+_PASSWORD = "changeme"
+
+
 @dataclass
 class _FakeBacktestResult:
     equity_curve: list[tuple[str, float]]
@@ -85,6 +89,8 @@ def _client(
         backtest_result or _FakeBacktestResult(equity_curve=[], metrics={})
     )
     app = create_strategy_app(
+        username=_USERNAME,
+        password=_PASSWORD,
         converter_provider=lambda: converter,
         backtester_provider=lambda: backtester,
         rate_limit=rate_limit,
@@ -100,7 +106,7 @@ def test_nl_to_dsl_route_translates_and_validates() -> None:
     response = client.post(
         "/strategy/nl-to-dsl",
         json={"instructions": "long btc on bullish sentiment"},
-        auth=("admin", "changeme"),
+        auth=(_USERNAME, _PASSWORD),
     )
 
     assert response.status_code == 200
@@ -115,7 +121,7 @@ def test_nl_to_dsl_reports_conversion_errors() -> None:
     response = client.post(
         "/strategy/nl-to-dsl",
         json={"instructions": "???"},
-        auth=("admin", "changeme"),
+        auth=(_USERNAME, _PASSWORD),
     )
 
     assert response.status_code == 400
@@ -130,7 +136,7 @@ def test_nl_to_dsl_reports_unsafe_requests() -> None:
     response = client.post(
         "/strategy/nl-to-dsl",
         json={"instructions": "malicious"},
-        auth=("admin", "changeme"),
+        auth=(_USERNAME, _PASSWORD),
     )
 
     assert response.status_code == 400
@@ -155,7 +161,7 @@ def test_backtest_runs_and_results_are_cached() -> None:
             "slippage_bps": 15.0,
             "fee_bps": 5.0,
         },
-        auth=("admin", "changeme"),
+        auth=(_USERNAME, _PASSWORD),
     )
 
     assert response.status_code == 200
@@ -171,10 +177,10 @@ def test_backtest_runs_and_results_are_cached() -> None:
     }
 
     metrics = client.get(
-        f"/strategy/backtests/{backtest_id}/metrics", auth=("admin", "changeme")
+        f"/strategy/backtests/{backtest_id}/metrics", auth=(_USERNAME, _PASSWORD)
     )
     equity = client.get(
-        f"/strategy/backtests/{backtest_id}/equity", auth=("admin", "changeme")
+        f"/strategy/backtests/{backtest_id}/equity", auth=(_USERNAME, _PASSWORD)
     )
 
     assert metrics.status_code == 200
@@ -193,10 +199,10 @@ def test_backtest_fetch_routes_return_404_for_missing_entries() -> None:
     missing_id = "does-not-exist"
 
     metrics = client.get(
-        f"/strategy/backtests/{missing_id}/metrics", auth=("admin", "changeme")
+        f"/strategy/backtests/{missing_id}/metrics", auth=(_USERNAME, _PASSWORD)
     )
     equity = client.get(
-        f"/strategy/backtests/{missing_id}/equity", auth=("admin", "changeme")
+        f"/strategy/backtests/{missing_id}/equity", auth=(_USERNAME, _PASSWORD)
     )
 
     assert metrics.status_code == 404
@@ -226,7 +232,7 @@ def test_basic_auth_accepts_valid_credentials() -> None:
     response = client.post(
         "/strategy/nl-to-dsl",
         json={"instructions": "long btc"},
-        auth=("admin", "changeme"),
+        auth=(_USERNAME, _PASSWORD),
     )
 
     assert response.status_code == 200
@@ -240,7 +246,7 @@ def test_basic_auth_rejects_invalid_credentials() -> None:
     response = client.post(
         "/strategy/nl-to-dsl",
         json={"instructions": "long btc"},
-        auth=("admin", "wrong"),
+        auth=(_USERNAME, "wrong"),
     )
 
     assert response.status_code == 401
@@ -255,12 +261,12 @@ def test_rate_limiting_applies_across_requests() -> None:
     first = client.post(
         "/strategy/nl-to-dsl",
         json={"instructions": "do something"},
-        auth=("admin", "changeme"),
+        auth=(_USERNAME, _PASSWORD),
     )
     second = client.post(
         "/strategy/nl-to-dsl",
         json={"instructions": "again"},
-        auth=("admin", "changeme"),
+        auth=(_USERNAME, _PASSWORD),
     )
 
     assert first.status_code == 200
@@ -278,7 +284,7 @@ def test_backtest_serializes_mapping_equity_curves() -> None:
     response = client.post(
         "/strategy/backtests",
         json={"strategy": _strategy_payload()},
-        auth=("admin", "changeme"),
+        auth=(_USERNAME, _PASSWORD),
     )
 
     assert response.status_code == 200
@@ -289,11 +295,11 @@ def test_backtest_serializes_mapping_equity_curves() -> None:
     ]
     metrics_response = client.get(
         f"/strategy/backtests/{payload['backtest_id']}/metrics",
-        auth=("admin", "changeme"),
+        auth=(_USERNAME, _PASSWORD),
     )
     equity_response = client.get(
         f"/strategy/backtests/{payload['backtest_id']}/equity",
-        auth=("admin", "changeme"),
+        auth=(_USERNAME, _PASSWORD),
     )
 
     assert metrics_response.status_code == 200
@@ -316,7 +322,7 @@ def test_backtest_serializes_sequence_equity_curves() -> None:
     response = client.post(
         "/strategy/backtests",
         json={"strategy": _strategy_payload()},
-        auth=("admin", "changeme"),
+        auth=(_USERNAME, _PASSWORD),
     )
 
     assert response.status_code == 200
