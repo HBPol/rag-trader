@@ -1,12 +1,7 @@
 import math
-import pathlib
-import sys
 
 import pandas as pd
 import pytest
-
-REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-sys.path.extend([str(REPO_ROOT / "pipelines" / "src")])
 
 from ragtrader_pipelines.backtest.engine import BacktestEngine, ParsedStrategy
 
