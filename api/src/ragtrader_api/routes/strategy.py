@@ -321,7 +321,8 @@ def create_strategy_app(
     if not resolved_username or not resolved_password:
         raise ValueError(
             "Basic auth credentials must be provided via arguments or the "
-            "RAGTRADER_STRATEGY_USERNAME/RAGTRADER_STRATEGY_PASSWORD environment variables."
+            "RAGTRADER_STRATEGY_USERNAME/RAGTRADER_STRATEGY_PASSWORD environment "
+            "variables."
         )
 
     app = FastAPI(title="RAGTrader Strategy API")

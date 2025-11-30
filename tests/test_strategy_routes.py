@@ -13,7 +13,7 @@ from ragtrader_api.strategy.nl_to_dsl import (
 from ragtrader_api.strategy.schema import StrategySchema
 
 _USERNAME = "admin"
-_PASSWORD = "changeme"
+_PASSWORD = "test_password"  # noqa: S105 - test credentials only
 
 
 @dataclass
