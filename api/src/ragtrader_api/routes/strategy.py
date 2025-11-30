@@ -10,7 +10,7 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Annotated, Any, Protocol, TypeAlias
+from typing import Any, Protocol, TypeAlias
 
 from fastapi import (
     APIRouter,
@@ -250,7 +250,7 @@ def create_strategy_router(
     @router.post("/nl-to-dsl")
     async def nl_to_dsl(
         payload: _StrategyRequest,
-        converter: Annotated[NaturalLanguageToDSLConverter, Depends(get_converter)],
+        converter: NaturalLanguageToDSLConverter = Depends(get_converter),
     ) -> Mapping[str, Any]:
         try:
             strategy = converter.convert(payload.instructions)
@@ -271,7 +271,7 @@ def create_strategy_router(
     @router.post("/backtests")
     async def run_backtest(
         payload: _BacktestRequest,
-        backtester: Annotated[Backtester, Depends(get_backtester)],
+        backtester: Backtester = Depends(get_backtester),
     ) -> Mapping[str, Any]:
         result = backtester.run_backtest(
             payload.strategy,
