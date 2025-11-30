@@ -10,7 +10,7 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Annotated, Any, Protocol, TypeAlias, cast
+from typing import Annotated, Any, Protocol, TypeAlias
 
 from fastapi import (
     APIRouter,
@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
 from ragtrader_api.strategy import StrategySchema
 from ragtrader_api.strategy.nl_to_dsl import (
@@ -57,7 +58,6 @@ EquityPoint: TypeAlias = dict[str, float | str]
 
 
 RequestHandler: TypeAlias = Callable[[Request], Awaitable[Response]]
-MiddlewareClass: TypeAlias = type[BaseHTTPMiddleware]
 
 
 security = HTTPBasic()
@@ -106,7 +106,7 @@ class RateLimiter:
 class BasicAuthMiddleware(BaseHTTPMiddleware):
     """Enforce HTTP basic authentication for protected routes."""
 
-    def __init__(self, app: FastAPI, *, username: str, password: str) -> None:
+    def __init__(self, app: ASGIApp, *, username: str, password: str) -> None:
         super().__init__(app)
         self.username = username
         self.password = password
@@ -144,7 +144,7 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Apply a simple rate limiter to incoming requests."""
 
-    def __init__(self, app: FastAPI, limiter: RateLimiter) -> None:
+    def __init__(self, app: ASGIApp, limiter: RateLimiter) -> None:
         super().__init__(app)
         self.limiter = limiter
 
@@ -175,6 +175,22 @@ def _default_backtester_provider() -> Backtester:
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail="Backtester is not configured",
     )
+
+
+def _rate_limit_middleware_factory(
+    app: ASGIApp, *, limiter: RateLimiter
+) -> BaseHTTPMiddleware:
+    """Create the rate limit middleware for ``add_middleware``."""
+
+    return RateLimitMiddleware(app, limiter)
+
+
+def _basic_auth_middleware_factory(
+    app: ASGIApp, *, username: str, password: str
+) -> BaseHTTPMiddleware:
+    """Create the basic auth middleware for ``add_middleware``."""
+
+    return BasicAuthMiddleware(app, username=username, password=password)
 
 
 def _serialize_equity(curve: Any) -> list[EquityPoint]:
@@ -324,14 +340,12 @@ def create_strategy_app(
         )
 
     app = FastAPI(title="RAGTrader Strategy API")
-    rate_limit_middleware: MiddlewareClass = cast(MiddlewareClass, RateLimitMiddleware)
     app.add_middleware(
-        rate_limit_middleware,
+        _rate_limit_middleware_factory,
         limiter=RateLimiter(limit=rate_limit, window_seconds=window_seconds),
     )
-    basic_auth_middleware: MiddlewareClass = cast(MiddlewareClass, BasicAuthMiddleware)
     app.add_middleware(
-        basic_auth_middleware,
+        _basic_auth_middleware_factory,
         username=resolved_username,
         password=resolved_password,
     )
