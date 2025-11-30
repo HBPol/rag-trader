@@ -8,7 +8,7 @@ import os
 import secrets
 import time
 import uuid
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Annotated, Any, Protocol, TypeAlias, cast
 
@@ -23,10 +23,8 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic
-from fastapi.types import _MiddlewareFactory
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import RequestResponseEndpoint
 
 from ragtrader_api.strategy import StrategySchema
 from ragtrader_api.strategy.nl_to_dsl import (
@@ -56,6 +54,10 @@ class Backtester(Protocol):
 
 
 EquityPoint: TypeAlias = dict[str, float | str]
+
+
+RequestHandler: TypeAlias = Callable[[Request], Awaitable[Response]]
+MiddlewareClass: TypeAlias = type[BaseHTTPMiddleware]
 
 
 security = HTTPBasic()
@@ -109,9 +111,7 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
         self.username = username
         self.password = password
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestHandler) -> Response:
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Basic "):
             return self._unauthorized()
@@ -148,9 +148,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.limiter = limiter
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestHandler) -> Response:
         key = getattr(request.state, "user", None)
         if not key:
             client = request.client
@@ -326,15 +324,15 @@ def create_strategy_app(
         )
 
     app = FastAPI(title="RAGTrader Strategy API")
-    rate_limit_middleware: _MiddlewareFactory[Any] = cast(
-        _MiddlewareFactory[Any], RateLimitMiddleware
+    rate_limit_middleware: MiddlewareClass = cast(
+        MiddlewareClass, RateLimitMiddleware
     )
     app.add_middleware(
         rate_limit_middleware,
         limiter=RateLimiter(limit=rate_limit, window_seconds=window_seconds),
     )
-    basic_auth_middleware: _MiddlewareFactory[Any] = cast(
-        _MiddlewareFactory[Any], BasicAuthMiddleware
+    basic_auth_middleware: MiddlewareClass = cast(
+        MiddlewareClass, BasicAuthMiddleware
     )
     app.add_middleware(
         basic_auth_middleware,
