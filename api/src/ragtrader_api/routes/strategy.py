@@ -324,16 +324,12 @@ def create_strategy_app(
         )
 
     app = FastAPI(title="RAGTrader Strategy API")
-    rate_limit_middleware: MiddlewareClass = cast(
-        MiddlewareClass, RateLimitMiddleware
-    )
+    rate_limit_middleware: MiddlewareClass = cast(MiddlewareClass, RateLimitMiddleware)
     app.add_middleware(
         rate_limit_middleware,
         limiter=RateLimiter(limit=rate_limit, window_seconds=window_seconds),
     )
-    basic_auth_middleware: MiddlewareClass = cast(
-        MiddlewareClass, BasicAuthMiddleware
-    )
+    basic_auth_middleware: MiddlewareClass = cast(MiddlewareClass, BasicAuthMiddleware)
     app.add_middleware(
         basic_auth_middleware,
         username=resolved_username,
