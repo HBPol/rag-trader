@@ -5,6 +5,7 @@ from .ingest import (
     ArticleSummaryProvider,
     EmbeddingGenerator,
     FileIngestionState,
+    QdrantClient,
     QdrantIngestionJob,
 )
 
@@ -13,5 +14,6 @@ __all__ = [
     "ArticleSummaryProvider",
     "EmbeddingGenerator",
     "FileIngestionState",
+    "QdrantClient",
     "QdrantIngestionJob",
 ]

@@ -51,6 +51,7 @@ _RAG_EXPORTS = {
     "ArticleSummaryProvider",
     "EmbeddingGenerator",
     "FileIngestionState",
+    "QdrantClient",
     "QdrantIngestionJob",
 }
 
@@ -112,6 +113,7 @@ if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
         ArticleSummaryProvider,
         EmbeddingGenerator,
         FileIngestionState,
+        QdrantClient,
         QdrantIngestionJob,
     )
     from .sentiment import (  # noqa: F401

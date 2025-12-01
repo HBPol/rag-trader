@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -36,6 +36,18 @@ class EmbeddingGenerator(Protocol):
 
     def embed_batch(self, texts: Sequence[str]) -> Sequence[Sequence[float]]:
         """Return an embedding vector for each text."""
+
+
+class QdrantClient(Protocol):
+    """Client capable of upserting points into a Qdrant collection."""
+
+    def upsert(
+        self,
+        *,
+        collection_name: str,
+        points: Sequence[Mapping[str, object]],
+    ) -> object | None:
+        """Insert or update point payloads for the provided collection."""
 
 
 class FileIngestionState:
@@ -76,7 +88,7 @@ class QdrantIngestionJob:
         *,
         provider: ArticleSummaryProvider,
         embedder: EmbeddingGenerator,
-        qdrant_client: object,
+        qdrant_client: QdrantClient,
         state: FileIngestionState,
         collection_env_var: str = "QDRANT_COLLECTION",
     ) -> None:
@@ -108,7 +120,7 @@ class QdrantIngestionJob:
         if len(vectors) != len(articles):
             raise ValueError("Embedding generator returned mismatched vector count")
 
-        points = [
+        points: list[dict[str, object]] = [
             {
                 "id": article.id,
                 "vector": list(vector),
@@ -150,5 +162,6 @@ __all__ = [
     "ArticleSummaryProvider",
     "EmbeddingGenerator",
     "FileIngestionState",
+    "QdrantClient",
     "QdrantIngestionJob",
 ]
