@@ -2,18 +2,29 @@
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
 import pytest
-import requests
-import yaml
+
+_yaml_spec = importlib.util.find_spec("yaml")
+if _yaml_spec is None:  # pragma: no cover - exercised in environments without PyYAML
+    pytest.skip("PyYAML is required for compose tests", allow_module_level=True)
+
+yaml = importlib.import_module("yaml")
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(REPO_ROOT))
+from tools import _requests_shim as requests
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
@@ -147,6 +158,11 @@ def test_api_service_forwards_database_and_qdrant_settings(
         override_env["RAGTRADER_API_USE_QDRANT_CLOUD"]
         == "${RAGTRADER_API_USE_QDRANT_CLOUD:-false}"
     )
+    assert (
+        override_env["RAGTRADER_USE_LOCAL_QDRANT"]
+        == "${RAGTRADER_USE_LOCAL_QDRANT:-true}"
+    )
+    assert override_env["RAGTRADER_LOCAL_QDRANT_URL"] == "http://qdrant:6333"
 
 
 def test_web_service_forwards_browser_accessible_api_url(

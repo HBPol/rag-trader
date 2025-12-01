@@ -278,6 +278,39 @@ def test_settings_fall_back_to_unprefixed_qdrant_key(
     assert settings.qdrant_api_key == "fallback-key"
 
 
+def test_settings_default_to_cloud_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "RAGTRADER_API_POSTGRES_DSN",
+        "postgresql+psycopg://user:pass@localhost:5432/app",
+    )
+    monkeypatch.setenv("RAGTRADER_API_QDRANT_URL", "https://cloud.example.com")
+    monkeypatch.setenv("RAGTRADER_API_USE_QDRANT_CLOUD", "true")
+    monkeypatch.setenv("RAGTRADER_USE_LOCAL_QDRANT", "false")
+    monkeypatch.setenv("RAGTRADER_API_QDRANT_API_KEY", "cloud-key")
+
+    settings = ApiSettings()
+
+    assert settings.qdrant_url == "https://cloud.example.com"
+    assert settings.use_qdrant_cloud is True
+
+
+def test_local_qdrant_feature_flag_overrides_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "RAGTRADER_API_POSTGRES_DSN",
+        "postgresql+psycopg://user:pass@localhost:5432/app",
+    )
+    monkeypatch.delenv("RAGTRADER_API_QDRANT_URL", raising=False)
+    monkeypatch.setenv("RAGTRADER_USE_LOCAL_QDRANT", "true")
+    monkeypatch.setenv("RAGTRADER_LOCAL_QDRANT_URL", "http://qdrant.local:6333")
+
+    settings = ApiSettings()
+
+    assert settings.qdrant_url == "http://qdrant.local:6333"
+    assert settings.use_qdrant_cloud is False
+
+
 def test_scheduler_settings_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("RAGTRADER_SCHEDULER_COINBASE_SYMBOLS", "btc-usd,eth-usd")
     monkeypatch.setenv("RAGTRADER_SCHEDULER_COINBASE_GRANULARITY", "MIN_15")

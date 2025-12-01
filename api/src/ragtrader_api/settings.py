@@ -511,12 +511,19 @@ class ApiSettings:
                 default=True,
             )
         )
+        local_qdrant_override = _coerce_bool(
+            env_vars.get("RAGTRADER_USE_LOCAL_QDRANT"), default=False
+        )
         raw_use_qdrant_cloud = (
             use_qdrant_cloud
             if use_qdrant_cloud is not None
-            else _coerce_bool(
-                env_vars.get("RAGTRADER_API_USE_QDRANT_CLOUD"),
-                default=True,
+            else (
+                False
+                if local_qdrant_override
+                else _coerce_bool(
+                    env_vars.get("RAGTRADER_API_USE_QDRANT_CLOUD"),
+                    default=True,
+                )
             )
         )
 
@@ -555,11 +562,15 @@ class ApiSettings:
                 f"{postgres_user}:{postgres_password}@"
                 f"{postgres_host}:{postgres_port}/{postgres_db}"
             )
-        qdrant_candidate = (
-            qdrant_url
-            if qdrant_url is not None
-            else env_vars.get("RAGTRADER_API_QDRANT_URL", "http://localhost:6333")
-        )
+        default_qdrant_url = env_vars.get("RAGTRADER_API_QDRANT_URL")
+        if default_qdrant_url is None:
+            default_qdrant_url = env_vars.get("QDRANT_URL")
+        if default_qdrant_url is None and local_qdrant_override:
+            default_qdrant_url = env_vars.get(
+                "RAGTRADER_LOCAL_QDRANT_URL", "http://localhost:6333"
+            )
+
+        qdrant_candidate = qdrant_url if qdrant_url is not None else default_qdrant_url
         qdrant_key: str | None
         if qdrant_api_key is not None:
             qdrant_key = qdrant_api_key

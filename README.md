@@ -322,6 +322,7 @@ open http://localhost:5173
 
 > **Notes**
 > - You can create or reuse a managed cluster in [Qdrant Cloud](https://qdrant.tech/cloud/) to obtain the `QDRANT_URL`, `RAGTRADER_API_QDRANT_COLLECTION`, and API key values referenced in `.env.example`. Cloud mode is the default: leave `RAGTRADER_API_USE_QDRANT_CLOUD=true` and provide `RAGTRADER_API_QDRANT_API_KEY` (preferred) or `QDRANT_API_KEY`.
+> - Flip `RAGTRADER_USE_LOCAL_QDRANT=true` to force the stack to target a co-located Qdrant service without editing other variables. Override `RAGTRADER_LOCAL_QDRANT_URL` (for example, `http://qdrant:6333` when using Docker Compose) if `localhost` is not correct for your topology.
 > - For self-hosted Qdrant, set `RAGTRADER_API_USE_QDRANT_CLOUD=false` and leave the API key empty to disable authentication.
 > - The override stack is opt-in: include `-f docker-compose.qdrant.yml` when you want the co-located Qdrant container, or omit it to keep pointing at Qdrant Cloud.
 > - The API loads variables from `.env` (or a path provided via `RAGTRADER_API_ENV_FILE`) automatically, while still honouring any explicit environment variables you export.

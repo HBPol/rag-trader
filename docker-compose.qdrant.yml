@@ -23,6 +23,8 @@ services:
     environment:
       - RAGTRADER_API_QDRANT_URL=http://qdrant:6333
       - RAGTRADER_API_USE_QDRANT_CLOUD=${RAGTRADER_API_USE_QDRANT_CLOUD:-false}
+      - RAGTRADER_USE_LOCAL_QDRANT=${RAGTRADER_USE_LOCAL_QDRANT:-true}
+      - RAGTRADER_LOCAL_QDRANT_URL=http://qdrant:6333
 
 volumes:
   qdrantdata:
