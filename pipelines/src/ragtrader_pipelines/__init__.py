@@ -46,6 +46,14 @@ _CONTENT_EXPORTS = {
     "register_content_ingestion_job",
 }
 
+_RAG_EXPORTS = {
+    "ArticleSummary",
+    "ArticleSummaryProvider",
+    "EmbeddingGenerator",
+    "FileIngestionState",
+    "QdrantIngestionJob",
+}
+
 _SENTIMENT_EXPORTS = {
     "SentimentAspect",
     "SentimentClassifier",
@@ -99,6 +107,13 @@ if TYPE_CHECKING:  # pragma: no cover - import only for static analysis
         normalise_supported_ticker,
         register_content_ingestion_job,
     )
+    from .rag import (  # noqa: F401
+        ArticleSummary,
+        ArticleSummaryProvider,
+        EmbeddingGenerator,
+        FileIngestionState,
+        QdrantIngestionJob,
+    )
     from .sentiment import (  # noqa: F401
         SentimentAspect,
         SentimentClassifier,
@@ -118,6 +133,9 @@ def __getattr__(name: str) -> Any:
     if name in _CONTENT_EXPORTS:
         module = import_module(".content", __name__)
         return getattr(module, name)
+    if name in _RAG_EXPORTS:
+        module = import_module(".rag", __name__)
+        return getattr(module, name)
     if name in _SENTIMENT_EXPORTS:
         module = import_module(".sentiment", __name__)
         return getattr(module, name)
@@ -132,6 +150,7 @@ def __dir__() -> list[str]:
         list(globals().keys())
         + list(_COINBASE_EXPORTS)
         + list(_CONTENT_EXPORTS)
+        + list(_RAG_EXPORTS)
         + list(_SENTIMENT_EXPORTS)
         + list(_ANALYTICS_EXPORTS)
     )
@@ -141,6 +160,7 @@ __all__ = [
     "__version__",
     *_COINBASE_EXPORTS,
     *_CONTENT_EXPORTS,
+    *_RAG_EXPORTS,
     *_SENTIMENT_EXPORTS,
     *_ANALYTICS_EXPORTS,
 ]
