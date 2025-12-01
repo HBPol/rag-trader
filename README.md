@@ -301,7 +301,7 @@ coverage reports for the frontend). Run them after `pip install -e .[dev]` (Pyth
 cp .env.example .env
 
 # Fill in vector store credentials from Qdrant Cloud so the API can reach your cluster
-$EDITOR .env  # set QDRANT_URL, optionally override RAGTRADER_API_QDRANT_COLLECTION (default: rag-docs), keep RAGTRADER_API_USE_QDRANT_CLOUD=true, and supply RAGTRADER_API_QDRANT_API_KEY (or QDRANT_API_KEY)
+$EDITOR .env  # set QDRANT_URL, optionally override RAGTRADER_API_QDRANT_COLLECTION (default: rag-cluster), keep RAGTRADER_API_USE_QDRANT_CLOUD=true, and supply RAGTRADER_API_QDRANT_API_KEY (or QDRANT_API_KEY)
 
 # Validate Compose parity and health checks
 pytest tests/test_compose.py

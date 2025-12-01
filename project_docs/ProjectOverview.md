@@ -97,7 +97,7 @@ API_PORT=8000
 WEB_PORT=5173
 QDRANT_URL=https://<your-qdrant-endpoint>
 QDRANT_API_KEY=<your-key>
-RAGTRADER_API_QDRANT_COLLECTION=rag-docs
+RAGTRADER_API_QDRANT_COLLECTION=rag-cluster
 COINBASE_API_BASE=https://api.exchange.coinbase.com
 ```
 

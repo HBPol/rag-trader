@@ -588,7 +588,7 @@ class ApiSettings:
         raw_collection = (
             qdrant_collection
             if qdrant_collection is not None
-            else env_vars.get("RAGTRADER_API_QDRANT_COLLECTION", "rag-docs")
+            else env_vars.get("RAGTRADER_API_QDRANT_COLLECTION", "rag-cluster")
         )
         if raw_require_vector and (
             raw_collection is None or not raw_collection.strip()

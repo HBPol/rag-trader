@@ -77,7 +77,7 @@ settings = ApiSettings(
     postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
     qdrant_url="https://YOUR-CLUSTER.example",
     qdrant_api_key="<api key>",
-    qdrant_collection="rag-docs",  # or override via RAGTRADER_API_QDRANT_COLLECTION
+    qdrant_collection="rag-cluster",  # or override via RAGTRADER_API_QDRANT_COLLECTION
 )
 
 repository = VectorStoreRepository(settings)
