@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from .app import Response as MiniResponse
 from .app import create_app
+from .routes.rag import create_rag_router
 from .settings import get_settings
 
 
@@ -56,6 +57,8 @@ def create_fastapi_app() -> FastAPI:
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
     )
+
+    fastapi_app.include_router(create_rag_router(settings=settings))
 
     @fastapi_app.get("/healthz")
     async def healthz() -> JSONResponse:  # pragma: no cover - via integration tests
