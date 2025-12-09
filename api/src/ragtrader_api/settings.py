@@ -427,7 +427,7 @@ class ApiSettings:
     version: str
     cors_origins: tuple[str, ...]
     postgres_dsn: str | None
-    qdrant_url: str
+    qdrant_url: str | None
     qdrant_api_key: str | None
     qdrant_collection: str
     use_qdrant_cloud: bool
@@ -562,6 +562,7 @@ class ApiSettings:
                 f"{postgres_user}:{postgres_password}@"
                 f"{postgres_host}:{postgres_port}/{postgres_db}"
             )
+        default_qdrant_url: str | None
         if local_qdrant_override:
             default_qdrant_url = env_vars.get(
                 "RAGTRADER_LOCAL_QDRANT_URL", "http://localhost:6333"
