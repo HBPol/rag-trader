@@ -8,23 +8,19 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import time
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
 import pytest
+from tools import _requests_shim as requests
 
 _yaml_spec = importlib.util.find_spec("yaml")
 if _yaml_spec is None:  # pragma: no cover - exercised in environments without PyYAML
     pytest.skip("PyYAML is required for compose tests", allow_module_level=True)
 
 yaml = importlib.import_module("yaml")
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(REPO_ROOT))
-from tools import _requests_shim as requests
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
