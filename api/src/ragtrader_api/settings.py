@@ -562,13 +562,14 @@ class ApiSettings:
                 f"{postgres_user}:{postgres_password}@"
                 f"{postgres_host}:{postgres_port}/{postgres_db}"
             )
-        default_qdrant_url = env_vars.get("RAGTRADER_API_QDRANT_URL")
-        if default_qdrant_url is None:
-            default_qdrant_url = env_vars.get("QDRANT_URL")
-        if default_qdrant_url is None and local_qdrant_override:
+        if local_qdrant_override:
             default_qdrant_url = env_vars.get(
                 "RAGTRADER_LOCAL_QDRANT_URL", "http://localhost:6333"
             )
+        else:
+            default_qdrant_url = env_vars.get("RAGTRADER_API_QDRANT_URL")
+            if default_qdrant_url is None:
+                default_qdrant_url = env_vars.get("QDRANT_URL")
 
         qdrant_candidate = qdrant_url if qdrant_url is not None else default_qdrant_url
         qdrant_key: str | None
