@@ -73,8 +73,6 @@ class BacktestEngine:
                     f"Backtest exceeded runtime budget of {runtime_budget_secs} seconds"
                 )
 
-        # Treat explicit null targets as intentional flats before reindexing, then
-        # forward-fill to cover any new bars introduced by the price series.
         positions = strategy.target_positions.fillna(0.0)
         positions = positions.reindex(ohlcv.index).ffill().fillna(0.0)
         close = ohlcv["close"].reindex(positions.index)

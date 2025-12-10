@@ -3,16 +3,23 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-gx = pytest.importorskip("great_expectations")
-from great_expectations.checkpoint import SimpleCheckpoint
-from great_expectations.core.batch import RuntimeBatchRequest
-from great_expectations.core.expectation_suite import ExpectationSuite
-from great_expectations.core.yaml_handler import YAMLHandler
-from great_expectations.data_context import AbstractDataContext
-from great_expectations.data_context.types.base import (
-    DataContextConfig,
-    FilesystemStoreBackendDefaults,
-)
+try:
+    import great_expectations as gx
+    from great_expectations.checkpoint import SimpleCheckpoint
+    from great_expectations.core.batch import RuntimeBatchRequest
+    from great_expectations.core.expectation_suite import ExpectationSuite
+    from great_expectations.core.yaml_handler import YAMLHandler
+    from great_expectations.data_context import AbstractDataContext
+    from great_expectations.data_context.types.base import (
+        DataContextConfig,
+        FilesystemStoreBackendDefaults,
+    )
+except ImportError:  # pragma: no cover - optional dependency
+    pytest.skip(
+        "great_expectations is required for RAG data-quality tests",
+        allow_module_level=True,
+    )
+
 from pipelines.tests import get_rag_fixture_path
 
 
