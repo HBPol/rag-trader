@@ -7,6 +7,7 @@ from pathlib import Path
 _TESTS_ROOT = Path(__file__).resolve().parent
 _FIXTURES_ROOT = _TESTS_ROOT / "fixtures"
 _ANALYTICS_ROOT = _FIXTURES_ROOT / "analytics"
+_RAG_ROOT = _FIXTURES_ROOT / "rag"
 
 
 def get_analytics_fixture_path(format_name: str) -> Path:
@@ -26,6 +27,19 @@ def get_analytics_fixture_path(format_name: str) -> Path:
     return path
 
 
+def get_rag_fixture_path(name: str) -> Path:
+    """Return the path to a RAG fixture by name."""
+
+    normalized = name.lower()
+    candidates = {"articles_csv": _RAG_ROOT / "articles.csv"}
+    try:
+        path = candidates[normalized]
+    except KeyError as exc:  # pragma: no cover - defensive guard
+        raise ValueError(f"Unsupported RAG fixture: {name}") from exc
+    return path
+
+
 __all__ = [
     "get_analytics_fixture_path",
+    "get_rag_fixture_path",
 ]

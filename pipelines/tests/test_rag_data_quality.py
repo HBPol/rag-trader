@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from pathlib import Path
 
 import pandas as pd
@@ -15,14 +13,14 @@ from great_expectations.data_context.types.base import (
     DataContextConfig,
     FilesystemStoreBackendDefaults,
 )
-from pipelines.tests import get_analytics_fixture_path
+from pipelines.tests import get_rag_fixture_path
 
 
 def _build_context(tmp_path: Path) -> AbstractDataContext:
     store_defaults = FilesystemStoreBackendDefaults(root_directory=str(tmp_path))
     config = DataContextConfig(
         datasources={
-            "analytics_runtime": {
+            "rag_runtime": {
                 "class_name": "Datasource",
                 "execution_engine": {"class_name": "PandasExecutionEngine"},
                 "data_connectors": {
@@ -44,9 +42,9 @@ def _build_context(tmp_path: Path) -> AbstractDataContext:
     return gx.get_context(project_config=config, context_root_dir=str(tmp_path))
 
 
-def test_analytics_fixture_passes_great_expectations(tmp_path: Path) -> None:
-    csv_path = get_analytics_fixture_path("csv")
-    suite_path = Path(__file__).parent / "data_quality" / "analytics_suite.yml"
+def test_rag_fixture_passes_great_expectations(tmp_path: Path) -> None:
+    csv_path = get_rag_fixture_path("articles_csv")
+    suite_path = Path(__file__).parent / "data_quality" / "rag_suite.yml"
 
     df = pd.read_csv(csv_path)
 
@@ -56,20 +54,19 @@ def test_analytics_fixture_passes_great_expectations(tmp_path: Path) -> None:
     context.add_or_update_expectation_suite(expectation_suite=suite)
 
     batch_request = RuntimeBatchRequest(
-        datasource_name="analytics_runtime",
+        datasource_name="rag_runtime",
         data_connector_name="runtime",
-        data_asset_name="btc_eth_hourly_analytics",
+        data_asset_name="rag_articles",
         runtime_parameters={"batch_data": df},
-        batch_identifiers={"default_identifier_name": "fixture"},
+        batch_identifiers={"default_identifier_name": "rag_fixture"},
     )
 
     validator = context.get_validator(
-        batch_request=batch_request,
-        expectation_suite_name=suite.expectation_suite_name,
+        batch_request=batch_request, expectation_suite_name=suite.expectation_suite_name
     )
 
     checkpoint = SimpleCheckpoint(
-        name="analytics_fixture_checkpoint",
+        name="rag_fixture_checkpoint",
         data_context=context,
     )
 
@@ -81,7 +78,8 @@ def test_analytics_fixture_passes_great_expectations(tmp_path: Path) -> None:
             }
         ]
     )
+
     assert result.success is True
     assert validator.active_batch_definition.batch_identifiers == {
-        "default_identifier_name": "fixture"
+        "default_identifier_name": "rag_fixture"
     }

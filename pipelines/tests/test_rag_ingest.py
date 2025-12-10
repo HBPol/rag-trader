@@ -121,3 +121,44 @@ def test_ingestion_is_idempotent(monkeypatch, tmp_path, article_batch):
     assert provider.requested_since == first_ingested
     assert len(client.upserts) == 1
     assert state.load() == first_ingested
+
+
+def test_missing_collection_env_var_raises(monkeypatch, tmp_path, article_batch):
+    monkeypatch.delenv("QDRANT_COLLECTION", raising=False)
+    provider = _StubProvider(article_batch)
+    embedder = _StubEmbedder()
+    client = _StubQdrant()
+    state = FileIngestionState(tmp_path / "state.json")
+
+    job = QdrantIngestionJob(
+        provider=provider,
+        embedder=embedder,
+        qdrant_client=client,
+        state=state,
+    )
+
+    with pytest.raises(RuntimeError, match="collection env var 'QDRANT_COLLECTION'"):
+        job.run()
+
+
+def test_mismatched_embedding_counts_raise(monkeypatch, tmp_path, article_batch):
+    monkeypatch.setenv("QDRANT_COLLECTION", "articles-test")
+    provider = _StubProvider(article_batch)
+
+    class _BadEmbedder(_StubEmbedder):
+        def embed_batch(self, texts: Sequence[str]):
+            super().embed_batch(texts)
+            return [[0.0, 1.0]]  # not enough vectors
+
+    client = _StubQdrant()
+    state = FileIngestionState(tmp_path / "state.json")
+
+    job = QdrantIngestionJob(
+        provider=provider,
+        embedder=_BadEmbedder(),
+        qdrant_client=client,
+        state=state,
+    )
+
+    with pytest.raises(ValueError, match="mismatched vector count"):
+        job.run()
