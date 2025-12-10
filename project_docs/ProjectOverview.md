@@ -119,6 +119,14 @@ docker compose exec web pnpm test -- --coverage
 
 To use **self-hosted Qdrant** in dev without editing the base compose file, run the override stack used in README:
 
+### Runbook: Cloud Run deploys & rollback
+
+- **URLs (post-deploy)**: API → describe the Cloud Run service and curl the health check (`gcloud run services describe ragtrader-api --region $REGION --format='value(status.url)'`); Web → same command for `ragtrader-web`. Store these in your team password manager after a green deploy.
+- **Smoke checks**: `curl -f "$API_URL/healthz"` and `curl -f -I "$WEB_URL"` are baked into CI/CD. Keep Lighthouse perf budgets in mind if you change the CDN/cache path.
+- **Roll back**: list revisions with `gcloud run revisions list --service ragtrader-api --region $REGION` (or `ragtrader-web`) then pin the previous healthy revision with `gcloud run services update ragtrader-api --region $REGION --revision <REVISION_NAME> --no-traffic` followed by `--traffic <REVISION_NAME>=100`. Repeat for the web service. Scheduler-triggered Cloud Run jobs (`ragtrader-ingestion`, `ragtrader-backtest`) can be reverted by redeploying them against the previous image tag and re-running `gcloud scheduler jobs update http ...` with the unchanged job names.
+- **Secrets**: API secrets (`DATABASE_URL`, `QDRANT_API_KEY`, `RAGTRADER_STRATEGY_USERNAME`, `RAGTRADER_STRATEGY_PASSWORD`) come from Secret Manager; the web app stays public but still uses `NEXT_PUBLIC_API_BASE_URL` to talk to the latest API URL.
+- **Schedulers**: Cloud Scheduler hits the Cloud Run jobs every 30 minutes for ingestion and every 6 hours for analytics/backtest. Expect a 9–10 minute runtime ceiling; if you raise it, also bump `--attempt-deadline` on the scheduler job.
+
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.qdrant.yml up -d --build
 ```

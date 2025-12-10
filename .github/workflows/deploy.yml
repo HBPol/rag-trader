@@ -1,0 +1,172 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      image-tag:
+        description: "Optional image tag override (defaults to commit SHA)"
+        required: false
+        default: ""
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  REPOSITORY: ragtrader
+  API_SERVICE: ${{ vars.CLOUD_RUN_API_SERVICE || 'ragtrader-api' }}
+  WEB_SERVICE: ${{ vars.CLOUD_RUN_WEB_SERVICE || 'ragtrader-web' }}
+  INGESTION_JOB: ragtrader-ingestion
+  BACKTEST_JOB: ragtrader-backtest
+  IMAGE_TAG: ${{ inputs.image-tag || github.sha }}
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Google Cloud auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Artifact Registry
+        run: gcloud auth configure-docker "${{ env.REGION }}-docker.pkg.dev"
+
+      - name: Build & push API image
+        run: |
+          gcloud builds submit \
+            --project "${PROJECT_ID}" \
+            --tag "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/api:${IMAGE_TAG}" \
+            --file api/Dockerfile .
+
+      - name: Build & push Web image
+        run: |
+          gcloud builds submit \
+            --project "${PROJECT_ID}" \
+            --tag "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/web:${IMAGE_TAG}" \
+            --file web/Dockerfile web
+
+      - name: Deploy API service
+        run: |
+          gcloud run deploy "${API_SERVICE}" \
+            --image "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/api:${IMAGE_TAG}" \
+            --region "${REGION}" \
+            --allow-unauthenticated \
+            --set-env-vars "ENV=prod,COINBASE_API_BASE=https://api.exchange.coinbase.com" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,QDRANT_API_KEY=QDRANT_API_KEY:latest,RAGTRADER_STRATEGY_USERNAME=RAGTRADER_STRATEGY_USERNAME:latest,RAGTRADER_STRATEGY_PASSWORD=RAGTRADER_STRATEGY_PASSWORD:latest" \
+            --min-instances=0 --max-instances=3 --port=8000 --quiet
+
+      - name: Discover API URL
+        id: api-url
+        run: |
+          url=$(gcloud run services describe "${API_SERVICE}" --region "${REGION}" --format='value(status.url)')
+          echo "api-url=${url}" >> "$GITHUB_OUTPUT"
+          echo "API_URL=${url}" >> "$GITHUB_ENV"
+
+      - name: Deploy Web service
+        run: |
+          gcloud run deploy "${WEB_SERVICE}" \
+            --image "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/web:${IMAGE_TAG}" \
+            --region "${REGION}" \
+            --allow-unauthenticated \
+            --set-env-vars "ENV=prod,NEXT_PUBLIC_API_BASE_URL=${API_URL}" \
+            --min-instances=0 --max-instances=3 --port=5173 --quiet
+
+      - name: Discover Web URL
+        id: web-url
+        run: |
+          url=$(gcloud run services describe "${WEB_SERVICE}" --region "${REGION}" --format='value(status.url)')
+          echo "web-url=${url}" >> "$GITHUB_OUTPUT"
+          echo "WEB_URL=${url}" >> "$GITHUB_ENV"
+
+      - name: Deploy ingestion Cloud Run job
+        run: |
+          gcloud run jobs deploy "${INGESTION_JOB}" \
+            --image "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/api:${IMAGE_TAG}" \
+            --region "${REGION}" \
+            --set-env-vars "ENV=prod,COINBASE_API_BASE=https://api.exchange.coinbase.com" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,QDRANT_API_KEY=QDRANT_API_KEY:latest" \
+            --command python \
+            --args "-m","ragtrader_pipelines.coinbase","--symbols","BTC,ETH","--granularity","MIN_60" \
+            --max-retries=1 --quiet
+
+      - name: Deploy backtest Cloud Run job
+        run: |
+          gcloud run jobs deploy "${BACKTEST_JOB}" \
+            --image "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/api:${IMAGE_TAG}" \
+            --region "${REGION}" \
+            --set-env-vars "ENV=prod" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
+            --command /bin/sh \
+            --args "-c","python -m ragtrader_pipelines.analytics_job --start \"$(date -u -d '-1 day' +%FT%TZ)\" --end \"$(date -u +%FT%TZ)\" --symbols BTC,ETH --windows 1h,4h --price-interval 1h --sentiment-window 6 --max-lag-minutes 120" \
+            --max-retries=1 --quiet
+
+      - name: Ensure Scheduler triggers exist
+        run: |
+          ingestion_target="https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${PROJECT_ID}/jobs/${INGESTION_JOB}:run"
+          backtest_target="https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${PROJECT_ID}/jobs/${BACKTEST_JOB}:run"
+          gcloud scheduler jobs create http ragtrader-ingestion \
+            --location "${REGION}" \
+            --schedule "*/30 * * * *" \
+            --http-method POST \
+            --uri "${ingestion_target}" \
+            --oauth-service-account-email "${{ secrets.GCP_SERVICE_ACCOUNT }}" \
+            --headers "Content-Type=application/json" \
+            --message-body '{}' \
+            --max-retry-attempts 1 \
+            --attempt-deadline 540s \
+            --quiet || \
+          gcloud scheduler jobs update http ragtrader-ingestion \
+            --location "${REGION}" \
+            --schedule "*/30 * * * *" \
+            --http-method POST \
+            --uri "${ingestion_target}" \
+            --oauth-service-account-email "${{ secrets.GCP_SERVICE_ACCOUNT }}" \
+            --headers "Content-Type=application/json" \
+            --message-body '{}' \
+            --max-retry-attempts 1 \
+            --attempt-deadline 540s \
+            --quiet
+
+          gcloud scheduler jobs create http ragtrader-backtest \
+            --location "${REGION}" \
+            --schedule "0 */6 * * *" \
+            --http-method POST \
+            --uri "${backtest_target}" \
+            --oauth-service-account-email "${{ secrets.GCP_SERVICE_ACCOUNT }}" \
+            --headers "Content-Type=application/json" \
+            --message-body '{}' \
+            --max-retry-attempts 1 \
+            --attempt-deadline 540s \
+            --quiet || \
+          gcloud scheduler jobs update http ragtrader-backtest \
+            --location "${REGION}" \
+            --schedule "0 */6 * * *" \
+            --http-method POST \
+            --uri "${backtest_target}" \
+            --oauth-service-account-email "${{ secrets.GCP_SERVICE_ACCOUNT }}" \
+            --headers "Content-Type=application/json" \
+            --message-body '{}' \
+            --max-retry-attempts 1 \
+            --attempt-deadline 540s \
+            --quiet
+
+      - name: Smoke test deployed services
+        run: |
+          curl -f "${API_URL}/healthz"
+          curl -f -I "${WEB_URL}"
+          echo "API reachable at ${API_URL}"
+          echo "Web reachable at ${WEB_URL}"
