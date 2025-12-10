@@ -20,6 +20,7 @@ DEFAULT_COINDESK_BASE_URL = "https://data-api.coindesk.com"
 DEFAULT_COINDESK_ENDPOINT_PATH = "/news/v1/article/list?limit=1"
 RATE_LIMIT_STATUS = 429
 DEFAULT_TIMEOUT_SECONDS = 10.0
+DEFAULT_LOCAL_QDRANT_URL = "http://localhost:6333"
 
 
 class ProbeStatus(Enum):
@@ -150,7 +151,14 @@ def probe_qdrant(env: Mapping[str, str], timeout: float) -> ProbeResult:
             detail="REACHABILITY_SKIP_QDRANT is set",
         )
 
-    base_url = env.get("REACHABILITY_QDRANT_URL") or env.get("QDRANT_URL")
+    base_url = first_non_empty(
+        env,
+        "REACHABILITY_QDRANT_URL",
+        "RAGTRADER_API_QDRANT_URL",
+        "QDRANT_URL",
+    )
+    if not base_url and parse_bool(env.get("RAGTRADER_USE_LOCAL_QDRANT")):
+        base_url = env.get("RAGTRADER_LOCAL_QDRANT_URL", DEFAULT_LOCAL_QDRANT_URL)
     if not base_url:
         return ProbeResult(
             name="qdrant",
@@ -168,7 +176,7 @@ def probe_qdrant(env: Mapping[str, str], timeout: float) -> ProbeResult:
     base_url = base_url.rstrip("/")
     url = f"{base_url}/healthz"
     headers: dict[str, str] = {}
-    api_key = env.get("QDRANT_API_KEY")
+    api_key = first_non_empty(env, "RAGTRADER_API_QDRANT_API_KEY", "QDRANT_API_KEY")
     if api_key:
         headers["api-key"] = api_key
     return probe_url("qdrant", url, headers=headers, timeout=timeout)

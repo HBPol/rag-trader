@@ -181,9 +181,14 @@ class VectorStoreRepository:
 
         return self._build_client()
 
+    def _resolve_collection_name(self, collection_name: str | None) -> str:
+        if collection_name:
+            return collection_name
+        return self._settings.qdrant_collection
+
     def create_collection(
         self,
-        collection_name: str,
+        collection_name: str | None,
         vectors_config: Any,
         **kwargs: Any,
     ) -> Any:
@@ -191,7 +196,7 @@ class VectorStoreRepository:
 
         def _op(client: QdrantClientProtocol) -> Any:
             return client.create_collection(
-                collection_name=collection_name,
+                collection_name=self._resolve_collection_name(collection_name),
                 vectors_config=vectors_config,
                 **kwargs,
             )
@@ -200,7 +205,7 @@ class VectorStoreRepository:
 
     def upsert_points(
         self,
-        collection_name: str,
+        collection_name: str | None,
         points: Sequence[Any] | Iterable[Any],
         **kwargs: Any,
     ) -> Any:
@@ -208,7 +213,7 @@ class VectorStoreRepository:
 
         def _op(client: QdrantClientProtocol) -> Any:
             return client.upsert(
-                collection_name=collection_name,
+                collection_name=self._resolve_collection_name(collection_name),
                 points=points,
                 **kwargs,
             )
@@ -217,7 +222,7 @@ class VectorStoreRepository:
 
     def delete_points(
         self,
-        collection_name: str,
+        collection_name: str | None,
         points_selector: Any,
         **kwargs: Any,
     ) -> Any:
@@ -225,18 +230,21 @@ class VectorStoreRepository:
 
         def _op(client: QdrantClientProtocol) -> Any:
             return client.delete(
-                collection_name=collection_name,
+                collection_name=self._resolve_collection_name(collection_name),
                 points_selector=points_selector,
                 **kwargs,
             )
 
         return self._run_with_retry(_op)
 
-    def delete_collection(self, collection_name: str, **kwargs: Any) -> Any:
+    def delete_collection(self, collection_name: str | None, **kwargs: Any) -> Any:
         """Drop a collection entirely."""
 
         def _op(client: QdrantClientProtocol) -> Any:
-            return client.delete_collection(collection_name=collection_name, **kwargs)
+            return client.delete_collection(
+                collection_name=self._resolve_collection_name(collection_name),
+                **kwargs,
+            )
 
         return self._run_with_retry(_op)
 

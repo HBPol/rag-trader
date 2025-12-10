@@ -100,6 +100,28 @@ def test_repository_warns_when_cloud_without_key(
     assert "api_key" not in captured_kwargs
 
 
+def test_repository_defaults_collection_from_settings() -> None:
+    captured_kwargs: dict[str, Any] = {}
+    client = Mock()
+    client.create_collection.return_value = {"collection": "ok"}
+
+    def _factory(**kwargs: Any) -> Mock:
+        captured_kwargs.update(kwargs)
+        return client
+
+    repo = VectorStoreRepository(
+        _settings(qdrant_collection="docs"),
+        client_factory=_factory,
+    )
+
+    repo.create_collection(None, vectors_config={"size": 3})
+
+    assert captured_kwargs["url"] == "https://example-qdrant"
+    client.create_collection.assert_called_once_with(
+        collection_name="docs", vectors_config={"size": 3}
+    )
+
+
 def test_repository_close_calls_client_close_and_clears_reference() -> None:
     class _Client(QdrantClientProtocol):
         def __init__(self) -> None:

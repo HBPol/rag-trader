@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import os
 import re
 import shutil
@@ -12,8 +14,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import requests
-import yaml
+from tools import _requests_shim as requests
+
+_yaml_spec = importlib.util.find_spec("yaml")
+if _yaml_spec is None:  # pragma: no cover - exercised in environments without PyYAML
+    pytest.skip("PyYAML is required for compose tests", allow_module_level=True)
+
+yaml = importlib.import_module("yaml")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
@@ -28,6 +35,7 @@ REQUIRED_ENV_VARS = {
     "POSTGRES_PASSWORD",
     "RAGTRADER_API_POSTGRES_DSN",
     "RAGTRADER_API_QDRANT_URL",
+    "RAGTRADER_API_QDRANT_COLLECTION",
     "QDRANT_URL",
     "NEXT_PUBLIC_API_BASE_URL",
 }
@@ -112,6 +120,7 @@ def test_env_example_defines_required_variables(env_example: dict[str, str]) -> 
     assert "${POSTGRES_PORT}" in dsn
     assert "${POSTGRES_DB}" in dsn
     assert env_example["RAGTRADER_API_QDRANT_URL"] == "${QDRANT_URL}"
+    assert env_example["RAGTRADER_API_QDRANT_COLLECTION"] == "rag-cluster"
 
 
 def test_compose_ports_use_env_overrides(
@@ -132,6 +141,10 @@ def test_api_service_forwards_database_and_qdrant_settings(
     )
     assert "${RAGTRADER_API_POSTGRES_DSN" in base_env["RAGTRADER_API_POSTGRES_DSN"]
     assert "${RAGTRADER_API_QDRANT_URL" in base_env["RAGTRADER_API_QDRANT_URL"]
+    assert (
+        base_env["RAGTRADER_API_QDRANT_COLLECTION"]
+        == "${RAGTRADER_API_QDRANT_COLLECTION:-rag-cluster}"
+    )
 
     override_env = environment_to_dict(
         compose_configs[QDRANT_COMPOSE_FILE]["services"]["api"]["environment"]
@@ -141,6 +154,11 @@ def test_api_service_forwards_database_and_qdrant_settings(
         override_env["RAGTRADER_API_USE_QDRANT_CLOUD"]
         == "${RAGTRADER_API_USE_QDRANT_CLOUD:-false}"
     )
+    assert (
+        override_env["RAGTRADER_USE_LOCAL_QDRANT"]
+        == "${RAGTRADER_USE_LOCAL_QDRANT:-true}"
+    )
+    assert override_env["RAGTRADER_LOCAL_QDRANT_URL"] == "http://qdrant:6333"
 
 
 def test_web_service_forwards_browser_accessible_api_url(

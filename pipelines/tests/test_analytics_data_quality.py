@@ -2,21 +2,27 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import great_expectations as gx
 import pandas as pd
 import pytest
-from great_expectations.checkpoint import SimpleCheckpoint
-from great_expectations.core.batch import RuntimeBatchRequest
-from great_expectations.core.expectation_suite import ExpectationSuite
-from great_expectations.core.yaml_handler import YAMLHandler
-from great_expectations.data_context import AbstractDataContext
-from great_expectations.data_context.types.base import (
-    DataContextConfig,
-    FilesystemStoreBackendDefaults,
-)
-from pipelines.tests import get_analytics_fixture_path
 
-pytest.importorskip("great_expectations")
+try:
+    import great_expectations as gx
+    from great_expectations.checkpoint import SimpleCheckpoint
+    from great_expectations.core.batch import RuntimeBatchRequest
+    from great_expectations.core.expectation_suite import ExpectationSuite
+    from great_expectations.core.yaml_handler import YAMLHandler
+    from great_expectations.data_context import AbstractDataContext
+    from great_expectations.data_context.types.base import (
+        DataContextConfig,
+        FilesystemStoreBackendDefaults,
+    )
+except ImportError:  # pragma: no cover - skip if optional dependency missing
+    pytest.skip(
+        "great_expectations is required for data-quality tests",
+        allow_module_level=True,
+    )
+
+from pipelines.tests import get_analytics_fixture_path
 
 
 def _build_context(tmp_path: Path) -> AbstractDataContext:

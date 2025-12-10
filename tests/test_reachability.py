@@ -70,6 +70,107 @@ def test_run_probes_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert statuses["qdrant"].status is ProbeStatus.SUCCESS
 
 
+def test_qdrant_probe_prefers_explicit_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env = {
+        "COINBASE_API_BASE": "https://example.com/coinbase",
+        "REACHABILITY_COINDESK_ENDPOINTS": "https://data.example.com/news",
+        "CONTENT_COINDESK_API_KEY": "token",
+        "REACHABILITY_QDRANT_URL": "https://override.example.com",
+        "RAGTRADER_API_QDRANT_URL": "https://api.example.com/qdrant",
+        "QDRANT_URL": "https://vector.example.com",
+    }
+
+    responses = {
+        "https://example.com/coinbase/time": make_response(
+            "https://example.com/coinbase/time", 200
+        ),
+        "https://data.example.com/news": make_response(
+            "https://data.example.com/news", 200
+        ),
+        "https://override.example.com/healthz": make_response(
+            "https://override.example.com/healthz", 200
+        ),
+    }
+
+    def fake_get(url: str, headers=None, timeout=None):  # type: ignore[override]
+        return responses[url]
+
+    monkeypatch.setattr(reachability.requests, "get", fake_get)
+
+    results = reachability.run_probes(env)
+    statuses = collect_statuses(results)
+
+    assert statuses["qdrant"].status is ProbeStatus.SUCCESS
+    assert statuses["qdrant"].detail.endswith("override.example.com/healthz")
+
+
+def test_qdrant_probe_defaults_to_api_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+    env = {
+        "COINBASE_API_BASE": "https://example.com/coinbase",
+        "REACHABILITY_COINDESK_ENDPOINTS": "https://data.example.com/news",
+        "CONTENT_COINDESK_API_KEY": "token",
+        "RAGTRADER_API_QDRANT_URL": "https://api.example.com/qdrant",
+        "QDRANT_URL": "https://vector.example.com",
+    }
+
+    responses = {
+        "https://example.com/coinbase/time": make_response(
+            "https://example.com/coinbase/time", 200
+        ),
+        "https://data.example.com/news": make_response(
+            "https://data.example.com/news", 200
+        ),
+        "https://api.example.com/qdrant/healthz": make_response(
+            "https://api.example.com/qdrant/healthz", 200
+        ),
+    }
+
+    def fake_get(url: str, headers=None, timeout=None):  # type: ignore[override]
+        return responses[url]
+
+    monkeypatch.setattr(reachability.requests, "get", fake_get)
+
+    results = reachability.run_probes(env)
+    statuses = collect_statuses(results)
+
+    assert statuses["qdrant"].status is ProbeStatus.SUCCESS
+    assert statuses["qdrant"].detail.endswith("api.example.com/qdrant/healthz")
+
+
+def test_qdrant_probe_respects_local_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    env = {
+        "COINBASE_API_BASE": "https://example.com/coinbase",
+        "REACHABILITY_COINDESK_ENDPOINTS": "https://data.example.com/news",
+        "CONTENT_COINDESK_API_KEY": "token",
+        "RAGTRADER_USE_LOCAL_QDRANT": "true",
+    }
+
+    responses = {
+        "https://example.com/coinbase/time": make_response(
+            "https://example.com/coinbase/time", 200
+        ),
+        "https://data.example.com/news": make_response(
+            "https://data.example.com/news", 200
+        ),
+        "http://localhost:6333/healthz": make_response(
+            "http://localhost:6333/healthz", 200
+        ),
+    }
+
+    def fake_get(url: str, headers=None, timeout=None):  # type: ignore[override]
+        return responses[url]
+
+    monkeypatch.setattr(reachability.requests, "get", fake_get)
+
+    results = reachability.run_probes(env)
+    statuses = collect_statuses(results)
+
+    assert statuses["qdrant"].status is ProbeStatus.SUCCESS
+    assert statuses["qdrant"].detail.endswith("localhost:6333/healthz")
+
+
 def test_run_probes_rate_limit_emits_skip(monkeypatch: pytest.MonkeyPatch) -> None:
     env = {
         "COINBASE_API_BASE": "https://example.com/coinbase",

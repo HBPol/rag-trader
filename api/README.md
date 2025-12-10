@@ -24,6 +24,8 @@ The settings model reads environment variables using the
 | `RAGTRADER_API_QDRANT_URL` | Base URL for the Qdrant vector store. |
 | `RAGTRADER_API_QDRANT_API_KEY` | API key used when connecting to Qdrant Cloud. Ignored for self-hosted deployments. Falls back to `QDRANT_API_KEY` when unset. |
 | `RAGTRADER_API_USE_QDRANT_CLOUD` | Set to `false` to target a self-hosted Qdrant instance without authentication. |
+| `RAGTRADER_USE_LOCAL_QDRANT` | When `true`, prefer `RAGTRADER_LOCAL_QDRANT_URL` over cloud defaults to force a local endpoint. |
+| `RAGTRADER_LOCAL_QDRANT_URL` | Local Qdrant URL to use when `RAGTRADER_USE_LOCAL_QDRANT` is enabled. Defaults to `http://localhost:6333`. |
 | `RAGTRADER_API_REQUIRE_VECTOR_STORE` | Set to `false` to bypass vector store readiness checks. |
 
 The default environment is `dev`, with additional allowed values of
@@ -77,11 +79,14 @@ settings = ApiSettings(
     postgres_dsn="postgresql+psycopg://user:pass@localhost:5432/app",
     qdrant_url="https://YOUR-CLUSTER.example",
     qdrant_api_key="<api key>",
+    qdrant_collection="rag-cluster",  # or override via RAGTRADER_API_QDRANT_COLLECTION
 )
 
 repository = VectorStoreRepository(settings)
-repository.create_collection("documents", vectors_config={"size": 768, "distance": "Cosine"})
-repository.upsert_points("documents", points=[{"id": 1, "vector": [...], "payload": {...}}])
+repository.create_collection(None, vectors_config={"size": 768, "distance": "Cosine"})
+repository.upsert_points(
+    None, points=[{"id": 1, "vector": [...], "payload": {...}}]
+)
 ```
 
 Use `RAGTRADER_API_USE_QDRANT_CLOUD=false` and omit the API key to target a

@@ -1,0 +1,139 @@
+import copy
+
+import pytest
+from pydantic import ValidationError
+
+from ragtrader_api.strategy.schema import (
+    ExitRule,
+    StrategySchema,
+    validate_strategy_payload,
+)
+
+
+def _valid_payload():
+    return {
+        "instrument": "AAPL",
+        "sentiment_zscore": 1.5,
+        "lead_lag": 3,
+        "action": "long",
+        "atr_stop": 2.0,
+        "size_fraction": 0.25,
+        "exits": [{"kind": "take_profit", "value": 1.8}],
+    }
+
+
+@pytest.fixture
+def valid_payload():
+    return _valid_payload()
+
+
+def test_validate_strategy_payload_accepts_complete_payload(valid_payload):
+    result = validate_strategy_payload(valid_payload)
+
+    assert isinstance(result, StrategySchema)
+    assert result.exits == [ExitRule(kind="take_profit", value=1.8)]
+
+
+def test_strategy_schema_validate_payload_accepts_complete_payload(valid_payload):
+    result = StrategySchema.validate_payload(valid_payload)
+
+    assert isinstance(result, StrategySchema)
+    assert result.instrument == "AAPL"
+    assert result.sentiment_zscore == 1.5
+    assert result.lead_lag == 3
+    assert result.action == "long"
+    assert result.atr_stop == 2.0
+    assert result.size_fraction == 0.25
+    assert result.exits == [ExitRule(kind="take_profit", value=1.8)]
+
+
+def test_validate_strategy_payload_requires_instrument(valid_payload):
+    payload = copy.deepcopy(valid_payload)
+    payload.pop("instrument")
+
+    with pytest.raises(ValidationError):
+        validate_strategy_payload(payload)
+
+
+def test_strategy_schema_validate_payload_requires_exits(valid_payload):
+    payload = copy.deepcopy(valid_payload)
+    payload.pop("exits")
+
+    with pytest.raises(ValidationError):
+        StrategySchema.validate_payload(payload)
+
+
+def test_strategy_schema_validate_payload_rejects_unknown_fields(valid_payload):
+    payload = copy.deepcopy(valid_payload)
+    payload["unexpected"] = True
+
+    with pytest.raises(ValidationError):
+        StrategySchema.validate_payload(payload)
+
+
+def test_validate_strategy_payload_rejects_unknown_exit_fields(valid_payload):
+    payload = copy.deepcopy(valid_payload)
+    payload["exits"][0]["extra"] = "not allowed"
+
+    with pytest.raises(ValidationError):
+        validate_strategy_payload(payload)
+
+
+def test_valid_strategy_schema_accepts_expected_payload():
+    payload = _valid_payload()
+
+    result = validate_strategy_payload(payload)
+
+    assert isinstance(result, StrategySchema)
+    assert result.instrument == "AAPL"
+    assert result.action == "long"
+    assert result.exits == [ExitRule(kind="take_profit", value=1.8)]
+
+
+def test_strategy_schema_requires_all_keys():
+    payload = _valid_payload()
+    payload.pop("sentiment_zscore")
+
+    with pytest.raises(ValidationError):
+        validate_strategy_payload(payload)
+
+
+def test_strategy_schema_rejects_undefined_fields():
+    payload = _valid_payload()
+    payload["drop_tables"] = True
+
+    with pytest.raises(ValidationError):
+        validate_strategy_payload(payload)
+
+
+def test_action_must_be_long_or_flat():
+    payload = _valid_payload()
+    payload["action"] = "sell_everything"
+
+    with pytest.raises(ValidationError):
+        validate_strategy_payload(payload)
+
+
+def test_exit_rules_require_positive_values():
+    payload = _valid_payload()
+    payload["exits"][0]["value"] = -1
+
+    with pytest.raises(ValidationError):
+        validate_strategy_payload(payload)
+
+
+def test_json_schema_exposes_required_fields():
+    schema = StrategySchema.model_json_schema()
+
+    for required_field in [
+        "instrument",
+        "sentiment_zscore",
+        "lead_lag",
+        "action",
+        "atr_stop",
+        "size_fraction",
+        "exits",
+    ]:
+        assert required_field in schema.get("required", [])
+
+    assert schema["properties"]["action"]["enum"] == ["long", "flat"]

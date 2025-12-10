@@ -97,6 +97,7 @@ API_PORT=8000
 WEB_PORT=5173
 QDRANT_URL=https://<your-qdrant-endpoint>
 QDRANT_API_KEY=<your-key>
+RAGTRADER_API_QDRANT_COLLECTION=rag-cluster
 COINBASE_API_BASE=https://api.exchange.coinbase.com
 ```
 
@@ -116,7 +117,21 @@ docker compose exec api env PYTHONPATH=src pytest --cov=ragtrader_api --cov-repo
 docker compose exec web pnpm test -- --coverage
 ```
 
-To use **self-hosted Qdrant** in dev, add the `qdrant` service to `docker-compose.yml` and set `QDRANT_URL=http://qdrant:6333`.
+To use **self-hosted Qdrant** in dev without editing the base compose file, run the override stack used in README:
+
+### Runbook: Cloud Run deploys & rollback
+
+- **URLs (post-deploy)**: API → describe the Cloud Run service and curl the health check (`gcloud run services describe ragtrader-api --region $REGION --format='value(status.url)'`); Web → same command for `ragtrader-web`. Store these in your team password manager after a green deploy.
+- **Smoke checks**: `curl -f "$API_URL/healthz"` and `curl -f -I "$WEB_URL"` are baked into CI/CD. Keep Lighthouse perf budgets in mind if you change the CDN/cache path.
+- **Roll back**: list revisions with `gcloud run revisions list --service ragtrader-api --region $REGION` (or `ragtrader-web`) then pin the previous healthy revision with `gcloud run services update ragtrader-api --region $REGION --revision <REVISION_NAME> --no-traffic` followed by `--traffic <REVISION_NAME>=100`. Repeat for the web service. Scheduler-triggered Cloud Run jobs (`ragtrader-ingestion`, `ragtrader-backtest`) can be reverted by redeploying them against the previous image tag and re-running `gcloud scheduler jobs update http ...` with the unchanged job names.
+- **Secrets**: API secrets (`DATABASE_URL`, `QDRANT_API_KEY`, `RAGTRADER_STRATEGY_USERNAME`, `RAGTRADER_STRATEGY_PASSWORD`) come from Secret Manager; the web app stays public but still uses `NEXT_PUBLIC_API_BASE_URL` to talk to the latest API URL.
+- **Schedulers**: Cloud Scheduler hits the Cloud Run jobs every 30 minutes for ingestion and every 6 hours for analytics/backtest. Expect a 9–10 minute runtime ceiling; if you raise it, also bump `--attempt-deadline` on the scheduler job.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.qdrant.yml up -d --build
+```
+
+The override sets `RAGTRADER_API_USE_QDRANT_CLOUD=false` by default so the API points at the co-located Qdrant container (`QDRANT_URL=http://qdrant:6333`) for the tested local workflow.
 
 **Production (Cloud Run example)**  
 Build images with immutable tags (git SHA), push, and deploy:

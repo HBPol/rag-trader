@@ -427,8 +427,9 @@ class ApiSettings:
     version: str
     cors_origins: tuple[str, ...]
     postgres_dsn: str | None
-    qdrant_url: str
+    qdrant_url: str | None
     qdrant_api_key: str | None
+    qdrant_collection: str
     use_qdrant_cloud: bool
     require_database: bool
     require_vector_store: bool
@@ -450,6 +451,7 @@ class ApiSettings:
         postgres_dsn: str | None | object = _MISSING,
         qdrant_url: str | None = None,
         qdrant_api_key: str | None = None,
+        qdrant_collection: str | None = None,
         use_qdrant_cloud: bool | None = None,
         require_database: bool | None = None,
         require_vector_store: bool | None = None,
@@ -509,12 +511,19 @@ class ApiSettings:
                 default=True,
             )
         )
+        local_qdrant_override = _coerce_bool(
+            env_vars.get("RAGTRADER_USE_LOCAL_QDRANT"), default=False
+        )
         raw_use_qdrant_cloud = (
             use_qdrant_cloud
             if use_qdrant_cloud is not None
-            else _coerce_bool(
-                env_vars.get("RAGTRADER_API_USE_QDRANT_CLOUD"),
-                default=True,
+            else (
+                False
+                if local_qdrant_override
+                else _coerce_bool(
+                    env_vars.get("RAGTRADER_API_USE_QDRANT_CLOUD"),
+                    default=True,
+                )
             )
         )
 
@@ -553,11 +562,17 @@ class ApiSettings:
                 f"{postgres_user}:{postgres_password}@"
                 f"{postgres_host}:{postgres_port}/{postgres_db}"
             )
-        qdrant_candidate = (
-            qdrant_url
-            if qdrant_url is not None
-            else env_vars.get("RAGTRADER_API_QDRANT_URL", "http://localhost:6333")
-        )
+        default_qdrant_url: str | None
+        if local_qdrant_override:
+            default_qdrant_url = env_vars.get(
+                "RAGTRADER_LOCAL_QDRANT_URL", "http://localhost:6333"
+            )
+        else:
+            default_qdrant_url = env_vars.get("RAGTRADER_API_QDRANT_URL")
+            if default_qdrant_url is None:
+                default_qdrant_url = env_vars.get("QDRANT_URL")
+
+        qdrant_candidate = qdrant_url if qdrant_url is not None else default_qdrant_url
         qdrant_key: str | None
         if qdrant_api_key is not None:
             qdrant_key = qdrant_api_key
@@ -583,6 +598,19 @@ class ApiSettings:
                 "Qdrant API key is required when use_qdrant_cloud is enabled."
             )
 
+        raw_collection = (
+            qdrant_collection
+            if qdrant_collection is not None
+            else env_vars.get("RAGTRADER_API_QDRANT_COLLECTION", "rag-cluster")
+        )
+        if raw_require_vector and (
+            raw_collection is None or not raw_collection.strip()
+        ):
+            raise SettingsValidationError(
+                "Qdrant collection name required when require_vector_store is enabled."
+            )
+        parsed_collection = (raw_collection or "").strip()
+
         self.env = raw_env
         self.app_name = raw_app_name
         self.version = raw_version
@@ -590,6 +618,7 @@ class ApiSettings:
         self.postgres_dsn = validated_postgres
         self.qdrant_url = validated_qdrant
         self.qdrant_api_key = qdrant_key
+        self.qdrant_collection = parsed_collection
         self.use_qdrant_cloud = raw_use_qdrant_cloud
         self.require_database = raw_require_db
         self.require_vector_store = raw_require_vector
@@ -659,6 +688,7 @@ class ApiSettings:
             "vector_store": (not self.require_vector_store)
             or (
                 bool(self.qdrant_url)
+                and bool(self.qdrant_collection)
                 and (not self.use_qdrant_cloud or bool(self.qdrant_api_key))
             ),
         }

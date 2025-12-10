@@ -142,6 +142,14 @@ deactivate
 > configure an internal mirror / wheelhouse) before running the `pip install`
 > step, or pre-install the build requirements manually.
 
+### Strategy API authentication
+
+The strategy routes enforce HTTP basic auth and no longer ship with default
+credentials. Provide `RAGTRADER_STRATEGY_USERNAME` and
+`RAGTRADER_STRATEGY_PASSWORD` in your environment (for example via `.env`) or
+pass `username` / `password` explicitly when instantiating
+`ragtrader_api.routes.strategy.create_strategy_app`.
+
 #### Regenerating `web/pnpm-lock.yaml` locally
 
 When network access to the npm registry is unavailable in the remote development
@@ -293,7 +301,7 @@ coverage reports for the frontend). Run them after `pip install -e .[dev]` (Pyth
 cp .env.example .env
 
 # Fill in vector store credentials from Qdrant Cloud so the API can reach your cluster
-$EDITOR .env  # set QDRANT_URL and either RAGTRADER_API_QDRANT_API_KEY or QDRANT_API_KEY per .env.example hints
+$EDITOR .env  # set QDRANT_URL, optionally override RAGTRADER_API_QDRANT_COLLECTION (default: rag-cluster), keep RAGTRADER_API_USE_QDRANT_CLOUD=true, and supply RAGTRADER_API_QDRANT_API_KEY (or QDRANT_API_KEY)
 
 # Validate Compose parity and health checks
 pytest tests/test_compose.py
@@ -313,7 +321,9 @@ open http://localhost:5173
 ```
 
 > **Notes**
-> - You can create or reuse a managed cluster in [Qdrant Cloud](https://qdrant.tech/cloud/) to obtain the `QDRANT_URL` and API key values referenced in `.env.example`. Set `RAGTRADER_API_QDRANT_API_KEY` (preferred) or `QDRANT_API_KEY` to satisfy the cloud credential requirement.
+> - You can create or reuse a managed cluster in [Qdrant Cloud](https://qdrant.tech/cloud/) to obtain the `QDRANT_URL`, `RAGTRADER_API_QDRANT_COLLECTION`, and API key values referenced in `.env.example`. Cloud mode is the default: leave `RAGTRADER_API_USE_QDRANT_CLOUD=true` and provide `RAGTRADER_API_QDRANT_API_KEY` (preferred) or `QDRANT_API_KEY`.
+> - Flip `RAGTRADER_USE_LOCAL_QDRANT=true` to force the stack to target a co-located Qdrant service without editing other variables. Override `RAGTRADER_LOCAL_QDRANT_URL` (for example, `http://qdrant:6333` when using Docker Compose) if `localhost` is not correct for your topology.
+> - For self-hosted Qdrant, set `RAGTRADER_API_USE_QDRANT_CLOUD=false` and leave the API key empty to disable authentication.
 > - The override stack is opt-in: include `-f docker-compose.qdrant.yml` when you want the co-located Qdrant container, or omit it to keep pointing at Qdrant Cloud.
 > - The API loads variables from `.env` (or a path provided via `RAGTRADER_API_ENV_FILE`) automatically, while still honouring any explicit environment variables you export.
 > - The web container reads `NEXT_PUBLIC_API_BASE_URL` at build time. Leave it as `http://localhost:8000` for local Docker so browser requests reach the host API, or override it in `.env` when deploying the frontend against a remote API endpoint.
@@ -393,6 +403,7 @@ defaults):
 | `REACHABILITY_QDRANT_URL` | Overrides `QDRANT_URL` for the Qdrant health check, if needed. |
 | `REACHABILITY_TIMEOUT_SECONDS` | HTTP timeout applied to each request (defaults to 10 seconds). |
 | `REACHABILITY_COINDESK_API_KEY` (aliases: `CONTENT_COINDESK_API_KEY`, `CONTENT_RSS_COINDESK_API_KEY`) | API key forwarded via the `x-api-key` header. |
+| `RAGTRADER_API_QDRANT_API_KEY` | Preferred Qdrant API key; also used by reachability checks when cloud mode is enabled. |
 | `QDRANT_API_KEY` | Optional API key forwarded via the `api-key` header when hitting Qdrant. |
 
 Rate limits (HTTP `429`) are treated as skipped probes so the job reports a neutral result instead of
