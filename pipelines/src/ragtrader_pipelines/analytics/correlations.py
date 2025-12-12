@@ -36,7 +36,9 @@ def rolling_pearson(
     aligned_lhs, aligned_rhs = _align_series(lhs, rhs, join)
     combined = pd.concat([aligned_lhs.rename("lhs"), aligned_rhs.rename("rhs")], axis=1)
     windowed = combined.rolling(window=window, min_periods=min_periods)
-    correlations = windowed.corr().loc[(slice(None), "lhs"), "rhs"].droplevel(1)
+    correlations: pd.Series = (
+        windowed.corr().loc[(slice(None), "lhs"), "rhs"].droplevel(1)
+    )
     correlations.name = "pearson"
     return correlations
 
