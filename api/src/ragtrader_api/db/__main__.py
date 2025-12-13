@@ -6,7 +6,7 @@ from sqlalchemy import exc as sa_exc
 from sqlalchemy.engine import Engine, make_url
 
 from ragtrader_api.db import database, migrations
-from ragtrader_api.settings import get_settings
+from ragtrader_api.settings import ApiSettings
 
 
 def main() -> None:
@@ -18,7 +18,7 @@ def main() -> None:
     ``postgres`` service name.
     """
 
-    settings = get_settings()
+    settings = ApiSettings(require_vector_store=False, require_database=True)
     engine = database.create_engine(settings)
 
     try:
