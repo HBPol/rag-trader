@@ -226,6 +226,7 @@ def test_compose_stack_smoke() -> None:
 
         wait_for_container_health("ragtrader-postgres", env, docker_path)
         wait_for_container_health("ragtrader-qdrant", env, docker_path)
+        wait_for_container_health("ragtrader-api", env, docker_path)
         wait_for_url(f"http://localhost:{env['API_PORT']}/healthz")
         wait_for_url("http://localhost:6333")
     finally:
