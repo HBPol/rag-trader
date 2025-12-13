@@ -207,7 +207,9 @@ def create_rag_app(
         else:
             try:
                 resolved_settings = get_settings()
-            except SettingsValidationError as exc:  # pragma: no cover - configuration guard
+            except (
+                SettingsValidationError
+            ) as exc:  # pragma: no cover - configuration guard
                 raise RuntimeError("Invalid API settings") from exc
 
     service = RagQueryService(

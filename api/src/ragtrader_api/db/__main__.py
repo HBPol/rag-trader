@@ -9,6 +9,12 @@ from ragtrader_api.db import database, migrations
 from ragtrader_api.settings import ApiSettings
 
 
+def get_settings() -> ApiSettings:
+    """Return API settings configured for database maintenance."""
+
+    return ApiSettings(require_vector_store=False, require_database=True)
+
+
 def main() -> None:
     """Apply migrations using the configured settings.
 
@@ -18,7 +24,7 @@ def main() -> None:
     ``postgres`` service name.
     """
 
-    settings = ApiSettings(require_vector_store=False, require_database=True)
+    settings = get_settings()
     engine = database.create_engine(settings)
 
     try:
