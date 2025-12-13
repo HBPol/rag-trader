@@ -589,14 +589,19 @@ class ApiSettings:
             qdrant_candidate,
             allow_empty=not raw_require_vector,
         )
-        if validated_qdrant is None:
-            raise SettingsValidationError(
-                "Qdrant URL is required when require_vector_store is enabled."
-            )
-        if raw_require_vector and raw_use_qdrant_cloud and not qdrant_key:
-            raise SettingsValidationError(
-                "Qdrant API key is required when use_qdrant_cloud is enabled."
-            )
+
+        if raw_require_vector:
+            if validated_qdrant is None:
+                raise SettingsValidationError(
+                    "Qdrant URL is required when require_vector_store is enabled."
+                )
+            if raw_use_qdrant_cloud and not qdrant_key:
+                raise SettingsValidationError(
+                    "Qdrant API key is required when use_qdrant_cloud is enabled."
+                )
+        else:
+            # If vector store is not required, do not force a URL/key.
+            qdrant_key = None
 
         raw_collection = (
             qdrant_collection
