@@ -199,10 +199,16 @@ def create_rag_app(
 ) -> FastAPI:
     resolved_settings = settings
     if resolved_settings is None:
-        try:
-            resolved_settings = get_settings()
-        except SettingsValidationError as exc:  # pragma: no cover - configuration guard
-            raise RuntimeError("Invalid API settings") from exc
+        if client is not None or client_factory is not None:
+            resolved_settings = ApiSettings(
+                require_database=False,
+                require_vector_store=False,
+            )
+        else:
+            try:
+                resolved_settings = get_settings()
+            except SettingsValidationError as exc:  # pragma: no cover - configuration guard
+                raise RuntimeError("Invalid API settings") from exc
 
     service = RagQueryService(
         resolved_settings,

@@ -102,3 +102,27 @@ def test_summary_cannot_reference_missing_citations() -> None:
 
     assert response.status_code == 422
     assert "citations" in response.json()["detail"].lower()
+
+
+def test_create_rag_app_allows_injected_clients_without_env(monkeypatch) -> None:
+    for key in [
+        "RAGTRADER_API_POSTGRES_DSN",
+        "POSTGRES_HOST",
+        "POSTGRES_PORT",
+        "POSTGRES_DB",
+        "POSTGRES_USER",
+        "POSTGRES_PASSWORD",
+        "RAGTRADER_API_QDRANT_URL",
+        "QDRANT_URL",
+        "RAGTRADER_API_QDRANT_API_KEY",
+        "QDRANT_API_KEY",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+
+    qdrant = _FakeQdrant(_points())
+    app = create_rag_app(client=qdrant, summarizer=_Summarizer("Alpha [1]; Beta [2]"))
+    client = TestClient(app)
+
+    response = client.post("/rag", json={"query": "liquidity crunch"})
+
+    assert response.status_code == 200
