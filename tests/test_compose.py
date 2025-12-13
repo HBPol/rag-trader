@@ -193,6 +193,9 @@ def test_compose_stack_smoke() -> None:
             "API_PORT": "18080",
             "WEB_PORT": "15173",
             "POSTGRES_PORT": "15432",
+            "RAGTRADER_USE_LOCAL_QDRANT": "true",
+            "RAGTRADER_LOCAL_QDRANT_URL": "http://qdrant:6333",
+            "RAGTRADER_API_QDRANT_URL": "http://qdrant:6333",
             "RAGTRADER_API_USE_QDRANT_CLOUD": "false",
         }
     )
