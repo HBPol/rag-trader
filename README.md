@@ -61,6 +61,31 @@ Package-specific dev workflows (tests, linting, migrations) live in the linked R
    keep `RAGTRADER_API_USE_QDRANT_CLOUD=true`; for self-hosted, set `RAGTRADER_API_USE_QDRANT_CLOUD=false`
    and point `RAGTRADER_LOCAL_QDRANT_URL` at your instance.
 
+You can perform steps 1–3 via the CLI—substitute your `PROJECT_ID` and `REGION` values:
+
+```bash
+PROJECT_ID=your-project-id
+REGION=us-central1
+
+gcloud config set project "$PROJECT_ID"
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com cloudscheduler.googleapis.com secretmanager.googleapis.com
+
+gcloud artifacts repositories create ragtrader \
+  --repository-format=docker --location="$REGION" \
+  --description="RAGTrader images"
+
+gcloud iam service-accounts create ragtrader-deployer \
+  --display-name="RAGTrader deployer"
+
+for ROLE in roles/run.admin roles/cloudbuild.builds.editor roles/artifactregistry.admin \
+  roles/secretmanager.secretAccessor roles/cloudscheduler.admin; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:ragtrader-deployer@${PROJECT_ID}.iam.gserviceaccount.com" \
+    --role="$ROLE"
+done
+```
+
 After the bootstrap, copy `.env.example` to `.env` and fill in the placeholders (Postgres, Qdrant,
 strategy, scheduler, and content ingestion). The same file can be exported to Cloud Run via
 `--set-env-vars` or Terraform to keep staging/prod aligned with local development.
