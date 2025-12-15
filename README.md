@@ -42,6 +42,29 @@ When the containers are healthy, visit `http://localhost:8000/healthz` and `http
 Package-specific dev workflows (tests, linting, migrations) live in the linked READMEs above.
 
 ## Deployment
+### One-time Google Cloud bootstrap
+1. **Create/target a GCP project** and enable the Cloud Run, Cloud Build, Artifact Registry,
+   Cloud Scheduler, and Secret Manager APIs.
+2. **Create an Artifact Registry (Docker) repository** named `ragtrader` in your chosen region
+   (e.g., `us-central1-docker.pkg.dev/PROJECT_ID/ragtrader`).
+3. **Provision a service account** (e.g., `ragtrader-deployer@PROJECT_ID.iam.gserviceaccount.com`)
+   with roles: Cloud Run Admin, Cloud Build Service Account, Artifact Registry Administrator,
+   Secret Manager Secret Accessor, and Cloud Scheduler Admin. Grant it Workload Identity
+   User on the GitHub OIDC provider if you use GitHub Actions (see below).
+4. **Seed Secret Manager** with the runtime secrets referenced by the deploy workflow:
+   - `DATABASE_URL` – Postgres DSN for API + jobs
+   - `QDRANT_API_KEY` – Qdrant Cloud key
+   - `RAGTRADER_STRATEGY_USERNAME` / `RAGTRADER_STRATEGY_PASSWORD` – strategy endpoint auth
+   - Optional data ingesters: `CONTENT_REDDIT_CLIENT_ID`, `CONTENT_REDDIT_CLIENT_SECRET`,
+     `CONTENT_COINDESK_API_KEY`, `RSS_BASIC_AUTH`
+5. **Decide on Qdrant hosting**. For Qdrant Cloud, populate `QDRANT_URL` with the cluster URL and
+   keep `RAGTRADER_API_USE_QDRANT_CLOUD=true`; for self-hosted, set `RAGTRADER_API_USE_QDRANT_CLOUD=false`
+   and point `RAGTRADER_LOCAL_QDRANT_URL` at your instance.
+
+After the bootstrap, copy `.env.example` to `.env` and fill in the placeholders (Postgres, Qdrant,
+strategy, scheduler, and content ingestion). The same file can be exported to Cloud Run via
+`--set-env-vars` or Terraform to keep staging/prod aligned with local development.
+
 ### Production (Cloud Run / GCP)
 Build once, push to Artifact Registry, and deploy the containers to Cloud Run. Substitute your
 project/region values as needed:
@@ -63,6 +86,11 @@ gcloud run deploy ragtrader-web --image "gcr.io/PROJECT_ID/ragtrader-web" \
 Point `NEXT_PUBLIC_API_BASE_URL` at the public API URL and supply the same environment variables
 used locally (Postgres, Qdrant, strategy credentials, etc.).
 
+**Secrets & schedules**: The deploy workflow binds Cloud Run jobs to Secret Manager entries for
+`DATABASE_URL`, `QDRANT_API_KEY`, and the strategy credentials, and creates Cloud Scheduler triggers
+for ingestion/backtests. Ensure those secrets exist before the workflow runs so the API, pipelines,
+and jobs start healthy.
+
 ### Development (Docker Compose)
 Use the Compose descriptors to mirror production locally or in CI:
 
@@ -75,6 +103,25 @@ aligned:
 ```bash
 pytest tests/test_compose.py
 ```
+
+## GitHub Actions secrets & variables
+
+Populate repository secrets/variables so CI and deployment can succeed:
+
+| Name | Type | Purpose |
+| --- | --- | --- |
+| `GCP_PROJECT_ID`, `GCP_REGION` | Secret | Used by the deploy workflow to target the right project/region. |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT` | Secret | Configure OIDC + Workload Identity for deploys. |
+| `QDRANT_URL`, `QDRANT_API_KEY` | Secret | Reachability + API defaults when targeting Qdrant Cloud. |
+| `REACHABILITY_RSS_FEEDS`, `RSS_BASIC_AUTH`, `REACHABILITY_SKIP_QDRANT` | Secret | Inputs for the external reachability probes. |
+| `DATABASE_URL` | Secret | Postgres DSN fed into Cloud Run services/jobs. |
+| `RAGTRADER_STRATEGY_USERNAME`, `RAGTRADER_STRATEGY_PASSWORD` | Secret | Auth for `/strategy` endpoints and backtests. |
+| `CODECOV_TOKEN` | Secret | Required for coverage uploads in CI. |
+| `CLOUD_RUN_API_SERVICE`, `CLOUD_RUN_WEB_SERVICE` | Variable (optional) | Override default Cloud Run service names. |
+
+With these values in place and `.env` populated from the example file, the stack comes up locally
+via Docker Compose and deploys to Cloud Run with live API/web services plus scheduled ingestion
+jobs.
 
 ## What lives where?
 - API settings, health/readiness, and analytics endpoints: see `api/README.md`.
